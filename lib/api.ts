@@ -2,7 +2,7 @@ import { APICallError, RetryError } from "ai";
 import { z } from "zod";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 
-// Mistral's free tier is rate limited too, so keep this conservative.
+// The free tier is rate limited too, so keep this conservative.
 const RATE_LIMIT = 20;
 const RATE_WINDOW_MS = 60_000;
 const MAX_BODY_BYTES = 4_000;
@@ -18,8 +18,8 @@ export async function guardRequest<T>(
   route: string,
   schema: z.ZodType<T>,
 ): Promise<Guarded<T>> {
-  if (!process.env.MISTRAL_API_KEY) {
-    console.error("MISTRAL_API_KEY is missing");
+  if (!process.env.LLM_API_KEY) {
+    console.error("LLM_API_KEY is missing");
     return {
       error: Response.json({ error: "Server misconfigured" }, { status: 500 }),
     };
@@ -70,9 +70,9 @@ export async function guardRequest<T>(
   return { data: parsed.data };
 }
 
-// Turns a failed Mistral call into a response. A 429 from Mistral gets its own
+// Turns a failed model call into a response. A 429 from the provider gets its own
 // French message and status, so the page can tell the user to wait.
-export function mistralErrorResponse(error: unknown, fallback: string) {
+export function providerErrorResponse(error: unknown, fallback: string) {
   const apiError = RetryError.isInstance(error) ? error.lastError : error;
   if (APICallError.isInstance(apiError) && apiError.statusCode === 429) {
     return Response.json(

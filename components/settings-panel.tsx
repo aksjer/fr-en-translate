@@ -77,7 +77,9 @@ function ChipGroup<T extends string>({
       selected.includes(option)
         ? selected.filter((value) => value !== option)
         : // Keep the options' own order so the saved list stays tidy.
-          options.filter((value) => value === option || selected.includes(value)),
+          options.filter(
+            (value) => value === option || selected.includes(value),
+          ),
     );
 
   return (

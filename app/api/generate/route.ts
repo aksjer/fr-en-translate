@@ -1,7 +1,7 @@
-import { mistral } from "@ai-sdk/mistral";
 import { generateText, Output } from "ai";
 import { z } from "zod";
-import { guardRequest, mistralErrorResponse } from "@/lib/api";
+import { guardRequest, providerErrorResponse } from "@/lib/api";
+import { model } from "@/lib/model";
 import {
   pickCombination,
   settingsSchema,
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
 
   try {
     const { output } = await generateText({
-      model: mistral("mistral-small-latest"),
+      model,
       temperature: 1,
       maxRetries: 1,
       maxOutputTokens: 200,
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
 
     return Response.json({ text: output.text.trim(), ...combination });
   } catch (error) {
-    console.error("Mistral generation failed", error);
-    return mistralErrorResponse(error, "Generation failed");
+    console.error("Gemini generation failed", error);
+    return providerErrorResponse(error, "Generation failed");
   }
 }
