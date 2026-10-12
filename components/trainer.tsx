@@ -97,7 +97,6 @@ export function Trainer() {
           text: exercise.text,
           translation,
           level: exercise.level,
-          model: settings.model,
         }),
       );
     } catch (e) {
