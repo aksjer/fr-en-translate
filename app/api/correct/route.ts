@@ -1,14 +1,15 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { guardRequest, providerErrorResponse } from "@/lib/api";
-import { model } from "@/lib/model";
-import { LEVELS, MODES, type Mode } from "@/lib/settings";
+import { modelFor } from "@/lib/model";
+import { LEVELS, MODELS, MODES, type Mode } from "@/lib/settings";
 
 const requestSchema = z.object({
   mode: z.enum(MODES).default("phrase"),
   text: z.string().trim().min(1).max(400),
   translation: z.string().trim().min(1).max(600),
   level: z.enum(LEVELS).optional(),
+  model: z.enum(MODELS).optional(),
 });
 
 const correctionSchema = z.object({
@@ -42,7 +43,7 @@ export async function POST(request: Request) {
 
   try {
     const { output } = await generateText({
-      model,
+      model: modelFor(data.model),
       temperature: 0.2,
       maxRetries: 1,
       maxOutputTokens: 1000,

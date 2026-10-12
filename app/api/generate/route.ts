@@ -1,7 +1,7 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { guardRequest, providerErrorResponse } from "@/lib/api";
-import { model } from "@/lib/model";
+import { modelFor } from "@/lib/model";
 import {
   pickCombination,
   settingsSchema,
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
 
   try {
     const { output } = await generateText({
-      model,
+      model: modelFor(data.model),
       temperature: 1,
       maxRetries: 1,
       maxOutputTokens: 600,
