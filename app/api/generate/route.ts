@@ -62,7 +62,9 @@ export async function POST(request: Request) {
       model,
       temperature: 1,
       maxRetries: 1,
-      maxOutputTokens: 200,
+      maxOutputTokens: 600,
+      // Gemini 2.5 Flash thinks by default, and thinking tokens counted against the limit.
+      providerOptions: { google: { thinkingConfig: { thinkingBudget: 0 } } },
       output: Output.object({
         schema: z.object({ text: z.string().min(1).max(400) }),
       }),

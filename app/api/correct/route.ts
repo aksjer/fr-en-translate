@@ -45,7 +45,8 @@ export async function POST(request: Request) {
       model,
       temperature: 0.2,
       maxRetries: 1,
-      maxOutputTokens: 600,
+      maxOutputTokens: 1000,
+      providerOptions: { google: { thinkingConfig: { thinkingBudget: 0 } } },
       output: Output.object({ schema: correctionSchema }),
       system: [
         "Tu es un professeur d'anglais américain bienveillant pour un francophone.",
