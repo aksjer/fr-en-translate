@@ -3,7 +3,7 @@ import { z } from "zod";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 // The free tier is rate limited too, so keep this conservative.
-const RATE_LIMIT = 20;
+const RATE_LIMIT = 15;
 const RATE_WINDOW_MS = 60_000;
 const MAX_BODY_BYTES = 4_000;
 
