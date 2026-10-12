@@ -1,6 +1,14 @@
 "use client";
 
-import { LEVELS, TENSES, THEMES, type Settings } from "@/lib/settings";
+import {
+  LEVELS,
+  MODES,
+  TENSES,
+  THEMES,
+  VERB_TYPES,
+  settingApplies,
+  type Settings,
+} from "@/lib/settings";
 
 type Props = {
   settings: Settings;
@@ -11,23 +19,42 @@ export function SettingsPanel({ settings, onChange }: Props) {
   return (
     <div className="flex flex-col gap-5">
       <ChipGroup
+        label="Modes"
+        options={MODES}
+        selected={settings.modes ?? []}
+        onChange={(modes) => onChange({ ...settings, modes })}
+      />
+      <ChipGroup
         label="Niveaux"
         options={LEVELS}
         selected={settings.levels ?? []}
         onChange={(levels) => onChange({ ...settings, levels })}
       />
-      <ChipGroup
-        label="Temps"
-        options={TENSES}
-        selected={settings.tenses ?? []}
-        onChange={(tenses) => onChange({ ...settings, tenses })}
-      />
-      <ChipGroup
-        label="Thèmes"
-        options={THEMES}
-        selected={settings.themes ?? []}
-        onChange={(themes) => onChange({ ...settings, themes })}
-      />
+      {/* Mode-specific settings only show when a selected mode uses them. */}
+      {settingApplies(settings, "verbType") && (
+        <ChipGroup
+          label="Verbes (en anglais)"
+          options={VERB_TYPES}
+          selected={settings.verbTypes ?? []}
+          onChange={(verbTypes) => onChange({ ...settings, verbTypes })}
+        />
+      )}
+      {settingApplies(settings, "tense") && (
+        <ChipGroup
+          label="Temps des phrases"
+          options={TENSES}
+          selected={settings.tenses ?? []}
+          onChange={(tenses) => onChange({ ...settings, tenses })}
+        />
+      )}
+      {settingApplies(settings, "theme") && (
+        <ChipGroup
+          label="Thèmes"
+          options={THEMES}
+          selected={settings.themes ?? []}
+          onChange={(themes) => onChange({ ...settings, themes })}
+        />
+      )}
     </div>
   );
 }

@@ -5,7 +5,16 @@ import { SettingsPanel } from "@/components/settings-panel";
 import type { Combination } from "@/lib/settings";
 import { useSettings } from "@/lib/use-settings";
 
-type Exercise = Combination & { sentence: string };
+type Exercise = Combination & { text: string };
+
+const HISTORY_SIZE = 20;
+
+const INPUT_LABELS: Record<Combination["mode"], string> = {
+  mot: "Ta traduction du mot",
+  verbe: "Ta traduction du verbe",
+  "phrasal verb": "Ton phrasal verb",
+  phrase: "Ta traduction en anglais américain",
+};
 
 type Correction = {
   score: number;
@@ -38,13 +47,21 @@ export function Trainer() {
   const [result, setResult] = useState<Correction | null>(null);
   const [loading, setLoading] = useState<"generate" | "correct" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Recent items sent back to the API so it varies its exercises.
+  const [history, setHistory] = useState<string[]>([]);
 
   async function generate() {
     setLoading("generate");
     setError(null);
     try {
-      const next = await post<Exercise>("/api/generate", settings);
+      const next = await post<Exercise>("/api/generate", {
+        ...settings,
+        avoid: history,
+      });
       setExercise(next);
+      setHistory((items) =>
+        [next.text.slice(0, 80), ...items].slice(0, HISTORY_SIZE),
+      );
       setTranslation("");
       setResult(null);
     } catch (e) {
@@ -61,7 +78,8 @@ export function Trainer() {
     try {
       setResult(
         await post<Correction>("/api/correct", {
-          sentence: exercise.sentence,
+          mode: exercise.mode,
+          text: exercise.text,
           translation,
           level: exercise.level,
         }),
@@ -97,17 +115,25 @@ export function Trainer() {
       {exercise && (
         <section className="flex flex-col gap-4">
           <div className="flex flex-wrap gap-2 text-xs">
-            {[exercise.level, exercise.tense, exercise.theme].map((tag) => (
-              <span
-                key={tag}
-                className="rounded-full bg-zinc-100 px-2.5 py-1 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
-              >
-                {tag}
-              </span>
-            ))}
+            {[
+              exercise.mode,
+              exercise.level,
+              exercise.verbType && `verbe ${exercise.verbType}`,
+              exercise.tense,
+              exercise.theme,
+            ]
+              .filter(Boolean)
+              .map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-full bg-zinc-100 px-2.5 py-1 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                >
+                  {tag}
+                </span>
+              ))}
           </div>
           <p lang="fr" className="text-2xl leading-snug font-medium">
-            {exercise.sentence}
+            {exercise.text}
           </p>
 
           <form
@@ -118,12 +144,12 @@ export function Trainer() {
             className="flex flex-col gap-3"
           >
             <label htmlFor="translation" className="text-sm text-zinc-500">
-              Ta traduction en anglais américain
+              {INPUT_LABELS[exercise.mode]}
             </label>
             <textarea
               id="translation"
               lang="en-US"
-              rows={3}
+              rows={exercise.mode === "phrase" ? 3 : 1}
               maxLength={600}
               value={translation}
               onChange={(event) => setTranslation(event.target.value)}

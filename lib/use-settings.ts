@@ -4,7 +4,13 @@ import { useCallback, useSyncExternalStore } from "react";
 import { settingsSchema, type Settings } from "@/lib/settings";
 
 const STORAGE_KEY = "fr-en-translate:settings";
-const EMPTY: Settings = { levels: [], tenses: [], themes: [] };
+const EMPTY: Settings = {
+  modes: [],
+  levels: [],
+  tenses: [],
+  verbTypes: [],
+  themes: [],
+};
 
 const listeners = new Set<() => void>();
 

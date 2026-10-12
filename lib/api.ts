@@ -4,7 +4,7 @@ import { clientIp, rateLimit } from "@/lib/rate-limit";
 // Mistral's free tier is rate limited too, so keep this conservative.
 const RATE_LIMIT = 20;
 const RATE_WINDOW_MS = 60_000;
-const MAX_BODY_BYTES = 2_000;
+const MAX_BODY_BYTES = 4_000;
 
 type Guarded<T> = { data: T; error?: never } | { data?: never; error: Response };
 
