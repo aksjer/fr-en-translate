@@ -42,6 +42,10 @@ export function Trainer() {
   const [error, setError] = useState<string | null>(null);
   // Recent items sent back to the API so it varies its exercises.
   const [history, setHistory] = useState<string[]>([]);
+  // Settings used for the current exercise, to know when they've changed since.
+  const [exerciseSettings, setExerciseSettings] = useState<string | null>(null);
+  const settingsChanged =
+    exercise !== null && exerciseSettings !== JSON.stringify(settings);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const nextRef = useRef<HTMLButtonElement>(null);
 
@@ -64,6 +68,7 @@ export function Trainer() {
         avoid: history,
       });
       setExercise(next);
+      setExerciseSettings(JSON.stringify(settings));
       setHistory((items) =>
         [next.text.slice(0, 80), ...items].slice(0, HISTORY_SIZE),
       );
@@ -172,6 +177,16 @@ export function Trainer() {
               disabled={loading !== null}
               className="rounded-lg border border-zinc-300 bg-transparent p-3 text-lg outline-none focus:border-blue-600 dark:border-zinc-700"
             />
+            {!result && settingsChanged && (
+              <button
+                type="button"
+                onClick={generate}
+                disabled={loading !== null}
+                className="self-start rounded-lg border border-blue-600 px-4 py-2 font-medium text-blue-600 disabled:opacity-50"
+              >
+                Nouvel exercice
+              </button>
+            )}
             {!result && (
               <button
                 type="submit"
