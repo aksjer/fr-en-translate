@@ -1,7 +1,7 @@
 import { mistral } from "@ai-sdk/mistral";
 import { generateText, Output } from "ai";
 import { z } from "zod";
-import { guardRequest } from "@/lib/api";
+import { guardRequest, mistralErrorResponse } from "@/lib/api";
 import { LEVELS, MODES, type Mode } from "@/lib/settings";
 
 const requestSchema = z.object({
@@ -44,6 +44,7 @@ export async function POST(request: Request) {
     const { output } = await generateText({
       model: mistral("mistral-small-latest"),
       temperature: 0.2,
+      maxRetries: 1,
       maxOutputTokens: 600,
       output: Output.object({ schema: correctionSchema }),
       system: [
@@ -68,6 +69,6 @@ export async function POST(request: Request) {
     return Response.json(output);
   } catch (error) {
     console.error("Mistral correction failed", error);
-    return Response.json({ error: "Correction failed" }, { status: 502 });
+    return mistralErrorResponse(error, "Correction failed");
   }
 }

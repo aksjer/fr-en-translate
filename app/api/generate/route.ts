@@ -1,7 +1,7 @@
 import { mistral } from "@ai-sdk/mistral";
 import { generateText, Output } from "ai";
 import { z } from "zod";
-import { guardRequest } from "@/lib/api";
+import { guardRequest, mistralErrorResponse } from "@/lib/api";
 import {
   pickCombination,
   settingsSchema,
@@ -45,7 +45,11 @@ function instructions({ mode, level, tense, verbType, theme }: Combination) {
 }
 
 export async function POST(request: Request) {
-  const { data, error } = await guardRequest(request, "generate", requestSchema);
+  const { data, error } = await guardRequest(
+    request,
+    "generate",
+    requestSchema,
+  );
   if (error) return error;
 
   const combination = pickCombination(data);
@@ -57,6 +61,7 @@ export async function POST(request: Request) {
     const { output } = await generateText({
       model: mistral("mistral-small-latest"),
       temperature: 1,
+      maxRetries: 1,
       maxOutputTokens: 200,
       output: Output.object({
         schema: z.object({ text: z.string().min(1).max(400) }),
@@ -71,9 +76,6 @@ export async function POST(request: Request) {
     return Response.json({ text: output.text.trim(), ...combination });
   } catch (error) {
     console.error("Mistral generation failed", error);
-    return Response.json(
-      { error: "Generation failed" },
-      { status: 502 },
-    );
+    return mistralErrorResponse(error, "Generation failed");
   }
 }
