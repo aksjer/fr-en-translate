@@ -1,55 +1,14 @@
 import { mistral } from "@ai-sdk/mistral";
 import { generateText, Output } from "ai";
 import { z } from "zod";
-import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { guardRequest } from "@/lib/api";
 import { pickCombination, settingsSchema } from "@/lib/settings";
 
-// Mistral's free tier is rate limited too, so keep this conservative.
-const RATE_LIMIT = 20;
-const RATE_WINDOW_MS = 60_000;
-const MAX_BODY_BYTES = 2_000;
-
 export async function POST(request: Request) {
-  if (!process.env.MISTRAL_API_KEY) {
-    console.error("MISTRAL_API_KEY is missing");
-    return Response.json({ error: "Server misconfigured" }, { status: 500 });
-  }
+  const { data, error } = await guardRequest(request, "generate", settingsSchema);
+  if (error) return error;
 
-  const { ok, retryAfter } = rateLimit(
-    `generate:${clientIp(request)}`,
-    RATE_LIMIT,
-    RATE_WINDOW_MS,
-  );
-  if (!ok) {
-    return Response.json(
-      { error: "Too many requests" },
-      { status: 429, headers: { "Retry-After": String(retryAfter) } },
-    );
-  }
-
-  const raw = await request.text();
-  if (raw.length > MAX_BODY_BYTES) {
-    return Response.json({ error: "Body too large" }, { status: 413 });
-  }
-
-  let body: unknown = {};
-  if (raw) {
-    try {
-      body = JSON.parse(raw);
-    } catch {
-      return Response.json({ error: "Invalid JSON" }, { status: 400 });
-    }
-  }
-
-  const parsed = settingsSchema.safeParse(body);
-  if (!parsed.success) {
-    return Response.json(
-      { error: "Invalid settings", issues: z.treeifyError(parsed.error) },
-      { status: 400 },
-    );
-  }
-
-  const combination = pickCombination(parsed.data);
+  const combination = pickCombination(data);
 
   try {
     const { output } = await generateText({
