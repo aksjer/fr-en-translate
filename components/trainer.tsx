@@ -12,8 +12,22 @@ type Correction = {
   score: number;
   isCorrect: boolean;
   correction: string;
-  explanation: string;
+  points: string[];
+  alternative?: string;
 };
+
+// Renders **text** from the API as bold, without using innerHTML.
+function Marked({ text }: { text: string }) {
+  return text.split(/\*\*(.+?)\*\*/).map((part, index) =>
+    index % 2 ? (
+      <strong key={index} className="font-semibold text-blue-700 dark:text-blue-300">
+        {part}
+      </strong>
+    ) : (
+      part
+    ),
+  );
+}
 
 const primaryButton =
   "rounded-full bg-blue-600 px-5 py-2.5 font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50";
@@ -251,19 +265,35 @@ export function Trainer() {
             </span>
             {result.isCorrect ? "Correct !" : "Presque !"}
           </p>
-          {!result.isCorrect && (
+          {result.score < 10 && (
             <div className="flex flex-col gap-1">
               <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
                 Correction
               </p>
               <p lang="en-US" className="text-lg">
-                {result.correction}
+                <Marked text={result.correction} />
               </p>
             </div>
           )}
-          <p className="whitespace-pre-line text-zinc-700 dark:text-zinc-300">
-            {result.explanation}
-          </p>
+          {result.alternative && (
+            <div className="flex flex-col gap-1">
+              <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+                Version plus naturelle
+              </p>
+              <p lang="en-US" className="text-lg">
+                {result.alternative}
+              </p>
+            </div>
+          )}
+          {result.points.length > 0 && (
+            <ul className="flex list-disc flex-col gap-2 pl-5 text-zinc-700 dark:text-zinc-300">
+              {result.points.map((point, index) => (
+                <li key={index}>
+                  <Marked text={point} />
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       )}
 
