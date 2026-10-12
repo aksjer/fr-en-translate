@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SettingsPanel } from "@/components/settings-panel";
 import type { Combination } from "@/lib/settings";
 import { useSettings } from "@/lib/use-settings";
@@ -8,13 +8,6 @@ import { useSettings } from "@/lib/use-settings";
 type Exercise = Combination & { text: string };
 
 const HISTORY_SIZE = 20;
-
-const INPUT_LABELS: Record<Combination["mode"], string> = {
-  mot: "Ta traduction du mot",
-  verbe: "Ta traduction du verbe",
-  "phrasal verb": "Ton phrasal verb",
-  phrase: "Ta traduction en anglais américain",
-};
 
 type Correction = {
   score: number;
@@ -49,6 +42,18 @@ export function Trainer() {
   const [error, setError] = useState<string | null>(null);
   // Recent items sent back to the API so it varies its exercises.
   const [history, setHistory] = useState<string[]>([]);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const nextRef = useRef<HTMLButtonElement>(null);
+
+  // Keep the keyboard flow going: after a correction, focus "Suivant";
+  // after a new exercise, focus the answer field.
+  useEffect(() => {
+    if (result) nextRef.current?.focus();
+  }, [result]);
+
+  useEffect(() => {
+    if (exercise && !result) inputRef.current?.focus();
+  }, [exercise]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function generate() {
     setLoading("generate");
@@ -132,6 +137,9 @@ export function Trainer() {
                 </span>
               ))}
           </div>
+          <p className="text-sm text-zinc-500">
+            Traduis en anglais américain :
+          </p>
           <p lang="fr" className="text-2xl leading-snug font-medium">
             {exercise.text}
           </p>
@@ -144,9 +152,10 @@ export function Trainer() {
             className="flex flex-col gap-3"
           >
             <label htmlFor="translation" className="text-sm text-zinc-500">
-              {INPUT_LABELS[exercise.mode]}
+              Ta réponse
             </label>
             <textarea
+              ref={inputRef}
               id="translation"
               lang="en-US"
               rows={exercise.mode === "phrase" ? 3 : 1}
@@ -178,6 +187,7 @@ export function Trainer() {
 
       {result && (
         <section
+          aria-live="polite"
           className={`flex flex-col gap-3 rounded-xl border p-4 ${
             result.isCorrect
               ? "border-green-600/40 bg-green-50 dark:bg-green-950/30"
@@ -203,6 +213,7 @@ export function Trainer() {
       {(!exercise || result) && (
         <button
           type="button"
+          ref={nextRef}
           onClick={generate}
           disabled={loading !== null}
           className="self-start rounded-lg bg-blue-600 px-4 py-2 font-medium text-white disabled:opacity-50"
@@ -210,7 +221,7 @@ export function Trainer() {
           {loading === "generate"
             ? "Génération…"
             : exercise
-              ? "Phrase suivante"
+              ? "Suivant"
               : "Commencer"}
         </button>
       )}
