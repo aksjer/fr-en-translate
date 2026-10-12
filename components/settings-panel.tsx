@@ -87,7 +87,7 @@ function ChipGroup<T extends string>({
       <legend className="mb-2 flex w-full items-baseline justify-between text-sm font-medium">
         {label}
         <span className="text-xs font-normal text-zinc-500">
-          {selected.length === 0 ? "tous" : `${selected.length} choisi(s)`}
+          {selected.length === 0 ? "Tous" : `${selected.length} choisi(s)`}
         </span>
       </legend>
       <div className="flex flex-wrap gap-2">

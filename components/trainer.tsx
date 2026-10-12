@@ -7,14 +7,19 @@ import { useSettings } from "@/lib/use-settings";
 
 type Exercise = Combination & { text: string };
 
-const HISTORY_SIZE = 20;
-
 type Correction = {
   score: number;
   isCorrect: boolean;
   correction: string;
   explanation: string;
 };
+
+const HISTORY_SIZE = 20;
+
+const primaryButton =
+  "rounded-full bg-blue-600 px-5 py-2.5 font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50";
+const secondaryButton =
+  "rounded-full border border-blue-600 px-5 py-2.5 font-medium text-blue-600 transition-colors hover:bg-blue-50 disabled:opacity-50 dark:hover:bg-blue-950/40";
 
 async function post<T>(url: string, body: unknown): Promise<T> {
   const response = await fetch(url, {
@@ -101,62 +106,78 @@ export function Trainer() {
     }
   }
 
+  const tags = [
+    exercise?.mode,
+    exercise?.level,
+    exercise?.verbType && `verbe ${exercise.verbType}`,
+    exercise?.tense,
+    exercise?.theme,
+  ].filter(Boolean);
+
   return (
     <div className="flex flex-col gap-6">
-      <section className="rounded-xl border border-zinc-200 dark:border-zinc-800">
+      <section className="rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
         <button
           type="button"
           onClick={() => setShowSettings(!showSettings)}
           aria-expanded={showSettings}
-          className="flex w-full items-center justify-between px-4 py-3 text-left font-medium"
+          className="flex w-full items-center justify-between rounded-2xl px-5 py-4 text-left font-medium"
         >
           Réglages
-          <span className="text-sm text-zinc-500">
+          <span className="text-sm font-normal text-zinc-500">
             {showSettings ? "Masquer" : "Afficher"}
           </span>
         </button>
         {showSettings && (
-          <div className="border-t border-zinc-200 p-4 dark:border-zinc-800">
+          <div className="border-t border-zinc-200 p-5 dark:border-zinc-800">
             <SettingsPanel settings={settings} onChange={setSettings} />
           </div>
         )}
       </section>
 
+      {!exercise && (
+        <p className="text-zinc-600 dark:text-zinc-400">
+          Choisis tes réglages, puis commence. Tu recevras un élément en
+          français à traduire en anglais américain.
+        </p>
+      )}
+
       {exercise && (
-        <section className="flex flex-col gap-4">
-          <div className="flex flex-wrap gap-2 text-xs">
-            {[
-              exercise.mode,
-              exercise.level,
-              exercise.verbType && `verbe ${exercise.verbType}`,
-              exercise.tense,
-              exercise.theme,
-            ]
-              .filter(Boolean)
-              .map((tag) => (
-                <span
-                  key={tag}
-                  className="rounded-full bg-zinc-100 px-2.5 py-1 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
-                >
-                  {tag}
-                </span>
-              ))}
+        <section className="flex flex-col gap-6 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+          <ul className="flex flex-wrap gap-2 text-xs text-zinc-600 dark:text-zinc-400">
+            {tags.map((tag) => (
+              <li
+                key={tag}
+                className="rounded-full bg-zinc-100 px-2.5 py-1 dark:bg-zinc-800"
+              >
+                {tag}
+              </li>
+            ))}
+          </ul>
+
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+              Traduis en anglais américain
+            </p>
+            <p
+              lang="fr"
+              className="text-3xl leading-tight font-semibold tracking-tight"
+            >
+              {exercise.text}
+            </p>
           </div>
-          <p className="text-sm text-zinc-500">
-            Traduis en anglais américain :
-          </p>
-          <p lang="fr" className="text-2xl leading-snug font-medium">
-            {exercise.text}
-          </p>
 
           <form
             onSubmit={(event) => {
               event.preventDefault();
               correct();
             }}
-            className="flex flex-col gap-3"
+            className="flex flex-col gap-4"
           >
-            <label htmlFor="translation" className="text-sm text-zinc-500">
+            <label
+              htmlFor="translation"
+              className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+            >
               Ta réponse
             </label>
             <textarea
@@ -165,6 +186,7 @@ export function Trainer() {
               lang="en-US"
               rows={exercise.mode === "phrase" ? 3 : 1}
               maxLength={600}
+              placeholder="Écris ta traduction…"
               value={translation}
               onChange={(event) => setTranslation(event.target.value)}
               onKeyDown={(event) => {
@@ -174,27 +196,33 @@ export function Trainer() {
                   correct();
                 }
               }}
-              disabled={loading !== null}
-              className="rounded-lg border border-zinc-300 bg-transparent p-3 text-lg outline-none focus:border-blue-600 dark:border-zinc-700"
+              disabled={loading !== null || result !== null}
+              className="rounded-xl border border-zinc-300 bg-transparent p-3 text-lg outline-none focus-visible:ring-2 focus-visible:ring-blue-600 dark:border-zinc-700"
             />
-            {!result && settingsChanged && (
-              <button
-                type="button"
-                onClick={generate}
-                disabled={loading !== null}
-                className="self-start rounded-lg border border-blue-600 px-4 py-2 font-medium text-blue-600 disabled:opacity-50"
-              >
-                Nouvel exercice
-              </button>
-            )}
+            <p className="text-xs text-zinc-500">
+              Entrée pour corriger · Maj+Entrée pour une nouvelle ligne
+            </p>
+
             {!result && (
-              <button
-                type="submit"
-                disabled={loading !== null || !translation.trim()}
-                className="self-start rounded-lg bg-blue-600 px-4 py-2 font-medium text-white disabled:opacity-50"
-              >
-                {loading === "correct" ? "Correction…" : "Corriger"}
-              </button>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="submit"
+                  disabled={loading !== null || !translation.trim()}
+                  className={primaryButton}
+                >
+                  {loading === "correct" ? "Correction en cours…" : "Corriger"}
+                </button>
+                {settingsChanged && (
+                  <button
+                    type="button"
+                    onClick={generate}
+                    disabled={loading !== null}
+                    className={secondaryButton}
+                  >
+                    Nouvel exercice
+                  </button>
+                )}
+              </div>
             )}
           </form>
         </section>
@@ -203,19 +231,33 @@ export function Trainer() {
       {result && (
         <section
           aria-live="polite"
-          className={`flex flex-col gap-3 rounded-xl border p-4 ${
+          className={`flex flex-col gap-4 rounded-2xl border p-6 ${
             result.isCorrect
-              ? "border-green-600/40 bg-green-50 dark:bg-green-950/30"
-              : "border-amber-600/40 bg-amber-50 dark:bg-amber-950/30"
+              ? "border-green-600/30 bg-green-50 dark:bg-green-950/30"
+              : "border-amber-600/30 bg-amber-50 dark:bg-amber-950/30"
           }`}
         >
-          <p className="text-lg font-semibold">
-            {result.score}/10 · {result.isCorrect ? "Correct !" : "Presque…"}
+          <p className="flex items-center gap-3 text-lg font-semibold">
+            <span
+              className={`rounded-full px-3 py-1 text-sm ${
+                result.isCorrect
+                  ? "bg-green-600 text-white"
+                  : "bg-amber-500 text-zinc-950"
+              }`}
+            >
+              {result.score}/10
+            </span>
+            {result.isCorrect ? "Correct !" : "Presque !"}
           </p>
           {!result.isCorrect && (
-            <p lang="en-US" className="text-lg">
-              {result.correction}
-            </p>
+            <div className="flex flex-col gap-1">
+              <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+                Correction
+              </p>
+              <p lang="en-US" className="text-lg">
+                {result.correction}
+              </p>
+            </div>
           )}
           <p className="whitespace-pre-line text-zinc-700 dark:text-zinc-300">
             {result.explanation}
@@ -223,7 +265,11 @@ export function Trainer() {
         </section>
       )}
 
-      {error && <p className="text-red-600">{error}</p>}
+      {error && (
+        <p role="alert" className="text-red-600 dark:text-red-400">
+          {error}
+        </p>
+      )}
 
       {(!exercise || result) && (
         <button
@@ -231,7 +277,7 @@ export function Trainer() {
           ref={nextRef}
           onClick={generate}
           disabled={loading !== null}
-          className="self-start rounded-lg bg-blue-600 px-4 py-2 font-medium text-white disabled:opacity-50"
+          className={`self-start ${primaryButton}`}
         >
           {loading === "generate"
             ? "Génération…"

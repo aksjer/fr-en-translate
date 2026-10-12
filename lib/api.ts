@@ -76,7 +76,7 @@ export function providerErrorResponse(error: unknown, fallback: string) {
   const apiError = RetryError.isInstance(error) ? error.lastError : error;
   if (APICallError.isInstance(apiError) && apiError.statusCode === 429) {
     return Response.json(
-      { error: "Trop de demandes, réessayez dans une minute." },
+      { error: "Trop de demandes, réessaie dans une minute." },
       { status: 429, headers: { "Retry-After": "60" } },
     );
   }
