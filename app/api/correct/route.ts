@@ -1,7 +1,7 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { guardRequest, providerErrorResponse } from "@/lib/api";
-import { modelFor } from "@/lib/model";
+import { modelOptions } from "@/lib/model";
 import { LEVELS, MODELS, MODES, type Mode } from "@/lib/settings";
 
 const requestSchema = z.object({
@@ -43,11 +43,10 @@ export async function POST(request: Request) {
 
   try {
     const { output } = await generateText({
-      model: modelFor(data.model),
+      ...modelOptions(data.model),
       temperature: 0.2,
       maxRetries: 1,
       maxOutputTokens: 1000,
-      providerOptions: { google: { thinkingConfig: { thinkingBudget: 0 } } },
       output: Output.object({ schema: correctionSchema }),
       system: [
         "Tu es un professeur d'anglais américain bienveillant pour un francophone.",

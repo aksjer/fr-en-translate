@@ -3,8 +3,8 @@ import { z } from "zod";
 // Options the user can multi-select in the settings panel (stored in localStorage).
 // The backend picks one random combination per exercise.
 
-export const MODELS = ["gemini-2.5-flash-lite", "gemini-2.5-flash"] as const;
-export const DEFAULT_MODEL = "gemini-2.5-flash-lite";
+export const MODELS = ["gemini-3.5-flash-lite", "gemini-2.5-flash"] as const;
+export const DEFAULT_MODEL = "gemini-3.5-flash-lite";
 
 export const MODES = ["mot", "verbe", "phrasal verb", "phrase"] as const;
 

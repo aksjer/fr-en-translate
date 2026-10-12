@@ -1,7 +1,7 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { guardRequest, providerErrorResponse } from "@/lib/api";
-import { modelFor } from "@/lib/model";
+import { modelOptions } from "@/lib/model";
 import {
   pickCombination,
   settingsSchema,
@@ -59,12 +59,10 @@ export async function POST(request: Request) {
 
   try {
     const { output } = await generateText({
-      model: modelFor(data.model),
+      ...modelOptions(data.model),
       temperature: 1,
       maxRetries: 1,
       maxOutputTokens: 600,
-      // Gemini 2.5 Flash thinks by default, and thinking tokens counted against the limit.
-      providerOptions: { google: { thinkingConfig: { thinkingBudget: 0 } } },
       output: Output.object({
         schema: z.object({ text: z.string().min(1).max(400) }),
       }),
