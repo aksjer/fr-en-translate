@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { SettingsPanel } from "@/components/settings-panel";
 import type { Combination } from "@/lib/settings";
+import { isSeen, MAX_SENT, readSeen, rememberSeen } from "@/lib/seen-items";
 import { useSettings } from "@/lib/use-settings";
 
 type Exercise = Combination & { text: string };
@@ -13,8 +14,6 @@ type Correction = {
   correction: string;
   explanation: string;
 };
-
-const HISTORY_SIZE = 20;
 
 const primaryButton =
   "rounded-full bg-blue-600 px-5 py-2.5 font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50";
@@ -45,8 +44,6 @@ export function Trainer() {
   const [result, setResult] = useState<Correction | null>(null);
   const [loading, setLoading] = useState<"generate" | "correct" | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Recent items sent back to the API so it varies its exercises.
-  const [history, setHistory] = useState<string[]>([]);
   // Settings used for the current exercise, to know when they've changed since.
   const [exerciseSettings, setExerciseSettings] = useState<string | null>(null);
   const settingsChanged =
@@ -64,19 +61,24 @@ export function Trainer() {
     if (exercise && !result) inputRef.current?.focus();
   }, [exercise]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Recent items from this browser, so the API varies its exercises.
+  function requestExercise() {
+    const avoid = readSeen()
+      .slice(-MAX_SENT)
+      .map((item) => item.slice(0, 80));
+    return post<Exercise>("/api/generate", { ...settings, avoid });
+  }
+
   async function generate() {
     setLoading("generate");
     setError(null);
     try {
-      const next = await post<Exercise>("/api/generate", {
-        ...settings,
-        avoid: history,
-      });
+      let next = await requestExercise();
+      // One retry if the item was already seen here.
+      if (isSeen(next.text)) next = await requestExercise();
       setExercise(next);
       setExerciseSettings(JSON.stringify(settings));
-      setHistory((items) =>
-        [next.text.slice(0, 80), ...items].slice(0, HISTORY_SIZE),
-      );
+      rememberSeen(next.text);
       setTranslation("");
       setResult(null);
     } catch (e) {
