@@ -1,4 +1,4 @@
-// Mistakes kept in this browser, reviewed again later with spaced intervals.
+// Mistakes kept in this browser, reviewed again after a number of exercises.
 
 export const ERROR_TAGS = [
   "accent",
@@ -19,31 +19,45 @@ export type Mistake = {
   level: string;
   correction: string;
   tag?: ErrorTag;
-  // Index in REVIEW_DAYS: a success moves it further, a failure resets it.
+  // Index in REVIEW_GAPS: a success moves it further, a failure resets it.
   step: number;
+  // Exercise count at which the mistake is due again.
   dueAt: number;
 };
 
+type Store = { count: number; items: Mistake[] };
+
 const STORAGE_KEY = "fr-en-translate:mistakes";
 const MAX_STORED = 200;
-const DAY_MS = 24 * 60 * 60 * 1000;
-const REVIEW_DAYS = [1, 3, 7, 14, 30];
+// Exercises to wait before each review: 5, then 15, 40, 100 and 250.
+const REVIEW_GAPS = [5, 15, 40, 100, 250];
 
-export function readMistakes(): Mistake[] {
+const EMPTY_STORE: Store = { count: 0, items: [] };
+
+function readStore(): Store {
   try {
-    const parsed: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
-    return Array.isArray(parsed) ? (parsed as Mistake[]) : [];
+    const parsed: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null");
+    if (parsed && typeof parsed === "object" && "items" in parsed) {
+      const store = parsed as Store;
+      return {
+        count: typeof store.count === "number" ? store.count : 0,
+        items: Array.isArray(store.items) ? store.items : [],
+      };
+    }
   } catch {
-    // Storage blocked or corrupted: start from an empty list.
-    return [];
+    // Storage blocked or corrupted: start from an empty store.
   }
+  return EMPTY_STORE;
 }
 
 const listeners = new Set<() => void>();
 
-function writeMistakes(mistakes: Mistake[]) {
+function writeStore(store: Store) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(mistakes.slice(-MAX_STORED)));
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ ...store, items: store.items.slice(-MAX_STORED) }),
+    );
   } catch {
     // Not saved: the mistake is lost, which is acceptable for a practice aid.
   }
@@ -81,38 +95,46 @@ export function getDueSnapshot(): Mistake[] {
 
 export const getServerDueSnapshot = () => NO_DUE;
 
-// Same French sentence again: its review restarts from the first interval.
-export function addMistake(
-  mistake: Omit<Mistake, "id" | "step" | "dueAt">,
-) {
-  const now = Date.now();
-  const others = readMistakes().filter((item) => item.text !== mistake.text);
-  writeMistakes([
-    ...others,
-    {
-      ...mistake,
-      id: crypto.randomUUID(),
-      step: 0,
-      dueAt: now + REVIEW_DAYS[0] * DAY_MS,
-    },
-  ]);
+// Call once per new exercise: the review clock counts exercises, not days.
+export function countExercise() {
+  const store = readStore();
+  writeStore({ ...store, count: store.count + 1 });
 }
 
-export function dueMistakes(now = Date.now()) {
-  return readMistakes()
-    .filter((item) => item.dueAt <= now)
+// Same French sentence again: its review restarts from the first gap.
+export function addMistake(mistake: Omit<Mistake, "id" | "step" | "dueAt">) {
+  const store = readStore();
+  writeStore({
+    ...store,
+    items: [
+      ...store.items.filter((item) => item.text !== mistake.text),
+      {
+        ...mistake,
+        id: crypto.randomUUID(),
+        step: 0,
+        dueAt: store.count + REVIEW_GAPS[0],
+      },
+    ],
+  });
+}
+
+export function dueMistakes(): Mistake[] {
+  const { count, items } = readStore();
+  return items
+    .filter((item) => item.dueAt <= count)
     .sort((a, b) => a.dueAt - b.dueAt);
 }
 
 export function recordReview(id: string, success: boolean) {
-  const now = Date.now();
-  writeMistakes(
-    readMistakes().map((item) => {
+  const store = readStore();
+  writeStore({
+    ...store,
+    items: store.items.map((item) => {
       if (item.id !== id) return item;
       const step = success
-        ? Math.min(item.step + 1, REVIEW_DAYS.length - 1)
+        ? Math.min(item.step + 1, REVIEW_GAPS.length - 1)
         : 0;
-      return { ...item, step, dueAt: now + REVIEW_DAYS[step] * DAY_MS };
+      return { ...item, step, dueAt: store.count + REVIEW_GAPS[step] };
     }),
-  );
+  });
 }

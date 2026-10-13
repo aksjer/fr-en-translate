@@ -11,6 +11,16 @@ import {
 const requestSchema = settingsSchema.extend({
   // Recent exercises, so the model doesn't keep giving the same words.
   avoid: z.array(z.string().max(80)).max(20).optional(),
+  // Mistakes due for review, worked into the sentence without being named.
+  review: z
+    .array(
+      z.object({
+        correction: z.string().max(200),
+        tag: z.string().max(40).optional(),
+      }),
+    )
+    .max(2)
+    .optional(),
 });
 
 function instructions({ mode, level, tense, verbType, theme }: Combination) {
@@ -56,6 +66,13 @@ export async function POST(request: Request) {
   const avoid = data.avoid?.length
     ? `\nÉvite ces éléments déjà donnés : ${data.avoid.join(" ; ")}.`
     : "";
+  const review = data.review?.length
+    ? "\nIntègre naturellement dans la phrase, sans le signaler, la difficulté suivante : " +
+      data.review
+        .map((item) => `${item.tag ?? "point"} (ex. : « ${item.correction} »)`)
+        .join(" ; ") +
+      "."
+    : "";
 
   try {
     const { output } = await generateText({
@@ -71,7 +88,7 @@ export async function POST(request: Request) {
         "Tu es un professeur de français. Tu donnes un élément en français, " +
         "naturel et correct, qu'un apprenant devra traduire en anglais américain. " +
         "Pas de traduction, pas d'explication, pas de guillemets.",
-      prompt: instructions(combination) + avoid,
+      prompt: instructions(combination) + avoid + review,
     });
 
     return Response.json({ text: output.text.trim(), ...combination });

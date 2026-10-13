@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { SettingsPanel } from "@/components/settings-panel";
 import {
   addMistake,
+  countExercise,
   getDueSnapshot,
   getServerDueSnapshot,
   recordReview,
@@ -11,7 +12,7 @@ import {
   type ErrorTag,
   type Mistake,
 } from "@/lib/mistakes";
-import type { Combination, Level } from "@/lib/settings";
+import type { Combination } from "@/lib/settings";
 import { isSeen, MAX_SENT, readSeen, rememberSeen } from "@/lib/seen-items";
 import { useSettings } from "@/lib/use-settings";
 
@@ -94,41 +95,29 @@ export function Trainer() {
   }, [exercise]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Recent items from this browser, so the API varies its exercises.
-  function requestExercise() {
+  // A due mistake is worked into the sentence, without being named.
+  function requestExercise(toReview: Mistake[]) {
     const avoid = readSeen()
       .slice(-MAX_SENT)
       .map((item) => item.slice(0, 80));
-    return post<Exercise>("/api/generate", { ...settings, avoid });
+    const review = toReview.map((item) => ({
+      correction: item.correction,
+      tag: item.tag,
+    }));
+    return post<Exercise>("/api/generate", { ...settings, avoid, review });
   }
 
-  // A review sentence practises the mistakes that are due, up to five at a time.
-  async function requestReview(items: Mistake[]) {
-    const { text } = await post<{ text: string }>("/api/review", {
-      items: items.map((item) => ({
-        text: item.text,
-        correction: item.correction,
-        tag: item.tag,
-      })),
-      level: items[0].level,
-    });
-    return { text, mode: "phrase", level: items[0].level as Level } as Exercise;
-  }
-
-  async function generate(review = false) {
+  async function generate() {
     setLoading("generate");
     setError(null);
     try {
-      const items = due.slice(0, 5);
-      let next: Exercise;
-      if (review) {
-        next = await requestReview(items);
-      } else {
-        next = await requestExercise();
-        // One retry if the item was already seen here.
-        if (isSeen(next.text)) next = await requestExercise();
-      }
+      const toReview = due.slice(0, 1);
+      let next = await requestExercise(toReview);
+      // One retry if the item was already seen here.
+      if (isSeen(next.text)) next = await requestExercise(toReview);
+      countExercise();
       setExercise(next);
-      setReviewIds(review ? items.map((item) => item.id) : null);
+      setReviewIds(toReview.map((item) => item.id));
       setExerciseSettings(JSON.stringify(settings));
       rememberSeen(next.text);
       setTranslation("");
@@ -168,15 +157,13 @@ export function Trainer() {
     }
   }
 
-  const tags = reviewIds
-    ? ["révision", exercise?.level]
-    : [
-        exercise?.mode,
-        exercise?.level,
-        exercise?.verbType && `verbe ${exercise.verbType}`,
-        exercise?.tense,
-        exercise?.theme,
-      ].filter(Boolean);
+  const tags = [
+    exercise?.mode,
+    exercise?.level,
+    exercise?.verbType && `verbe ${exercise.verbType}`,
+    exercise?.tense,
+    exercise?.theme,
+  ].filter(Boolean);
 
   return (
     <div className="flex flex-col gap-6">
@@ -276,6 +263,14 @@ export function Trainer() {
                 >
                   {loading === "correct" ? "Correction en cours…" : "Corriger"}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => generate()}
+                  disabled={loading !== null}
+                  className={secondaryButton}
+                >
+                  Passer
+                </button>
                 {settingsChanged && (
                   <button
                     type="button"
@@ -352,31 +347,19 @@ export function Trainer() {
       )}
 
       {(!exercise || result) && (
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            ref={nextRef}
-            onClick={() => generate()}
-            disabled={loading !== null}
-            className={primaryButton}
-          >
-            {loading === "generate"
-              ? "Génération…"
-              : exercise
-                ? "Suivant"
-                : "Commencer"}
-          </button>
-          {due.length > 0 && (
-            <button
-              type="button"
-              onClick={() => generate(true)}
-              disabled={loading !== null}
-              className={secondaryButton}
-            >
-              Réviser ({due.length})
-            </button>
-          )}
-        </div>
+        <button
+          type="button"
+          ref={nextRef}
+          onClick={() => generate()}
+          disabled={loading !== null}
+          className={`self-start ${primaryButton}`}
+        >
+          {loading === "generate"
+            ? "Génération…"
+            : exercise
+              ? "Suivant"
+              : "Commencer"}
+        </button>
       )}
     </div>
   );
