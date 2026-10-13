@@ -63,7 +63,10 @@ async function post<T>(url: string, body: unknown): Promise<T> {
       `Trop de demandes, réessaie dans ${wait ?? "quelques"} secondes.`,
     );
   }
-  if (!response.ok) throw new Error("Le service ne répond pas, réessaie.");
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.error ?? "Le service ne répond pas, réessaie.");
+  }
   return response.json();
 }
 

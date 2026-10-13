@@ -80,5 +80,17 @@ export function providerErrorResponse(error: unknown, fallback: string) {
       { status: 429, headers: { "Retry-After": "60" } },
     );
   }
+  if (APICallError.isInstance(apiError) && apiError.statusCode === 503) {
+    return Response.json(
+      { error: "Gemini est très sollicité, réessaie dans une minute." },
+      { status: 503, headers: { "Retry-After": "60" } },
+    );
+  }
+  if (apiError instanceof Error && apiError.name === "TimeoutError") {
+    return Response.json(
+      { error: "Gemini met trop de temps à répondre, réessaie dans une minute." },
+      { status: 504, headers: { "Retry-After": "60" } },
+    );
+  }
   return Response.json({ error: fallback }, { status: 502 });
 }
