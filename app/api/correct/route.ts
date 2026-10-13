@@ -5,6 +5,9 @@ import { ERROR_TAGS } from "@/lib/mistakes";
 import { providerOptions, withFallback } from "@/lib/model";
 import { LEVELS, MODES, type Mode } from "@/lib/settings";
 
+// Leaves room for the fallback attempt (see lib/model.ts).
+export const maxDuration = 30;
+
 const requestSchema = z.object({
   mode: z.enum(MODES).default("phrase"),
   text: z.string().trim().min(1).max(400),
@@ -48,12 +51,13 @@ export async function POST(request: Request) {
   if (error) return error;
 
   try {
-    const { output } = await withFallback((model) =>
+    const { output } = await withFallback((model, abortSignal) =>
       generateText({
         model,
+        abortSignal,
         providerOptions,
         temperature: 0.2,
-        maxRetries: 1,
+        maxRetries: 0,
         maxOutputTokens: 1000,
         output: Output.object({ schema: correctionSchema }),
         system: [

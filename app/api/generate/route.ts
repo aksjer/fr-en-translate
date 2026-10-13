@@ -8,6 +8,9 @@ import {
   type Combination,
 } from "@/lib/settings";
 
+// Leaves room for the fallback attempt (see lib/model.ts).
+export const maxDuration = 30;
+
 const requestSchema = settingsSchema.extend({
   // Recent exercises, so the model doesn't keep giving the same words.
   avoid: z.array(z.string().max(80)).max(20).optional(),
@@ -81,12 +84,13 @@ export async function POST(request: Request) {
     : "";
 
   try {
-    const { output } = await withFallback((model) =>
+    const { output } = await withFallback((model, abortSignal) =>
       generateText({
         model,
+        abortSignal,
         providerOptions,
         temperature: 1,
-        maxRetries: 1,
+        maxRetries: 0,
         maxOutputTokens: 600,
         output: Output.object({
           schema: z.object({ text: z.string().min(1).max(400) }),
