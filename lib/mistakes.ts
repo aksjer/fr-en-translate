@@ -104,6 +104,27 @@ export function getStatsSnapshot(): Stats {
 
 export const getServerStatsSnapshot = () => EMPTY_STATS;
 
+const NO_MISTAKES: Mistake[] = [];
+let cachedMistakesRaw: string | null = null;
+let cachedMistakes: Mistake[] = NO_MISTAKES;
+
+// All stored mistakes, newest first, for the review list.
+export function getMistakesSnapshot(): Mistake[] {
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(STORAGE_KEY);
+  } catch {
+    // Storage blocked: nothing to review.
+  }
+  if (raw !== cachedMistakesRaw) {
+    cachedMistakesRaw = raw;
+    cachedMistakes = [...readStore().items].reverse();
+  }
+  return cachedMistakes;
+}
+
+export const getServerMistakesSnapshot = () => NO_MISTAKES;
+
 const listeners = new Set<() => void>();
 
 function writeStore(store: Store) {

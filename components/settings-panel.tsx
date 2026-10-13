@@ -1,7 +1,9 @@
 "use client";
 
 import {
+  DEFAULT_MODEL,
   LEVELS,
+  MODELS,
   MODES,
   TENSES,
   THEMES,
@@ -18,6 +20,29 @@ type Props = {
 export function SettingsPanel({ settings, onChange }: Props) {
   return (
     <div className="flex flex-col gap-5">
+      <fieldset>
+        <legend className="mb-2 text-sm font-medium">Modèle Gemini</legend>
+        <div className="flex flex-wrap gap-2">
+          {MODELS.map((model) => {
+            const active = (settings.model ?? DEFAULT_MODEL) === model;
+            return (
+              <button
+                key={model}
+                type="button"
+                aria-pressed={active}
+                onClick={() => onChange({ ...settings, model })}
+                className={`rounded-full border px-3 py-1 text-sm transition-colors ${
+                  active
+                    ? "border-blue-600 bg-blue-600 text-white"
+                    : "border-zinc-300 hover:border-zinc-500 dark:border-zinc-700 dark:hover:border-zinc-500"
+                }`}
+              >
+                {model}
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
       <ChipGroup
         label="Modes"
         options={MODES}

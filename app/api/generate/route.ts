@@ -1,7 +1,7 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { guardRequest, providerErrorResponse } from "@/lib/api";
-import { model, providerOptions } from "@/lib/model";
+import { modelFor, providerOptionsFor } from "@/lib/model";
 import {
   pickCombination,
   settingsSchema,
@@ -51,6 +51,12 @@ function instructions({ mode, level, tense, verbType, theme }: Combination) {
         `conjuguée au ${tense}, sur le thème « ${theme} ». ` +
         "Adapte la longueur et le vocabulaire au niveau."
       );
+    case "paragraphe":
+      return (
+        `Écris un court paragraphe de trois phrases liées entre elles, de niveau CECRL ${level}, ` +
+        `sur le thème « ${theme} ». Utilise des connecteurs logiques (d'abord, pourtant, donc…). ` +
+        "Adapte la longueur et le vocabulaire au niveau."
+      );
   }
 }
 
@@ -76,8 +82,8 @@ export async function POST(request: Request) {
 
   try {
     const { output } = await generateText({
-      model,
-      providerOptions,
+      model: modelFor(data.model),
+      providerOptions: providerOptionsFor(data.model),
       temperature: 1,
       maxRetries: 1,
       maxOutputTokens: 600,
