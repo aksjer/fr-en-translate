@@ -63,6 +63,26 @@ function instructions({ mode, level, tense, verbType, theme }: Combination) {
   }
 }
 
+// Some models answer with the JSON again inside the field, as {"text": "..."}.
+// Take the sentence out of it when that happens.
+function unwrapText(raw: string) {
+  const trimmed = raw.trim();
+  try {
+    const inner: unknown = JSON.parse(trimmed);
+    if (
+      inner &&
+      typeof inner === "object" &&
+      "text" in inner &&
+      typeof inner.text === "string"
+    ) {
+      return inner.text.trim();
+    }
+  } catch {
+    // Not JSON: the sentence is already plain text.
+  }
+  return trimmed;
+}
+
 export async function POST(request: Request) {
   const { data, error } = await guardRequest(
     request,
@@ -105,7 +125,7 @@ export async function POST(request: Request) {
     );
 
     return Response.json({
-      text: output.text.trim(),
+      text: unwrapText(output.text),
       ...combination,
       model: usedModel,
     });
