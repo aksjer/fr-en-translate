@@ -324,18 +324,8 @@ export function Trainer() {
                   disabled={loading !== null}
                   className={secondaryButton}
                 >
-                  Passer
+                  {settingsChanged ? "Nouvel exercice" : "Passer"}
                 </button>
-                {settingsChanged && (
-                  <button
-                    type="button"
-                    onClick={() => generate()}
-                    disabled={loading !== null}
-                    className={secondaryButton}
-                  >
-                    Nouvel exercice
-                  </button>
-                )}
               </div>
             )}
           </form>
