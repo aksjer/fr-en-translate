@@ -18,7 +18,7 @@ const correctionSchema = z.object({
   isCorrect: z.boolean(),
   correction: z.string().min(1).max(800),
   points: z.array(z.string().min(1).max(300)).max(6),
-  alternative: z.string().min(1).max(800).optional(),
+  alternative: z.string().min(1).max(800),
   tag: z.enum(ERROR_TAGS).optional(),
 });
 
