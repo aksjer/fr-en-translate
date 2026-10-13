@@ -1,4 +1,4 @@
-import { generateText, Output } from "ai";
+import { generateText } from "ai";
 import { z } from "zod";
 import { guardRequest, providerErrorResponse } from "@/lib/api";
 import { providerOptions, withFallback } from "@/lib/model";
@@ -105,13 +105,11 @@ export async function POST(request: Request) {
           temperature: 1,
           maxRetries: 0,
           maxOutputTokens: 600,
-          output: Output.object({
-            schema: z.object({ text: z.string().min(1).max(400) }),
-          }),
           system:
             "Tu es un professeur de français. Tu donnes un élément en français, " +
             "naturel et correct, qu'un apprenant devra traduire en anglais américain. " +
-            "Pas de traduction, pas d'explication, pas de guillemets.",
+            "Pas de traduction, pas d'explication, pas de guillemets. " +
+            "Réponds uniquement avec l'élément, en texte brut, sans JSON.",
           prompt: instructions(combination) + avoid + review,
         }),
     );
