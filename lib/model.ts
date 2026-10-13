@@ -14,14 +14,11 @@ export function modelFor(id: Model | undefined) {
 }
 
 // Thinking is switched off for each family, so the JSON isn't cut short.
-// Gemini 2.5 uses a token budget; Gemini 3 uses a level; Gemini 2.0 has no thinking.
+// Gemini 2.5 uses a token budget; Gemini 3 uses a level.
 export function providerOptionsFor(id: Model | undefined) {
   const model = safeModel(id);
   if (model.startsWith("gemini-2.5")) {
     return { google: { thinkingConfig: { thinkingBudget: 0 } } };
   }
-  if (model.startsWith("gemini-3")) {
-    return { google: { thinkingConfig: { thinkingLevel: "minimal" as const } } };
-  }
-  return undefined;
+  return { google: { thinkingConfig: { thinkingLevel: "minimal" as const } } };
 }
