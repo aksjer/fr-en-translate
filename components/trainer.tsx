@@ -37,7 +37,10 @@ type Correction = {
 function Marked({ text }: { text: string }) {
   return text.split(/\*\*(.+?)\*\*/).map((part, index) =>
     index % 2 ? (
-      <strong key={index} className="font-semibold text-blue-700 dark:text-blue-300">
+      <strong
+        key={index}
+        className="font-semibold text-blue-700 dark:text-blue-300"
+      >
         {part}
       </strong>
     ) : (
@@ -57,12 +60,6 @@ async function post<T>(url: string, body: unknown): Promise<T> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (response.status === 429) {
-    const wait = response.headers.get("Retry-After");
-    throw new Error(
-      `Trop de demandes, réessaie dans ${wait ?? "quelques"} secondes.`,
-    );
-  }
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     throw new Error(body?.error ?? "Le service ne répond pas, réessaie.");
@@ -195,7 +192,8 @@ export function Trainer() {
     <div className="flex flex-col gap-6">
       {stats.answered > 0 && (
         <p className="text-sm text-zinc-500">
-          {stats.answered} réponses · {Math.round((stats.correct / stats.answered) * 100)} % justes
+          {stats.answered} réponses ·{" "}
+          {Math.round((stats.correct / stats.answered) * 100)} % justes
           {topErrors && ` · erreurs fréquentes : ${topErrors}`}
         </p>
       )}
@@ -230,7 +228,9 @@ export function Trainer() {
                 <span lang="fr" className="text-zinc-600 dark:text-zinc-400">
                   {mistake.text}
                 </span>
-                <span lang="en-US">{mistake.correction.replaceAll("**", "")}</span>
+                <span lang="en-US">
+                  {mistake.correction.replaceAll("**", "")}
+                </span>
               </li>
             ))}
           </ul>

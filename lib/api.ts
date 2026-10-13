@@ -33,7 +33,7 @@ export async function guardRequest<T>(
   if (!ok) {
     return {
       error: Response.json(
-        { error: "Too many requests" },
+        { error: "Tu envoies trop de requêtes, attends une minute." },
         { status: 429, headers: { "Retry-After": String(retryAfter) } },
       ),
     };
@@ -72,25 +72,62 @@ export async function guardRequest<T>(
 
 // Turns a failed model call into a response. A 429 from the provider gets its own
 // French message and status, so the page can tell the user to wait.
+// Each provider failure gets its own French message, so the page can say what to do.
 export function providerErrorResponse(error: unknown, fallback: string) {
   const apiError = RetryError.isInstance(error) ? error.lastError : error;
-  if (APICallError.isInstance(apiError) && apiError.statusCode === 429) {
-    return Response.json(
-      { error: "Trop de demandes, réessaie dans une minute." },
-      { status: 429, headers: { "Retry-After": "60" } },
-    );
-  }
-  if (APICallError.isInstance(apiError) && apiError.statusCode === 503) {
-    return Response.json(
-      { error: "Gemini est très sollicité, réessaie dans une minute." },
-      { status: 503, headers: { "Retry-After": "60" } },
-    );
-  }
   if (apiError instanceof Error && apiError.name === "TimeoutError") {
     return Response.json(
-      { error: "Gemini met trop de temps à répondre, réessaie dans une minute." },
+      {
+        error:
+          "Gemini met plus de 12 secondes à répondre, même avec le modèle de secours. Réessaie dans une minute.",
+      },
       { status: 504, headers: { "Retry-After": "60" } },
     );
+  }
+  if (APICallError.isInstance(apiError)) {
+    switch (apiError.statusCode) {
+      case 400:
+        return Response.json(
+          {
+            error:
+              "Gemini a refusé la demande (erreur 400). Signale-le si ça se répète.",
+          },
+          { status: 502 },
+        );
+      case 401:
+      case 403:
+        return Response.json(
+          {
+            error:
+              "La clé API Gemini est refusée. Vérifie LLM_API_KEY sur le serveur.",
+          },
+          { status: 502 },
+        );
+      case 404:
+        return Response.json(
+          {
+            error:
+              "Le modèle Gemini n'est plus disponible. Il faut changer le modèle dans le code.",
+          },
+          { status: 502 },
+        );
+      case 429:
+        return Response.json(
+          {
+            error:
+              "Gemini a atteint sa limite de requêtes par minute. Réessaie dans une minute.",
+          },
+          { status: 429, headers: { "Retry-After": "60" } },
+        );
+      case 503:
+        return Response.json(
+          {
+            error:
+              "Gemini est très sollicité en ce moment. Réessaie dans une minute.",
+          },
+          { status: 503, headers: { "Retry-After": "60" } },
+        );
+    }
   }
   return Response.json({ error: fallback }, { status: 502 });
 }
