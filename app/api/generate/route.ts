@@ -1,7 +1,7 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { guardRequest, providerErrorResponse } from "@/lib/api";
-import { modelFor, providerOptionsFor } from "@/lib/model";
+import { providerOptions, withFallback } from "@/lib/model";
 import {
   pickCombination,
   settingsSchema,
@@ -81,21 +81,23 @@ export async function POST(request: Request) {
     : "";
 
   try {
-    const { output } = await generateText({
-      model: modelFor(data.model),
-      providerOptions: providerOptionsFor(data.model),
-      temperature: 1,
-      maxRetries: 1,
-      maxOutputTokens: 600,
-      output: Output.object({
-        schema: z.object({ text: z.string().min(1).max(400) }),
+    const { output } = await withFallback((model) =>
+      generateText({
+        model,
+        providerOptions,
+        temperature: 1,
+        maxRetries: 1,
+        maxOutputTokens: 600,
+        output: Output.object({
+          schema: z.object({ text: z.string().min(1).max(400) }),
+        }),
+        system:
+          "Tu es un professeur de français. Tu donnes un élément en français, " +
+          "naturel et correct, qu'un apprenant devra traduire en anglais américain. " +
+          "Pas de traduction, pas d'explication, pas de guillemets.",
+        prompt: instructions(combination) + avoid + review,
       }),
-      system:
-        "Tu es un professeur de français. Tu donnes un élément en français, " +
-        "naturel et correct, qu'un apprenant devra traduire en anglais américain. " +
-        "Pas de traduction, pas d'explication, pas de guillemets.",
-      prompt: instructions(combination) + avoid + review,
-    });
+    );
 
     return Response.json({ text: output.text.trim(), ...combination });
   } catch (error) {

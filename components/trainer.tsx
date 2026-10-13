@@ -155,7 +155,6 @@ export function Trainer() {
         text: exercise.text,
         translation,
         level: exercise.level,
-        model: settings.model,
       });
       setResult(correction);
       recordAnswer(correction);

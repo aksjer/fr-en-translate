@@ -3,17 +3,6 @@ import { z } from "zod";
 // Options the user can multi-select in the settings panel (stored in localStorage).
 // The backend picks one random combination per exercise.
 
-// Gemini models the learner can pick. The server only accepts ids from this list.
-export const MODELS = [
-  "gemini-2.5-flash",
-  "gemini-3.1-flash-lite",
-  "gemini-3.5-flash-lite",
-  "gemini-3.6-flash",
-  "gemini-3.7-flash",
-  "gemini-3.8-flash",
-] as const;
-export const DEFAULT_MODEL = "gemini-3.5-flash-lite";
-
 export const MODES = [
   "mot",
   "verbe",
@@ -52,7 +41,6 @@ export const THEMES = [
   "culture",
 ] as const;
 
-export type Model = (typeof MODELS)[number];
 export type Mode = (typeof MODES)[number];
 export type Level = (typeof LEVELS)[number];
 export type Tense = (typeof TENSES)[number];
@@ -71,7 +59,6 @@ export const MODE_USES = {
 // Every list is optional: a missing or empty list means "any value".
 // .max() keeps the payload small since the lists can't hold more than the options.
 export const settingsSchema = z.object({
-  model: z.enum(MODELS).optional(),
   modes: z.array(z.enum(MODES)).max(MODES.length).optional(),
   levels: z.array(z.enum(LEVELS)).max(LEVELS.length).optional(),
   tenses: z.array(z.enum(TENSES)).max(TENSES.length).optional(),
