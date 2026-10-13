@@ -7,6 +7,9 @@ import {
   countExercise,
   getDueSnapshot,
   getServerDueSnapshot,
+  getServerStatsSnapshot,
+  getStatsSnapshot,
+  recordAnswer,
   recordReview,
   subscribeMistakes,
   type ErrorTag,
@@ -14,6 +17,7 @@ import {
 } from "@/lib/mistakes";
 import type { Combination } from "@/lib/settings";
 import { isSeen, MAX_SENT, readSeen, rememberSeen } from "@/lib/seen-items";
+import { speak } from "@/lib/speak";
 import { useSettings } from "@/lib/use-settings";
 
 type Exercise = Combination & { text: string };
@@ -79,6 +83,11 @@ export function Trainer() {
     getDueSnapshot,
     getServerDueSnapshot,
   );
+  const stats = useSyncExternalStore(
+    subscribeMistakes,
+    getStatsSnapshot,
+    getServerStatsSnapshot,
+  );
   const settingsChanged =
     exercise !== null && exerciseSettings !== JSON.stringify(settings);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -141,6 +150,7 @@ export function Trainer() {
         level: exercise.level,
       });
       setResult(correction);
+      recordAnswer(correction);
       if (!correction.isCorrect && correction.score < 10) {
         addMistake({
           text: exercise.text,
@@ -165,8 +175,21 @@ export function Trainer() {
     exercise?.theme,
   ].filter(Boolean);
 
+  const topErrors = Object.entries(stats.byTag)
+    .sort(([, a], [, b]) => (b ?? 0) - (a ?? 0))
+    .slice(0, 3)
+    .map(([tag, count]) => `${tag} ${count}`)
+    .join(", ");
+
   return (
     <div className="flex flex-col gap-6">
+      {stats.answered > 0 && (
+        <p className="text-sm text-zinc-500">
+          {stats.answered} réponses · {Math.round((stats.correct / stats.answered) * 100)} % justes
+          {topErrors && ` · erreurs fréquentes : ${topErrors}`}
+        </p>
+      )}
+
       <section className="rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
         <button
           type="button"
@@ -337,6 +360,13 @@ export function Trainer() {
               ))}
             </ul>
           )}
+          <button
+            type="button"
+            onClick={() => speak(result.correction.replaceAll("**", ""))}
+            className={`self-start ${secondaryButton}`}
+          >
+            Écouter
+          </button>
         </section>
       )}
 

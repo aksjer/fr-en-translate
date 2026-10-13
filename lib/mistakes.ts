@@ -25,23 +25,41 @@ export type Mistake = {
   dueAt: number;
 };
 
-type Store = { count: number; items: Mistake[] };
+type Store = {
+  count: number;
+  items: Mistake[];
+  answered: number;
+  correct: number;
+  // Number of wrong answers per error tag.
+  byTag: Partial<Record<ErrorTag, number>>;
+};
+
+export type Stats = Omit<Store, "count" | "items">;
 
 const STORAGE_KEY = "fr-en-translate:mistakes";
 const MAX_STORED = 200;
 // Exercises to wait before each review: 5, then 15, 40, 100 and 250.
 const REVIEW_GAPS = [5, 15, 40, 100, 250];
 
-const EMPTY_STORE: Store = { count: 0, items: [] };
+const EMPTY_STORE: Store = {
+  count: 0,
+  items: [],
+  answered: 0,
+  correct: 0,
+  byTag: {},
+};
 
 function readStore(): Store {
   try {
     const parsed: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null");
-    if (parsed && typeof parsed === "object" && "items" in parsed) {
-      const store = parsed as Store;
+    if (parsed && typeof parsed === "object") {
+      const store = parsed as Partial<Store>;
       return {
         count: typeof store.count === "number" ? store.count : 0,
         items: Array.isArray(store.items) ? store.items : [],
+        answered: typeof store.answered === "number" ? store.answered : 0,
+        correct: typeof store.correct === "number" ? store.correct : 0,
+        byTag: store.byTag ?? {},
       };
     }
   } catch {
@@ -49,6 +67,42 @@ function readStore(): Store {
   }
   return EMPTY_STORE;
 }
+
+// Counts every answer, so the page can show progress.
+export function recordAnswer(result: { isCorrect: boolean; tag?: ErrorTag }) {
+  const store = readStore();
+  const byTag = { ...store.byTag };
+  if (!result.isCorrect && result.tag) {
+    byTag[result.tag] = (byTag[result.tag] ?? 0) + 1;
+  }
+  writeStore({
+    ...store,
+    answered: store.answered + 1,
+    correct: store.correct + (result.isCorrect ? 1 : 0),
+    byTag,
+  });
+}
+
+const EMPTY_STATS: Stats = { answered: 0, correct: 0, byTag: {} };
+let cachedStatsRaw: string | null = null;
+let cachedStats: Stats = EMPTY_STATS;
+
+export function getStatsSnapshot(): Stats {
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(STORAGE_KEY);
+  } catch {
+    // Storage blocked: no stats.
+  }
+  if (raw !== cachedStatsRaw) {
+    cachedStatsRaw = raw;
+    const { answered, correct, byTag } = readStore();
+    cachedStats = { answered, correct, byTag };
+  }
+  return cachedStats;
+}
+
+export const getServerStatsSnapshot = () => EMPTY_STATS;
 
 const listeners = new Set<() => void>();
 
