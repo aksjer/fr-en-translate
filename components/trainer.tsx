@@ -1,8 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { SettingsPanel } from "@/components/settings-panel";
-import type { Combination } from "@/lib/settings";
+import {
+  addMistake,
+  getDueSnapshot,
+  getServerDueSnapshot,
+  recordReview,
+  subscribeMistakes,
+  type ErrorTag,
+  type Mistake,
+} from "@/lib/mistakes";
+import type { Combination, Level } from "@/lib/settings";
 import { isSeen, MAX_SENT, readSeen, rememberSeen } from "@/lib/seen-items";
 import { useSettings } from "@/lib/use-settings";
 
@@ -14,6 +23,7 @@ type Correction = {
   correction: string;
   points: string[];
   alternative?: string;
+  tag?: ErrorTag;
 };
 
 // Renders **text** from the API as bold, without using innerHTML.
@@ -60,6 +70,14 @@ export function Trainer() {
   const [error, setError] = useState<string | null>(null);
   // Settings used for the current exercise, to know when they've changed since.
   const [exerciseSettings, setExerciseSettings] = useState<string | null>(null);
+  // Mistakes being reviewed in the current exercise, if it is a review.
+  const [reviewIds, setReviewIds] = useState<string[] | null>(null);
+  // Mistakes due for review now, stored in this browser.
+  const due = useSyncExternalStore(
+    subscribeMistakes,
+    getDueSnapshot,
+    getServerDueSnapshot,
+  );
   const settingsChanged =
     exercise !== null && exerciseSettings !== JSON.stringify(settings);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -83,14 +101,34 @@ export function Trainer() {
     return post<Exercise>("/api/generate", { ...settings, avoid });
   }
 
-  async function generate() {
+  // A review sentence practises the mistakes that are due, up to five at a time.
+  async function requestReview(items: Mistake[]) {
+    const { text } = await post<{ text: string }>("/api/review", {
+      items: items.map((item) => ({
+        text: item.text,
+        correction: item.correction,
+        tag: item.tag,
+      })),
+      level: items[0].level,
+    });
+    return { text, mode: "phrase", level: items[0].level as Level } as Exercise;
+  }
+
+  async function generate(review = false) {
     setLoading("generate");
     setError(null);
     try {
-      let next = await requestExercise();
-      // One retry if the item was already seen here.
-      if (isSeen(next.text)) next = await requestExercise();
+      const items = due.slice(0, 5);
+      let next: Exercise;
+      if (review) {
+        next = await requestReview(items);
+      } else {
+        next = await requestExercise();
+        // One retry if the item was already seen here.
+        if (isSeen(next.text)) next = await requestExercise();
+      }
       setExercise(next);
+      setReviewIds(review ? items.map((item) => item.id) : null);
       setExerciseSettings(JSON.stringify(settings));
       rememberSeen(next.text);
       setTranslation("");
@@ -107,14 +145,22 @@ export function Trainer() {
     setLoading("correct");
     setError(null);
     try {
-      setResult(
-        await post<Correction>("/api/correct", {
-          mode: exercise.mode,
+      const correction = await post<Correction>("/api/correct", {
+        mode: exercise.mode,
+        text: exercise.text,
+        translation,
+        level: exercise.level,
+      });
+      setResult(correction);
+      if (!correction.isCorrect && correction.score < 10) {
+        addMistake({
           text: exercise.text,
-          translation,
           level: exercise.level,
-        }),
-      );
+          correction: correction.correction,
+          tag: correction.tag,
+        });
+      }
+      reviewIds?.forEach((id) => recordReview(id, correction.isCorrect));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -122,13 +168,15 @@ export function Trainer() {
     }
   }
 
-  const tags = [
-    exercise?.mode,
-    exercise?.level,
-    exercise?.verbType && `verbe ${exercise.verbType}`,
-    exercise?.tense,
-    exercise?.theme,
-  ].filter(Boolean);
+  const tags = reviewIds
+    ? ["révision", exercise?.level]
+    : [
+        exercise?.mode,
+        exercise?.level,
+        exercise?.verbType && `verbe ${exercise.verbType}`,
+        exercise?.tense,
+        exercise?.theme,
+      ].filter(Boolean);
 
   return (
     <div className="flex flex-col gap-6">
@@ -231,7 +279,7 @@ export function Trainer() {
                 {settingsChanged && (
                   <button
                     type="button"
-                    onClick={generate}
+                    onClick={() => generate()}
                     disabled={loading !== null}
                     className={secondaryButton}
                   >
@@ -268,7 +316,7 @@ export function Trainer() {
           {result.score < 10 && (
             <div className="flex flex-col gap-1">
               <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-                Correction
+                Correction{result.tag && ` · erreur : ${result.tag}`}
               </p>
               <p lang="en-US" className="text-lg">
                 <Marked text={result.correction} />
@@ -304,19 +352,31 @@ export function Trainer() {
       )}
 
       {(!exercise || result) && (
-        <button
-          type="button"
-          ref={nextRef}
-          onClick={generate}
-          disabled={loading !== null}
-          className={`self-start ${primaryButton}`}
-        >
-          {loading === "generate"
-            ? "Génération…"
-            : exercise
-              ? "Suivant"
-              : "Commencer"}
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            ref={nextRef}
+            onClick={() => generate()}
+            disabled={loading !== null}
+            className={primaryButton}
+          >
+            {loading === "generate"
+              ? "Génération…"
+              : exercise
+                ? "Suivant"
+                : "Commencer"}
+          </button>
+          {due.length > 0 && (
+            <button
+              type="button"
+              onClick={() => generate(true)}
+              disabled={loading !== null}
+              className={secondaryButton}
+            >
+              Réviser ({due.length})
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
