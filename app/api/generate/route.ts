@@ -66,21 +66,13 @@ function instructions({ mode, level, tense, verbType, theme }: Combination) {
 // Some models answer with the JSON again inside the field, as {"text": "..."}.
 // Take the sentence out of it when that happens.
 function unwrapText(raw: string) {
-  const trimmed = raw.trim();
-  try {
-    const inner: unknown = JSON.parse(trimmed);
-    if (
-      inner &&
-      typeof inner === "object" &&
-      "text" in inner &&
-      typeof inner.text === "string"
-    ) {
-      return inner.text.trim();
-    }
-  } catch {
-    // Not JSON: the sentence is already plain text.
-  }
-  return trimmed;
+  // Strips a Markdown code fence, then a {"text": ...} wrapper, quoted or not.
+  const unfenced = raw
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/, "");
+  const wrapped = unfenced.match(/^\{\s*"?text"?\s*:\s*"?([\s\S]*?)"?\s*\}$/);
+  return (wrapped ? wrapped[1] : unfenced).trim();
 }
 
 export async function POST(request: Request) {
