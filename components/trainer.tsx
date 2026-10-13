@@ -22,7 +22,7 @@ import { isSeen, MAX_SENT, readSeen, rememberSeen } from "@/lib/seen-items";
 import { speak } from "@/lib/speak";
 import { useSettings } from "@/lib/use-settings";
 
-type Exercise = Combination & { text: string; model?: string };
+type Exercise = Combination & { text: string };
 
 type Correction = {
   score: number;
@@ -155,6 +155,7 @@ export function Trainer() {
         text: exercise.text,
         translation,
         level: exercise.level,
+        model: settings.model,
       });
       setResult(correction);
       recordAnswer(correction);
@@ -180,7 +181,6 @@ export function Trainer() {
     exercise?.verbType && `verbe ${exercise.verbType}`,
     exercise?.tense,
     exercise?.theme,
-    exercise?.model && `modèle ${exercise.model}`,
   ].filter(Boolean);
 
   const topErrors = Object.entries(stats.byTag)

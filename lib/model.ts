@@ -1,51 +1,19 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { APICallError, RetryError } from "ai";
+import { DEFAULT_MODEL, MODELS, type Model } from "@/lib/settings";
 
 // Gemini, through the Vercel AI SDK. The key comes from LLM_API_KEY.
 const google = createGoogleGenerativeAI({ apiKey: process.env.LLM_API_KEY });
 
-// Each model has its own quota, so the fallback also helps when the main one runs out.
-const PRIMARY = "gemini-3.5-flash-lite";
-const FALLBACK = "gemini-3.1-flash-lite";
+// Only ids from the fixed list are accepted, so the client can't pick any model.
+function safeModel(id: Model | undefined): Model {
+  return id && (MODELS as readonly string[]).includes(id) ? id : DEFAULT_MODEL;
+}
 
-// A slow attempt is given up after this, so the fallback can answer within the route's time limit.
-const ATTEMPT_TIMEOUT_MS = 12_000;
+export function modelFor(id: Model | undefined) {
+  return google(safeModel(id));
+}
 
 // Both models are "lite" ones, which accept this level, so the JSON isn't cut short.
 export const providerOptions = {
   google: { thinkingConfig: { thinkingLevel: "minimal" as const } },
 };
-
-function isBusy(error: unknown) {
-  const apiError = RetryError.isInstance(error) ? error.lastError : error;
-  if (apiError instanceof Error && apiError.name === "TimeoutError")
-    return true;
-  return (
-    APICallError.isInstance(apiError) &&
-    (apiError.statusCode === 503 || apiError.statusCode === 429)
-  );
-}
-
-// Runs the call on the main model, and on the fallback when the main one is busy or too slow.
-// Returns the model that answered, so the page can show it.
-export async function withFallback<T>(
-  run: (
-    model: ReturnType<typeof google>,
-    abortSignal: AbortSignal,
-  ) => Promise<T>,
-): Promise<{ result: T; model: string }> {
-  try {
-    const result = await run(
-      google(PRIMARY),
-      AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
-    );
-    return { result, model: PRIMARY };
-  } catch (error) {
-    if (!isBusy(error)) throw error;
-    const result = await run(
-      google(FALLBACK),
-      AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
-    );
-    return { result, model: FALLBACK };
-  }
-}

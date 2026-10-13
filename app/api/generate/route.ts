@@ -1,15 +1,12 @@
 import { generateText } from "ai";
 import { z } from "zod";
 import { guardRequest, providerErrorResponse } from "@/lib/api";
-import { providerOptions, withFallback } from "@/lib/model";
+import { modelFor, providerOptions } from "@/lib/model";
 import {
   pickCombination,
   settingsSchema,
   type Combination,
 } from "@/lib/settings";
-
-// Leaves room for the fallback attempt (see lib/model.ts).
-export const maxDuration = 30;
 
 const requestSchema = settingsSchema.extend({
   // Recent exercises, so the model doesn't keep giving the same words.
@@ -96,28 +93,23 @@ export async function POST(request: Request) {
     : "";
 
   try {
-    const { result: output, model: usedModel } = await withFallback(
-      (model, abortSignal) =>
-        generateText({
-          model,
-          abortSignal,
-          providerOptions,
-          temperature: 1,
-          maxRetries: 0,
-          maxOutputTokens: 600,
-          system:
-            "Tu es un professeur de français. Tu donnes un élément en français, " +
-            "naturel et correct, qu'un apprenant devra traduire en anglais américain. " +
-            "Pas de traduction, pas d'explication, pas de guillemets. " +
-            "Réponds uniquement avec l'élément, en texte brut, sans JSON.",
-          prompt: instructions(combination) + avoid + review,
-        }),
-    );
+    const output = await generateText({
+      model: modelFor(data.model),
+      providerOptions,
+      temperature: 1,
+      maxRetries: 1,
+      maxOutputTokens: 600,
+      system:
+        "Tu es un professeur de français. Tu donnes un élément en français, " +
+        "naturel et correct, qu'un apprenant devra traduire en anglais américain. " +
+        "Pas de traduction, pas d'explication, pas de guillemets. " +
+        "Réponds uniquement avec l'élément, en texte brut, sans JSON.",
+      prompt: instructions(combination) + avoid + review,
+    });
 
     return Response.json({
       text: unwrapText(output.text),
       ...combination,
-      model: usedModel,
     });
   } catch (error) {
     console.error("Gemini generation failed", error);

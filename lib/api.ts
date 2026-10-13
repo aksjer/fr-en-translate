@@ -75,15 +75,6 @@ export async function guardRequest<T>(
 // Each provider failure gets its own French message, so the page can say what to do.
 export function providerErrorResponse(error: unknown, fallback: string) {
   const apiError = RetryError.isInstance(error) ? error.lastError : error;
-  if (apiError instanceof Error && apiError.name === "TimeoutError") {
-    return Response.json(
-      {
-        error:
-          "Gemini met plus de 12 secondes à répondre, même avec le modèle de secours. Réessaie dans une minute.",
-      },
-      { status: 504, headers: { "Retry-After": "60" } },
-    );
-  }
   if (APICallError.isInstance(apiError)) {
     switch (apiError.statusCode) {
       case 400:
