@@ -54,6 +54,16 @@ const primaryButton =
 const secondaryButton =
   "rounded-full border border-blue-600 px-5 py-2.5 font-medium text-blue-600 transition-colors hover:bg-blue-50 disabled:opacity-50 dark:hover:bg-blue-950/40";
 
+// Ignores case, punctuation and spacing, so "We will go." and "we will go" count as the same.
+function sameText(a: string, b: string) {
+  const clean = (text: string) =>
+    text
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, " ")
+      .trim();
+  return clean(a) === clean(b);
+}
+
 async function post<T>(url: string, body: unknown): Promise<T> {
   const response = await fetch(url, {
     method: "POST",
@@ -366,7 +376,7 @@ export function Trainer() {
               </p>
             </div>
           )}
-          {result.alternative && (
+          {result.alternative && !sameText(result.alternative, translation) && (
             <div className="flex flex-col gap-1">
               <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
                 Version plus naturelle
