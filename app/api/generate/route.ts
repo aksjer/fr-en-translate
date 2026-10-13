@@ -84,26 +84,31 @@ export async function POST(request: Request) {
     : "";
 
   try {
-    const { output } = await withFallback((model, abortSignal) =>
-      generateText({
-        model,
-        abortSignal,
-        providerOptions,
-        temperature: 1,
-        maxRetries: 0,
-        maxOutputTokens: 600,
-        output: Output.object({
-          schema: z.object({ text: z.string().min(1).max(400) }),
+    const { result: output, model: usedModel } = await withFallback(
+      (model, abortSignal) =>
+        generateText({
+          model,
+          abortSignal,
+          providerOptions,
+          temperature: 1,
+          maxRetries: 0,
+          maxOutputTokens: 600,
+          output: Output.object({
+            schema: z.object({ text: z.string().min(1).max(400) }),
+          }),
+          system:
+            "Tu es un professeur de français. Tu donnes un élément en français, " +
+            "naturel et correct, qu'un apprenant devra traduire en anglais américain. " +
+            "Pas de traduction, pas d'explication, pas de guillemets.",
+          prompt: instructions(combination) + avoid + review,
         }),
-        system:
-          "Tu es un professeur de français. Tu donnes un élément en français, " +
-          "naturel et correct, qu'un apprenant devra traduire en anglais américain. " +
-          "Pas de traduction, pas d'explication, pas de guillemets.",
-        prompt: instructions(combination) + avoid + review,
-      }),
     );
 
-    return Response.json({ text: output.text.trim(), ...combination });
+    return Response.json({
+      text: output.text.trim(),
+      ...combination,
+      model: usedModel,
+    });
   } catch (error) {
     console.error("Gemini generation failed", error);
     return providerErrorResponse(error, "Generation failed");

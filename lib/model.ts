@@ -18,7 +18,8 @@ export const providerOptions = {
 
 function isBusy(error: unknown) {
   const apiError = RetryError.isInstance(error) ? error.lastError : error;
-  if (apiError instanceof Error && apiError.name === "TimeoutError") return true;
+  if (apiError instanceof Error && apiError.name === "TimeoutError")
+    return true;
   return (
     APICallError.isInstance(apiError) &&
     (apiError.statusCode === 503 || apiError.statusCode === 429)
@@ -26,13 +27,25 @@ function isBusy(error: unknown) {
 }
 
 // Runs the call on the main model, and on the fallback when the main one is busy or too slow.
+// Returns the model that answered, so the page can show it.
 export async function withFallback<T>(
-  run: (model: ReturnType<typeof google>, abortSignal: AbortSignal) => Promise<T>,
-): Promise<T> {
+  run: (
+    model: ReturnType<typeof google>,
+    abortSignal: AbortSignal,
+  ) => Promise<T>,
+): Promise<{ result: T; model: string }> {
   try {
-    return await run(google(PRIMARY), AbortSignal.timeout(ATTEMPT_TIMEOUT_MS));
+    const result = await run(
+      google(PRIMARY),
+      AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
+    );
+    return { result, model: PRIMARY };
   } catch (error) {
     if (!isBusy(error)) throw error;
-    return run(google(FALLBACK), AbortSignal.timeout(ATTEMPT_TIMEOUT_MS));
+    const result = await run(
+      google(FALLBACK),
+      AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
+    );
+    return { result, model: FALLBACK };
   }
 }
