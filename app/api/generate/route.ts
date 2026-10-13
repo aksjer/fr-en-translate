@@ -15,7 +15,7 @@ const requestSchema = settingsSchema.extend({
   review: z
     .array(
       z.object({
-        correction: z.string().max(200),
+        correction: z.string().max(800),
         tag: z.string().max(40).optional(),
       }),
     )
