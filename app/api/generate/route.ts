@@ -2,6 +2,7 @@ import { generateText } from "ai";
 import { z } from "zod";
 import { guardRequest, providerErrorResponse } from "@/lib/api";
 import { modelFor, providerOptions } from "@/lib/model";
+import { pickSituation } from "@/lib/situations";
 import {
   pickCombination,
   settingsSchema,
@@ -23,7 +24,12 @@ const requestSchema = settingsSchema.extend({
     .optional(),
 });
 
-function instructions({ mode, level, tense, verbType, theme }: Combination) {
+function instructions(
+  { mode, level, tense, verbType, theme }: Combination,
+  situation?: string,
+) {
+  // A concrete situation makes sentences differ even when the theme is the same.
+  const about = situation ? `, à propos de : ${situation}` : "";
   switch (mode) {
     case "mot":
       return (
@@ -48,13 +54,13 @@ function instructions({ mode, level, tense, verbType, theme }: Combination) {
     case "phrase":
       return (
         `Écris une phrase originale de niveau CECRL ${level}, ` +
-        `conjuguée au ${tense}, sur le thème « ${theme} ». ` +
+        `conjuguée au ${tense}, sur le thème « ${theme} »${about}. ` +
         "Adapte la longueur et le vocabulaire au niveau."
       );
     case "paragraphe":
       return (
         `Écris un court paragraphe de trois phrases liées entre elles, de niveau CECRL ${level}, ` +
-        `sur le thème « ${theme} ». Utilise des connecteurs logiques (d'abord, pourtant, donc…). ` +
+        `sur le thème « ${theme} »${about}. Utilise des connecteurs logiques variés, pas toujours les mêmes. ` +
         "Adapte la longueur et le vocabulaire au niveau."
       );
   }
@@ -81,8 +87,13 @@ export async function POST(request: Request) {
   if (error) return error;
 
   const combination = pickCombination(data);
+  const situation =
+    combination.mode === "phrase" || combination.mode === "paragraphe"
+      ? pickSituation()
+      : undefined;
   const avoid = data.avoid?.length
-    ? `\nÉvite ces éléments déjà donnés : ${data.avoid.join(" ; ")}.`
+    ? `\nÉvite ces éléments déjà donnés : ${data.avoid.join(" ; ")}. ` +
+      "Évite aussi de reprendre la même structure ou les mêmes personnages."
     : "";
   const review = data.review?.length
     ? "\nIntègre naturellement dans la phrase, sans le signaler, la difficulté suivante : " +
@@ -104,7 +115,7 @@ export async function POST(request: Request) {
         "naturel et correct, qu'un apprenant devra traduire en anglais américain. " +
         "Pas de traduction, pas d'explication, pas de guillemets. " +
         "Réponds uniquement avec l'élément, en texte brut, sans JSON.",
-      prompt: instructions(combination) + avoid + review,
+      prompt: instructions(combination, situation) + avoid + review,
     });
 
     return Response.json({
