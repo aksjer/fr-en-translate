@@ -144,3 +144,33 @@ test("the French tense is given as a hint, with its other English tenses", async
 test("a false friend is always critical", async () => {
   assert.equal(await scoreOf([{ ...critical, severity: "major" }]), 4);
 });
+
+test("a word or a verb gets an example instead of another version", async () => {
+  const model = mockModel({
+    translated: true,
+    mistakes: [],
+    praise: "Parfait.",
+    correction: "to wear",
+    example: "She **wore** a blue coat to work.",
+    exampleFrench: "Elle portait un manteau bleu au travail.",
+  });
+  const result = await correctTranslation(
+    { mode: "verbe", level: "A2", text: "porter", translation: "to wear" },
+    model,
+  );
+  assert.deepEqual(result.example, {
+    english: "She **wore** a blue coat to work.",
+    french: "Elle portait un manteau bleu au travail.",
+  });
+  assert.equal(result.alternative, undefined);
+  assert.match(promptText(model), /- example: /);
+  assert.doesNotMatch(promptText(model), /- alternative: /);
+});
+
+test("a sentence gets another version and no example", async () => {
+  const model = mockModel(answer);
+  const result = await correctTranslation(input, model);
+  assert.equal(result.alternative, answer.alternative);
+  assert.equal(result.example, undefined);
+  assert.doesNotMatch(promptText(model), /- example: /);
+});

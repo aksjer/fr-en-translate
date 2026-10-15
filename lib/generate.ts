@@ -18,6 +18,7 @@ import {
   TENSES,
   VERB_TYPES,
   type Level,
+  isWordMode,
   type Mode,
 } from "@/lib/options";
 import {
@@ -95,11 +96,6 @@ const PARTICLES = ["up", "out", "off", "down", "on", "over", "back", "away", "th
 
 function pickOne(items: string[]) {
   return items[Math.floor(Math.random() * items.length)];
-}
-
-// A single word or verb, as opposed to a sentence or a paragraph.
-function isWordMode(mode: Mode) {
-  return mode === "mot" || mode === "verbe" || mode === "phrasal verb";
 }
 
 // The level is the learner's English level: any French is easy for them, so what

@@ -122,6 +122,11 @@ export const THEMES = [
 ] as const;
 
 export type Mode = (typeof MODES)[number];
+
+// A single word or verb, as opposed to a sentence or a paragraph.
+export function isWordMode(mode: Mode) {
+  return mode === "mot" || mode === "verbe" || mode === "phrasal verb";
+}
 export type Level = (typeof LEVELS)[number];
 export type Tense = (typeof TENSES)[number];
 export type VerbType = (typeof VERB_TYPES)[number];

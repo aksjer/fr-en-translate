@@ -10,6 +10,7 @@ import {
 } from "@/lib/model";
 import { MODELS } from "@/lib/model-list";
 import {
+  isWordMode,
   LEVELS,
   MAX_TEXT_LENGTH,
   MODES,
@@ -35,7 +36,9 @@ export type CorrectInput = z.input<typeof correctInputSchema>;
 export type Correction = {
   points: string[];
   correction: string;
-  alternative: string;
+  // Another version of a sentence, or an example sentence for a word or a verb.
+  alternative?: string;
+  example?: { english: string; french: string };
   tag?: ErrorTag;
   score: number;
   isCorrect: boolean;
@@ -92,6 +95,17 @@ export const correctionSchema = z.object({
   alternative: z.string(),
 });
 
+// A word or a verb has no "more natural version": an example sentence with
+// it helps the learner remember it.
+export const wordCorrectionSchema = correctionSchema.omit({ alternative: true }).extend({
+  example: z.string(),
+  exampleFrench: z.string(),
+});
+
+type CorrectionOutput = Omit<z.infer<typeof correctionSchema>, "alternative"> &
+  Partial<Pick<z.infer<typeof correctionSchema>, "alternative">> &
+  Partial<z.infer<typeof wordCorrectionSchema>>;
+
 const MODE_RULES: Record<Mode, string> = {
   mot:
     "The learner translates a single word. Accept any correct American English synonym, " +
@@ -104,11 +118,11 @@ const MODE_RULES: Record<Mode, string> = {
     "parentheses (« louer » alone is to rent or to praise), accept a correct translation " +
     "of any of them: the learner can't see the reference, so never mention a context " +
     "the French item doesn't give. The page already shows the verb's three forms, so " +
-    "don't list them: in the praise, give one short American English example with the verb.",
+    "don't list them in the praise.",
   "phrasal verb":
     "A phrasal verb is expected. A correct simple verb instead of a phrasal verb is " +
     "a major mistake (vocabulaire), and the correction gives the phrasal verb. " +
-    "In the praise, give the phrasal verb's meaning and a short English example.",
+    "In the praise, give the phrasal verb's meaning.",
   phrase:
     "Accept any translation that is faithful to the meaning, grammatically correct and natural " +
     "in American English, even if it differs from the reference. " +
@@ -131,6 +145,7 @@ export async function correctTranslation(
   languageModel?: LanguageModel,
 ): Promise<Correction> {
   const input = correctInputSchema.parse(rawInput);
+  const wordMode = isWordMode(input.mode);
   const output = await retryIfInvalid(async () => {
     const { output } = await generateText({
       model: languageModel ?? modelFor(input.model),
@@ -139,7 +154,11 @@ export async function correctTranslation(
       maxRetries: 1,
       // Room for the thinking and the remarks on a long paragraph.
       maxOutputTokens: 2000,
-      output: Output.object({ schema: correctionSchema }),
+      output: Output.object({
+        schema: (wordMode
+          ? wordCorrectionSchema
+          : correctionSchema) as z.ZodType<CorrectionOutput>,
+      }),
       system: [
         "You are an American English teacher for a French speaker.",
         "You grade the American English translation of a French item.",
@@ -194,9 +213,18 @@ export async function correctTranslation(
         "  words as possible. If translated is false, give a correct translation instead.",
         "  Wrap in ** ** every word added, changed or missing, accents and punctuation included",
         '  (e.g. "I **am** going to the **café**.").',
-        "- alternative: another correct and natural American English version at the learner's",
-        "  level, with the same meaning as the correction and different from both it and",
-        "  the learner's translation.",
+        ...(wordMode
+          ? [
+              "- example: one short, natural American English sentence at the learner's level",
+              "  that uses the correct translation, wrapped in ** **",
+              '  (e.g. "I **borrowed** my sister\'s car for the weekend.").',
+              "- exampleFrench: the French translation of the example.",
+            ]
+          : [
+              "- alternative: another correct and natural American English version at the",
+              "  learner's level, with the same meaning as the correction and different from",
+              "  both it and the learner's translation.",
+            ]),
         "",
         "## Severity",
         "- minor: spelling, punctuation, British spelling (colour, realise…),",
@@ -261,7 +289,11 @@ export async function correctTranslation(
   return {
     points: praise ? [...remarks, praise] : remarks,
     correction: output.correction.trim(),
-    alternative: output.alternative.trim(),
+    alternative: output.alternative?.trim() || undefined,
+    example:
+      output.example?.trim() && output.exampleFrench?.trim()
+        ? { english: output.example.trim(), french: output.exampleFrench.trim() }
+        : undefined,
     tag: output.translated ? mistakes[0]?.category : "sens",
     score,
     isCorrect: score >= CORRECT_FROM,

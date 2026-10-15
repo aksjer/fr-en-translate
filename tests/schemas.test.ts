@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { zodSchema } from "ai";
 import type { z } from "zod";
-import { correctionSchema } from "@/lib/correct";
+import { correctionSchema, wordCorrectionSchema } from "@/lib/correct";
 import { exerciseSchema } from "@/lib/generate";
 
 type JsonSchema = {
@@ -29,6 +29,7 @@ function assertAllRequired(schema: JsonSchema, path: string) {
 const schemas: [string, z.ZodType][] = [
   ["exercise", exerciseSchema],
   ["correction", correctionSchema],
+  ["word correction", wordCorrectionSchema],
 ];
 
 for (const [name, schema] of schemas) {

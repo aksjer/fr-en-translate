@@ -33,6 +33,7 @@ type Correction = {
   correction: string;
   points: string[];
   alternative?: string;
+  example?: { english: string; french: string };
   tag?: ErrorTag;
   lesson?: string;
 };
@@ -367,6 +368,19 @@ export function Trainer() {
               </p>
               <p lang="en-US" className="text-lg font-medium">
                 {exercise.forms.join(" · ")}
+              </p>
+            </div>
+          )}
+          {result.example && (
+            <div className="flex flex-col gap-1">
+              <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+                Exemple
+              </p>
+              <p lang="en-US" className="text-lg">
+                <Marked text={result.example.english} />
+              </p>
+              <p className="text-zinc-600 dark:text-zinc-400">
+                {result.example.french}
               </p>
             </div>
           )}
