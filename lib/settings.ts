@@ -78,7 +78,8 @@ export const MODE_USES = {
 // Every list is optional: a missing or empty list means "any value".
 // .max() keeps the payload small since the lists can't hold more than the options.
 export const settingsSchema = z.object({
-  model: z.enum(MODELS).optional(),
+  // A removed model saved in the browser falls back to the default instead of failing.
+  model: z.enum(MODELS).optional().catch(undefined),
   modes: z.array(z.enum(MODES)).max(MODES.length).optional(),
   levels: z.array(z.enum(LEVELS)).max(LEVELS.length).optional(),
   tenses: z.array(z.enum(TENSES)).max(TENSES.length).optional(),

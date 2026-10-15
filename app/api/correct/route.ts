@@ -10,7 +10,8 @@ const requestSchema = z.object({
   text: z.string().trim().min(1).max(400),
   translation: z.string().trim().min(1).max(600),
   level: z.enum(LEVELS).optional(),
-  model: z.enum(MODELS).optional(),
+  // A removed model saved in the browser falls back to the default instead of failing.
+  model: z.enum(MODELS).optional().catch(undefined),
 });
 
 const correctionSchema = z.object({
