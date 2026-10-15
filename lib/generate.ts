@@ -364,7 +364,11 @@ async function generateVerb(
         `Choose ${commonAt(level, `${english} verb`)}. ` +
         "Never a verb that looks like its French translation (decide → décider), or one " +
         "whose look-alike French verb means something else (to attend is « assister à », " +
-        "not « attendre »)." +
+        "not « attendre »). " +
+        "Then check it the other way: a French speaker who sees your French infinitive and " +
+        "its context sentence must naturally answer with this English verb. If they would " +
+        "rather answer another English verb (« confondre » is confuse or mix up, not " +
+        "mistake), choose another verb." +
         knownSection(known) +
         historySection(recent, "verbe") +
         weakPointsSection(input),

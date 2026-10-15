@@ -41,6 +41,8 @@ export type Correction = {
   // Another version of a sentence, or an example sentence for a word or a verb.
   alternative?: string;
   example?: { english: string; french: string };
+  // The three forms of the verb in the correction, so they always match it.
+  forms?: [string, string, string];
   tag?: ErrorTag;
   // No mistake at all.
   perfect: boolean;
@@ -97,9 +99,18 @@ export const wordCorrectionSchema = correctionSchema.omit({ alternative: true })
   exampleFrench: z.string(),
 });
 
+// A verb also gets the forms of the verb in the correction: the ones from
+// generation belong to the reference, which the correction may not use
+// (mistake shown under "to confuse").
+export const verbCorrectionSchema = wordCorrectionSchema.extend({
+  base: z.string(),
+  past: z.string(),
+  participle: z.string(),
+});
+
 type CorrectionOutput = Omit<z.infer<typeof correctionSchema>, "alternative"> &
   Partial<Pick<z.infer<typeof correctionSchema>, "alternative">> &
-  Partial<z.infer<typeof wordCorrectionSchema>>;
+  Partial<z.infer<typeof verbCorrectionSchema>>;
 
 const MODE_RULES: Record<Mode, string> = {
   mot:
@@ -133,6 +144,17 @@ function untagged(text: string) {
   return text.replace(/<\/?(french|context|reference|translation)>/gi, "");
 }
 
+// The three forms as one lowercase word each, or none if the model gave
+// something else: the page then shows the forms from generation.
+function verbForms(output: CorrectionOutput): Correction["forms"] {
+  const forms = [output.base, output.past, output.participle].map((form) =>
+    (form ?? "").trim().toLowerCase().replace(/^to\s+/, ""),
+  );
+  return forms.every((form) => /^[a-z]+$/.test(form))
+    ? (forms as [string, string, string])
+    : undefined;
+}
+
 // Asks the model to grade one translation.
 export async function correctTranslation(rawInput: CorrectInput): Promise<Correction> {
   const input = correctInputSchema.parse(rawInput);
@@ -146,9 +168,11 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
       // Room for the thinking and the remarks on a long paragraph.
       maxOutputTokens: 2000,
       output: Output.object({
-        schema: (wordMode
-          ? wordCorrectionSchema
-          : correctionSchema) as z.ZodType<CorrectionOutput>,
+        schema: (input.mode === "verbe"
+          ? verbCorrectionSchema
+          : wordMode
+            ? wordCorrectionSchema
+            : correctionSchema) as z.ZodType<CorrectionOutput>,
       }),
       system: [
         "You are an American English teacher for a French speaker.",
@@ -227,6 +251,12 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
               "  that uses the translation of the correction, wrapped in ** **",
               '  (e.g. "I **borrowed** my sister\'s car for the weekend.").',
               "- exampleFrench: the French translation of the example.",
+              ...(input.mode === "verbe"
+                ? [
+                    "- base, past, participle: the base form, simple past and past participle,",
+                    "  in American English, of the verb in the correction (e.g. go, went, gone).",
+                  ]
+                : []),
             ]
           : [
               "- alternative: another correct and natural American English version at the",
@@ -307,6 +337,7 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
       output.example?.trim() && output.exampleFrench?.trim()
         ? { english: output.example.trim(), french: output.exampleFrench.trim() }
         : undefined,
+    forms: verbForms(output),
     tag: output.translated ? mistakes[0]?.category : "sens",
     perfect: output.translated && mistakes.length === 0,
     isCorrect:

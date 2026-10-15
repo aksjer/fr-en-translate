@@ -36,6 +36,7 @@ type Correction = {
   points: string[];
   alternative?: string;
   example?: { english: string; french: string };
+  forms?: [string, string, string];
   tag?: ErrorTag;
   lesson?: string;
 };
@@ -336,13 +337,13 @@ export function Trainer() {
               </p>
             </div>
           )}
-          {exercise?.forms && (
+          {(result.forms ?? exercise?.forms) && (
             <div className="flex flex-col gap-1">
               <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
                 Base · prétérit · participe passé
               </p>
               <p lang="en-US" className="text-lg font-medium">
-                {exercise.forms.join(" · ")}
+                {(result.forms ?? exercise?.forms)?.join(" · ")}
               </p>
             </div>
           )}
