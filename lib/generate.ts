@@ -240,11 +240,15 @@ export async function generateExercise(
                 "  (who, where, when), then the main French verb of each sentence,",
                 "  already conjugated.",
               ]),
-        "- text: the item, always in correct, modern French as people speak and write it",
-        "  today (no passé simple or imparfait du subjonctif), with French punctuation",
-        "  (a space before ! ? : ;) and no quotes, translation or explanation.",
-        "- reference: a natural, correct American English translation of text,",
-        "  with the same meaning and the equivalent tense, in American spelling.",
+        // "As people speak it today" gave slang and negations without « ne »;
+        // "correct French" alone gave literary French.
+        "- text: the item, in correct, modern French with a neutral register: no slang,",
+        "  swear words or literary style, always the « ne » of a negation, and no passé",
+        "  simple or imparfait du subjonctif. Use French punctuation (a space before",
+        "  ! ? : ;) and no quotes, translation or explanation.",
+        "- reference: a natural, correct American English translation of text, with the",
+        "  same meaning and the equivalent tense, in American words and spelling",
+        "  (apartment, color, not flat, colour).",
       ].join("\n"),
       prompt:
         learner(combination.mode, combination.level) +

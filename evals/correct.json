@@ -383,5 +383,167 @@
     "translation": "I am happy to see you.",
     "expected": [9, 10],
     "note": "Simple but correct at A1: no penalty for style."
+  },
+  {
+    "id": "age-ok",
+    "mode": "phrase",
+    "level": "A1",
+    "tense": "présent",
+    "text": "J'ai vingt ans.",
+    "reference": "I'm twenty.",
+    "translation": "I am twenty years old.",
+    "expected": [9, 10],
+    "note": "Age uses be in English."
+  },
+  {
+    "id": "age-have-wrong",
+    "mode": "phrase",
+    "level": "A1",
+    "tense": "présent",
+    "text": "J'ai vingt ans.",
+    "reference": "I'm twenty years old.",
+    "translation": "I have twenty years.",
+    "expected": [3, 7],
+    "note": "Age uses be: I am twenty (years old), not I have."
+  },
+  {
+    "id": "manquer-ok",
+    "mode": "phrase",
+    "level": "A2",
+    "tense": "présent",
+    "text": "Mon frère me manque beaucoup.",
+    "translation": "I miss my brother a lot.",
+    "expected": [9, 10],
+    "note": "Manquer à: the French subject becomes the English object."
+  },
+  {
+    "id": "manquer-reversed",
+    "mode": "phrase",
+    "level": "A2",
+    "tense": "présent",
+    "text": "Mon frère me manque beaucoup.",
+    "reference": "I miss my brother a lot.",
+    "translation": "My brother misses me a lot.",
+    "expected": [0, 5],
+    "note": "The subject and the object are swapped, so the meaning is reversed: critical."
+  },
+  {
+    "id": "ca-fait-que-ok",
+    "mode": "phrase",
+    "level": "B1",
+    "tense": "présent",
+    "text": "Ça fait trois jours que je l'attends.",
+    "translation": "I've been waiting for him for three days.",
+    "expected": [9, 10],
+    "note": "Ça fait … que gives the present perfect continuous with for."
+  },
+  {
+    "id": "ca-fait-que-wrong",
+    "mode": "phrase",
+    "level": "B1",
+    "tense": "présent",
+    "text": "Ça fait trois jours que je l'attends.",
+    "reference": "I've been waiting for him for three days.",
+    "translation": "I wait him since three days.",
+    "expected": [0, 4],
+    "note": "Three mistakes: the tense, wait for, and for instead of since."
+  },
+  {
+    "id": "be-agree",
+    "mode": "phrase",
+    "level": "A1",
+    "tense": "présent",
+    "text": "Je suis d'accord avec toi.",
+    "reference": "I agree with you.",
+    "translation": "I am agree with you.",
+    "expected": [4, 7],
+    "note": "Agree is a verb: I agree, not I am agree."
+  },
+  {
+    "id": "explain-to",
+    "mode": "phrase",
+    "level": "A2",
+    "tense": "passé composé",
+    "text": "Il m'a expliqué le problème.",
+    "reference": "He explained the problem to me.",
+    "translation": "He explained me the problem.",
+    "expected": [4, 7],
+    "note": "Explain something to someone."
+  },
+  {
+    "id": "take-photo",
+    "mode": "phrase",
+    "level": "A2",
+    "tense": "passé composé",
+    "text": "J'ai fait une photo du pont.",
+    "reference": "I took a photo of the bridge.",
+    "translation": "I made a photo of the bridge.",
+    "expected": [4, 7],
+    "note": "Take a photo, not make: a word a native speaker would not use."
+  },
+  {
+    "id": "information-plural",
+    "mode": "phrase",
+    "level": "B1",
+    "tense": "présent",
+    "text": "Ces informations sont très utiles.",
+    "reference": "This information is very useful.",
+    "translation": "These informations are very useful.",
+    "expected": [4, 7],
+    "note": "Information is uncountable: one mistake, even if it changes three words."
+  },
+  {
+    "id": "people-are",
+    "mode": "phrase",
+    "level": "A1",
+    "tense": "présent",
+    "text": "Les gens sont gentils ici.",
+    "reference": "People are nice here.",
+    "translation": "People is nice here.",
+    "expected": [4, 7],
+    "note": "People is plural: people are."
+  },
+  {
+    "id": "indirect-question-ok",
+    "mode": "phrase",
+    "level": "B1",
+    "tense": "présent",
+    "text": "Je ne sais pas où est la gare.",
+    "translation": "I don't know where the station is.",
+    "expected": [9, 10],
+    "note": "No inversion in an indirect question, even if the French has one."
+  },
+  {
+    "id": "indirect-question-order",
+    "mode": "phrase",
+    "level": "B1",
+    "tense": "présent",
+    "text": "Je ne sais pas où est la gare.",
+    "reference": "I don't know where the train station is.",
+    "translation": "I don't know where is the station.",
+    "expected": [4, 7],
+    "note": "No inversion in an indirect question: where the station is."
+  },
+  {
+    "id": "idiom-equivalent",
+    "mode": "phrase",
+    "level": "B2",
+    "tense": "présent",
+    "text": "Il pleut des cordes.",
+    "reference": "It's raining cats and dogs.",
+    "translation": "It's pouring.",
+    "expected": [9, 10],
+    "note": "An idiom is translated by its meaning: any natural equivalent is right."
+  },
+  {
+    "id": "idiom-literal",
+    "mode": "phrase",
+    "level": "B2",
+    "tense": "présent",
+    "text": "Il pleut des cordes.",
+    "reference": "It's raining cats and dogs.",
+    "translation": "It's raining ropes.",
+    "expected": [0, 5],
+    "note": "A word-for-word idiom loses the meaning: critical."
   }
 ]

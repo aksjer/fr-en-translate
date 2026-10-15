@@ -117,3 +117,12 @@ test("word modes ask for a single item, with no grammar or conjugated verb", asy
   assert.match(prompt, /already conjugated/);
   assert.match(prompt, /present perfect vs simple past/);
 });
+
+test("asks for a neutral register and American words", async () => {
+  const model = mockModel(answer);
+  await generateExercise({ modes: ["phrase"] }, model);
+  const prompt = promptText(model);
+  assert.match(prompt, /neutral register: no slang/);
+  assert.match(prompt, /always the « ne » of a negation/);
+  assert.match(prompt, /in American words and spelling/);
+});

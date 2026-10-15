@@ -1,6 +1,6 @@
 // Runs the real prompts on a model and prints the results, to compare a prompt or
 // model change with the version before it. It calls the provider, so it needs the
-// API key in .env.local and uses the free quota (about 70 calls).
+// API key in .env.local and uses the free quota (about 85 calls).
 //
 //   npm run eval                                   both suites, default model
 //   npm run eval -- --model openai/gpt-oss-120b    another model
@@ -35,6 +35,20 @@ const ENGLISH_WORDS = new Set([
   "have", "has", "will", "would", "it", "to", "in", "my", "your", "they", "we", "i",
 ]);
 
+// Common slang, to spot an item that isn't in a neutral register.
+const SLANG_WORDS = new Set([
+  "foutu", "foutue", "foutus", "foutues", "bidon", "putain", "merde", "con", "conne",
+  "mec", "mecs", "nana", "nanas", "pote", "potes", "fric", "flic", "flics", "bagnole",
+  "bouffer", "bouffe", "boulot", "kiffer", "kiffe", "ouais", "truc", "trucs",
+]);
+
+// British words and spellings, to spot a reference that isn't American English.
+const BRITISH_WORDS = new Set([
+  "colour", "colours", "favourite", "centre", "theatre", "neighbour", "neighbours",
+  "realise", "realised", "organise", "organised", "travelled", "travelling",
+  "cancelled", "mum", "lorry", "petrol", "rubbish", "bloody",
+]);
+
 function fail(text: string): never {
   console.error(text);
   process.exit(1);
@@ -56,9 +70,9 @@ function normalize(text: string) {
     .trim();
 }
 
-function looksEnglish(text: string) {
+function hasWord(text: string, words: Set<string>) {
   return (text.toLowerCase().match(/[\p{L}']+/gu) ?? []).some((word) =>
-    ENGLISH_WORDS.has(word),
+    words.has(word),
   );
 }
 
@@ -79,7 +93,15 @@ function maxWords(mode: Mode, level: Level) {
 }
 
 function sentences(text: string) {
-  return text.split(/[.!?…]+(?:\s|$)/).filter((part) => part.trim()).length;
+  return text.split(/[.!?…]+(?:\s|$)/).filter((part) => part.trim());
+}
+
+// Casual French drops the « ne » of a negation (« tu rates pas »); items keep it.
+function missingNe(text: string) {
+  return sentences(text).some(
+    (sentence) =>
+      /\b(pas|jamais)\b/i.test(sentence) && !/\b(ne\b|n['’])/i.test(sentence),
+  );
 }
 
 function listOption<T extends string>(
@@ -165,6 +187,7 @@ async function evalGenerate(
   let errors = 0;
   for (const mode of modes) {
     console.log(`\n${mode}`);
+    const sentenceMode = mode === "phrase" || mode === "paragraphe";
     // Like the page, each request avoids the items given before it.
     const seen: string[] = [];
     for (const level of levels) {
@@ -180,16 +203,20 @@ async function evalGenerate(
           );
           const words = exercise.text.split(/\s+/).filter(Boolean).length;
           const limit = maxWords(mode, level);
+          const sentenceCount = sentences(exercise.text).length;
           const flags = [
             seen.some((item) => normalize(item) === normalize(exercise.text)) &&
               "repeated",
-            looksEnglish(exercise.text) && "English?",
+            hasWord(exercise.text, ENGLISH_WORDS) && "English?",
+            hasWord(exercise.text, SLANG_WORDS) && "slang?",
+            sentenceMode && missingNe(exercise.text) && "no « ne »?",
+            hasWord(exercise.reference, BRITISH_WORDS) && "British?",
             limit && words > limit && `${words} words (${limit} at most)`,
             // A word, verb or phrasal verb should never be a whole sentence.
-            !limit && /[.!?]$/.test(exercise.text) && "a sentence?",
+            !sentenceMode && /[.!?]$/.test(exercise.text) && "a sentence?",
             mode === "paragraphe" &&
-              sentences(exercise.text) !== 3 &&
-              count(sentences(exercise.text), "sentence"),
+              sentenceCount !== 3 &&
+              count(sentenceCount, "sentence"),
             mode === "phrasal verb" &&
               !PARTICLES.test(exercise.reference) &&
               "no phrasal verb?",
@@ -214,10 +241,12 @@ async function evalGenerate(
         }
       }
     }
-    if (mode === "phrase" || mode === "paragraphe") {
+    if (sentenceMode) {
       // Sentences that keep starting the same way are the first sign of repetition.
       const firstWords = new Set(seen.map((item) => normalize(item).split(" ")[0]));
-      console.log(`  ${firstWords.size} different first words out of ${seen.length}`);
+      console.log(
+        `  ${count(firstWords.size, "different first word")} out of ${seen.length}`,
+      );
     }
   }
 
