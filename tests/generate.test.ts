@@ -10,6 +10,9 @@ const answer = {
   reference: "Don't miss your train!",
 };
 
+// Word modes refuse a sentence.
+const word = { situation: "drink, drank, drunk", text: "boire", reference: "drink" };
+
 test("returns the item, its reference and the combination", async () => {
   const model = mockModel(answer);
   const exercise = await generateExercise(
@@ -33,7 +36,7 @@ test("the impératif only uses tu, nous or vous", async () => {
 });
 
 test("sends the recent items to avoid", async () => {
-  const model = mockModel(answer);
+  const model = mockModel(word);
   await generateExercise({ modes: ["mot"], avoid: ["la pomme"] }, model);
   assert.match(promptText(model), /la pomme/);
 });
@@ -103,7 +106,7 @@ test("the level is the learner's English level", async () => {
 
 test("word modes ask for a single item, with no grammar or conjugated verb", async () => {
   for (const mode of ["mot", "verbe", "phrasal verb"] as const) {
-    const model = mockModel(answer);
+    const model = mockModel(word);
     await generateExercise({ modes: [mode], levels: ["B1"] }, model);
     const prompt = promptText(model);
     assert.match(prompt, /never a sentence/i, mode);
@@ -128,10 +131,10 @@ test("asks for a neutral register and American words", async () => {
 });
 
 test("word modes plan the English first, and a verb its three forms", async () => {
-  const model = mockModel(answer);
+  const model = mockModel(word);
   await generateExercise({ modes: ["verbe"], verbTypes: ["irrégulier"] }, model);
   const prompt = promptText(model);
-  assert.match(prompt, /the English verb you chose with its three forms/);
+  assert.match(prompt, /only the English verb you chose and its three forms/);
   assert.match(prompt, /Being irregular matters more than the level/);
 });
 
