@@ -122,7 +122,7 @@ export function historySection(items: HistoryItem[], mode: Mode) {
         ? "skipped"
         : item.ok
           ? "right"
-          : `wrong${item.remark ? `: ${item.remark}` : ""}`;
+          : `wrong${item.remark ? `: ${item.remark}` : " (no detail)"}`;
     return `- « ${item.text} »${english}: ${result}`;
   });
   return (
@@ -135,9 +135,9 @@ export function historySection(items: HistoryItem[], mode: Mode) {
         "or context. The same French word with another meaning is a new item (tirer: pull, " +
         "then shoot). An item answered wrong or skipped may come back as is, but only " +
         "after a few other items."
-      : "When a recent item was wrong, test the same difficulty again in a new item, " +
-        "without pointing it out. Vary the person, the sentence type, the situation and " +
-        "the characters from one item to the next.")
+      : "A recent wrong item whose remark names the difficulty can give the extra " +
+        "learning point (see Learning point). Vary the person, the sentence type, the situation " +
+        "and the characters from one item to the next.")
   );
 }
 
@@ -169,9 +169,8 @@ const wordExerciseSchema = z.object({
 });
 
 // Asks the model for one word or sentence and its reference, plus a context
-// sentence for a word. Each mode gives its own fields (situation, text and the
-// context if any), its task and
-// its own sections; an item already known is asked again once, and the second
+// sentence for a word. Each mode gives its own fields, its task and its own
+// sections; an item already known is asked again once, and the second
 // answer is kept, so the page never gets an error.
 export async function generateItem(
   input: GenerateInput,
@@ -202,10 +201,6 @@ export async function generateItem(
         "",
         "## Fields, in this order",
         ...prompt.fields,
-        "- reference: the most natural American English translation of text as the learner",
-        "  sees it (with its context, if any), with the same meaning" +
-          (isWordMode(mode) ? "," : " and the equivalent tense,"),
-        "  in American words and spelling (apartment, color, not flat, colour).",
       ].join("\n"),
       prompt:
         GOAL +

@@ -17,9 +17,23 @@ const SENTENCE_TEXT_FIELD = [
 // Sentences get the same frequency lists as words, so they use useful English.
 function sentenceVocabulary(level: Level) {
   return (
-    "\nBuild it so its American English translation uses common words (Oxford 5000, COCA) " +
-    `at or below CEFR ${level}, plus one or two words or one structure typical of ` +
-    `${level}, so it teaches something new.`
+    "\nIts American English translation uses common words (Oxford 5000, COCA) at or " +
+    `below CEFR ${level}.`
+  );
+}
+
+// One learning point besides the tense: a sentence with several difficulties
+// is hard to learn from, and the correction mixes them up. A recent mistake
+// comes first, since it is more precise than a weak point's category, and
+// weak points are almost always there.
+function learningPoint(level: Level) {
+  return (
+    "\n\n## Learning point\nThe tense is the main point of the sentence. Add at most " +
+    "one other point, the first of these that fits the tense, without pointing it out:\n" +
+    "1. the difficulty of a recent wrong item in the history, when its remark names it;\n" +
+    "2. else one of the weak points below, if any;\n" +
+    `3. else one word or phrase that learners usually learn at CEFR ${level}.\n` +
+    "Never more than one: a sentence with several difficulties is hard to learn from."
   );
 }
 
@@ -33,7 +47,7 @@ const VARIETY =
 
 const PRIORITY =
   "\n\n## Priority\nIf two instructions conflict, the tense and the theme come first, " +
-  "then the level, then the variety.";
+  "then the level, then the learning point, then the variety.";
 
 // Spelling, punctuation and "anything else" can't be built into a sentence.
 const UNPRACTICED_TAGS: ErrorTag[] = ["spelling", "punctuation", "other"];
@@ -59,8 +73,7 @@ function weakPointsSection(input: GenerateInput) {
     ? "\n\n## Weak points\n" +
         "The kinds of mistakes the learner made most in their recent sentences:\n" +
         top.map(([tag, count]) => `- ${ERROR_TAG_DEFINITIONS[tag]}: ${count} times`).join("\n") +
-        "\nBuild the item so its translation practices one of these points, without " +
-        "pointing it out."
+        "\nOne of these can be the extra learning point (see Learning point)."
     : "";
 }
 
@@ -73,14 +86,19 @@ export function generateSentence(input: GenerateInput, combination: Combination)
       `  when), then the main verb of the English translation in the ${tense}, and the`,
       "  French verb as it will appear in the sentence.",
       ...SENTENCE_TEXT_FIELD,
+      "- reference: the most natural American English translation of text, in the tense a",
+      `  native speaker would use for this French (it should be the ${tense}), in American`,
+      "  words and spelling (apartment, color, not flat, colour).",
     ],
     task:
       `Write one original French sentence on the theme "${theme}", of a length typical ` +
       `of CEFR ${level}, whose natural American English translation is in the ${tense}: ` +
-      `${tense && TENSE_GUIDES[tense]}. ` +
+      `${tense && TENSE_GUIDES[tense].english}. ` +
+      `To get it, use ${tense && TENSE_GUIDES[tense].french}. ` +
       "Choose the person of the main verb (je, tu, il, elle, on, nous, vous, ils or " +
       "elles) and the sentence type (statement, question, negation or exclamation)." +
       sentenceVocabulary(level) +
+      learningPoint(level) +
       VARIETY +
       PRIORITY,
     sections: weakPointsSection(input),

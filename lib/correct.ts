@@ -102,11 +102,13 @@ const WORD_RULE =
   'equivalent that keeps the whole meaning, with or without "to" or an article. ';
 
 const MODE_RULES: Record<Mode, string> = {
-  word: WORD_RULE + "In the praise, mention one or two other useful equivalents.",
+  word:
+    WORD_RULE +
+    "In the praise, you may add one other equivalent with exactly this meaning in the context.",
   verb:
     WORD_RULE +
-    "In the praise, mention one or two other useful equivalents. The page already " +
-    "shows the verb's three forms, so don't list them.",
+    "In the praise, you may add one other equivalent with exactly this meaning in the " +
+    "context. The page already shows the verb's three forms, so don't list them.",
   sentence:
     "Accept any translation that is faithful to the meaning, grammatically correct and " +
     "natural in American English, even if it differs from the reference.",
@@ -179,9 +181,11 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
         ...(wordMode
           ? []
           : [
-              "- The expected English tense, when given, is only a hint: judge the English tense",
-              "  by meaning, and accept any tense a native speaker would naturally use for this French",
-              '  (e.g. « J\'habite ici depuis 2010 » → "I have lived here since 2010").',
+              "- The expected English tense, when given, is only a hint: the French decides. Any",
+              "  tense a native speaker would naturally use for this French is right; a present",
+              "  perfect with no finished time (I have eaten) is at most a remark that American",
+              "  English often uses the simple past. A tense that changes the meaning or is",
+              '  ungrammatical ("I live here since 2010", "when he will arrive") is wrong.',
               "- At A1 or A2, accept a simple but correct phrasing.",
             ]),
         "- Be fair: never leave out a real mistake to be nice. Keep the remarks short, and",
@@ -249,10 +253,10 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
         ...(wordMode
           ? [
               "- example: one short, natural American English sentence at the learner's level",
-              "  that uses the translation of the correction in the form the sentence needs",
-              '  (conjugated, without "to"), wrapped in ** **',
-              '  (e.g. "I **borrowed** my sister\'s car for the weekend."). Make it different',
-              "  from the French context sentence, if one is given.",
+              "  that uses the English word or verb of the correction in the form the sentence",
+              '  needs (conjugated, without "to"), wrapped in ** **',
+              '  (e.g. "I **borrowed** my sister\'s car for the weekend."). Write it on another',
+              "  topic than the French context sentence, so it shows another use.",
               "- exampleFrench: the French translation of the example, with the French word",
               "  wrapped in ** ** too.",
               ...(input.mode === "verb"
@@ -279,7 +283,7 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
       prompt: [
         input.level && `CEFR level: ${input.level}`,
         input.tense &&
-          `Expected English tense: the ${input.tense} (${TENSE_GUIDES[input.tense]})`,
+          `Expected English tense: the ${input.tense} (${TENSE_GUIDES[input.tense].english})`,
         `<french>${untagged(input.text)}</french>`,
         input.context && `<context>${untagged(input.context)}</context>`,
         input.reference &&

@@ -51,7 +51,7 @@ export async function generateVerb(
   input: GenerateInput,
   combination: Combination,
 ): Promise<Exercise> {
-  const { level } = combination;
+  const { level, theme } = combination;
   const verbType = combination.verbType ?? "regular";
   const { known, recent } = history(input, "verb");
   let attempt = 0;
@@ -86,7 +86,9 @@ export async function generateVerb(
         "\n\n" +
         learner("verb", level) +
         "\n\n## Task\n" +
-        `Choose ${commonAt(level, `${verbType} verb`)}. ` +
+        `Choose ${commonAt(level, `${verbType} verb`)}, useful when talking about ` +
+        `"${theme}". The theme is only a direction: if no verb fits it and every other ` +
+        "rule, choose one loosely related to it rather than one at another level. " +
         "Never a verb that looks like its French translation (decide → décider), or one " +
         "whose look-alike French verb means something else (to attend is « assister à », " +
         "not « attendre »). " +

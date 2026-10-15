@@ -38,26 +38,57 @@ export const TENSES = [
   "conditional",
 ] as const;
 
-// What each English tense covers, and the French that usually leads to it.
-export const TENSE_GUIDES: Record<(typeof TENSES)[number], string> = {
-  present:
-    "simple present or present continuous (I work, I'm working), from a French présent",
-  past:
-    "simple past or past continuous (I worked, I was working), from a passé composé " +
-    "with a finished time (hier, en 2010) or an imparfait; American English also uses " +
-    "it for a recent result (j'ai perdu mes clés → I lost my keys)",
-  "present perfect":
-    "have + past participle (I have worked), from a présent with depuis (j'habite ici " +
-    "depuis 2010 → I have lived here since 2010) or a passé composé for an experience " +
-    "with no time given (je n'ai jamais vu la mer → I have never seen the ocean)",
-  "past perfect": "had + past participle (I had worked), from a plus-que-parfait",
-  future:
-    "will or be going to + verb (I will work, I'm going to work), from a futur simple " +
-    "or futur proche, with a simple present after when or as soon as (quand il " +
-    "arrivera → when he arrives)",
-  conditional:
-    "would + verb (I would work; could for pouvoir, should for devoir), from a " +
-    "conditionnel présent, with a simple past after if",
+// What each English tense looks like, for both prompts, and the French that
+// leads to it, for generation only.
+export const TENSE_GUIDES: Record<
+  (typeof TENSES)[number],
+  { english: string; french: string }
+> = {
+  present: {
+    english: "simple present or present continuous (I work, I'm working)",
+    french: "a présent without depuis (with depuis, English needs the present perfect)",
+  },
+  past: {
+    english:
+      "simple past or past continuous (I worked, I was working), or used to for a past " +
+      "habit; American English also uses the simple past for a recent result (I lost my keys)",
+    french:
+      "a passé composé of a finished action, often with a finished time (hier, en 2010), " +
+      "or an imparfait: of an action in progress for the past continuous, of a habit for " +
+      "the simple past or used to (je jouais au foot le dimanche → I used to play soccer " +
+      "on Sundays)",
+  },
+  "present perfect": {
+    english:
+      "have + past participle (I have worked), or have been + -ing for an ongoing " +
+      "activity (I've been waiting for an hour)",
+    french:
+      "a présent with depuis (j'habite ici depuis 2010 → I have lived here since 2010; " +
+      "j'attends depuis une heure → I've been waiting for an hour), or a passé composé " +
+      "with déjà, jamais, pas encore or plusieurs fois (je n'ai jamais vu la mer → I have " +
+      "never seen the ocean). Without such a word, a passé composé is a simple past in " +
+      "American English (j'ai mangé une pomme → I ate an apple), so never use one alone",
+  },
+  "past perfect": {
+    english:
+      "had + past participle (I had worked); the simple past is also natural when after " +
+      "or before already shows the order (after he left)",
+    french:
+      "a plus-que-parfait, in a sentence where the order of two past events matters and " +
+      "no après or avant shows it",
+  },
+  future: {
+    english:
+      "will or be going to + verb (I will work, I'm going to work), with a simple present " +
+      "after when, as soon as or until (when he arrives, not when he will arrive)",
+    french: "a futur simple or futur proche (quand il arrivera → when he arrives)",
+  },
+  conditional: {
+    english:
+      "would + verb (I would work; could, should), with a simple past after if (if I had " +
+      "time, I would go)",
+    french: "a conditionnel présent (could for pouvoir, should for devoir)",
+  },
 };
 
 // The lowest English level each tense fits. Only used when the learner selects
@@ -104,6 +135,6 @@ export type Theme = (typeof THEMES)[number];
 // Which settings apply to each mode; the others are ignored for that mode.
 export const MODE_USES = {
   word: { tense: false, verbType: false, theme: true },
-  verb: { tense: false, verbType: true, theme: false },
+  verb: { tense: false, verbType: true, theme: true },
   sentence: { tense: true, verbType: false, theme: true },
 } satisfies Record<Mode, { tense: boolean; verbType: boolean; theme: boolean }>;

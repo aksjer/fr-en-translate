@@ -8,14 +8,16 @@ export function generateWord(input: GenerateInput, combination: Combination) {
     // The English comes first, since the level is about English: starting from
     // the French gave loose translations (un périple → an ordeal).
     fields: [
-      "- situation: first, one short line in English: the English word you chose, then the",
-      "  context it is used in.",
+      "- situation: first, one short line in English: the English word you chose and its",
+      "  meaning here (e.g. leaf: part of a tree).",
       "- text: the French word only, with no context, quotation marks, translation or",
       "  explanation. Check its spelling and accents.",
       "- context: one short, everyday French sentence that uses this French word in the",
       "  meaning of the English word. The learner sees it under the word, so it must leave",
       "  only this meaning possible (e.g. « Les feuilles tombent des arbres en automne. »",
       "  for leaf, since feuille is also a sheet of paper). Check its spelling and accents.",
+      "- reference: the most natural American English translation of text in the meaning",
+      "  of context, in American words and spelling (apartment, color, not flat, colour).",
     ],
     task:
       "Give a single French noun, adjective or adverb whose American English " +
