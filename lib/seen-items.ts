@@ -1,4 +1,4 @@
-import type { Mode } from "@/lib/options";
+import { MAX_KNOWN, type Mode } from "@/lib/options";
 
 // Items already shown to this learner, kept in this browser only.
 // The last ones are sent to the API so it avoids repeating them.
@@ -45,28 +45,36 @@ export function rememberSeen(text: string, mode: Mode) {
   }
 }
 
-// Verbs the learner translated correctly, kept for good: a verb answered
-// right never comes back. Sent in full, since the server only checks them.
-const KNOWN_VERBS_KEY = "fr-en-translate:known-verbs";
-export const MAX_KNOWN_VERBS = 500;
+// Words, verbs and phrasal verbs the learner translated correctly, by their
+// English (englishKey), kept for good: an item answered right never comes back.
+const KNOWN_KEY = "fr-en-translate:known";
 
-export function readKnownVerbs(): string[] {
+export type KnownItems = Partial<Record<Mode, string[]>>;
+
+export function readKnown(): KnownItems {
   try {
-    const parsed: unknown = JSON.parse(localStorage.getItem(KNOWN_VERBS_KEY) ?? "[]");
-    return Array.isArray(parsed)
-      ? parsed.filter((item): item is string => typeof item === "string")
-      : [];
+    const parsed: unknown = JSON.parse(localStorage.getItem(KNOWN_KEY) ?? "{}");
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return Object.fromEntries(
+      Object.entries(parsed).map(([mode, items]) => [
+        mode,
+        Array.isArray(items)
+          ? items.filter((item): item is string => typeof item === "string").slice(-MAX_KNOWN)
+          : [],
+      ]),
+    );
   } catch {
-    return [];
+    return {};
   }
 }
 
-export function rememberKnownVerb(text: string) {
+export function rememberKnown(mode: Mode, english: string) {
   try {
-    const known = readKnownVerbs().filter((item) => item !== text.trim());
-    const items = [...known, text.trim()].slice(-MAX_KNOWN_VERBS);
-    localStorage.setItem(KNOWN_VERBS_KEY, JSON.stringify(items));
+    const known = readKnown();
+    const items = (known[mode] ?? []).filter((item) => item !== english);
+    known[mode] = [...items, english].slice(-MAX_KNOWN);
+    localStorage.setItem(KNOWN_KEY, JSON.stringify(known));
   } catch {
-    // Not saved: this verb may come back, which is acceptable.
+    // Not saved: this item may come back, which is acceptable.
   }
 }

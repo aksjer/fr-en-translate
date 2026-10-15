@@ -14,6 +14,21 @@ export const LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
 // and the correction share it, so anything generated can be corrected.
 export const MAX_TEXT_LENGTH = 1000;
 
+// Items the learner got right are sent back so they never come again: at most
+// this many per mode, the most recent ones.
+export const MAX_KNOWN = 1000;
+
+// The English an item is known by: "to wear" → wear, "the couch" → couch,
+// without the context in parentheses.
+export function englishKey(reference: string) {
+  return reference
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/^\s*(to|the|a|an)\s+/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 // The English each CEFR level needs, for the generation prompt. The learner is
 // French, so the level is about the English they must write, not the French.
 export const LEVEL_VOCABULARY: Record<(typeof LEVELS)[number], string> = {

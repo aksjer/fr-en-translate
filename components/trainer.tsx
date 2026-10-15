@@ -15,14 +15,14 @@ import {
   type ErrorTag,
   type Mistake,
 } from "@/lib/mistakes";
-import { MAX_TEXT_LENGTH, MODES } from "@/lib/options";
+import { englishKey, isWordMode, MAX_TEXT_LENGTH, MODES } from "@/lib/options";
 import type { Combination } from "@/lib/settings";
 import {
   isSeen,
   MAX_SENT,
-  readKnownVerbs,
+  readKnown,
   readSeen,
-  rememberKnownVerb,
+  rememberKnown,
   rememberSeen,
 } from "@/lib/seen-items";
 import { speak } from "@/lib/speak";
@@ -133,7 +133,7 @@ export function Trainer() {
       remark: toReview.remark,
       tag: toReview.tag,
     };
-    const known = readKnownVerbs();
+    const known = readKnown();
     return post<Exercise>("/api/generate", { ...settings, avoid, known, review });
   }
 
@@ -179,8 +179,9 @@ export function Trainer() {
       });
       setResult(correction);
       recordAnswer(correction);
-      if (exercise.mode === "verbe" && correction.isCorrect) {
-        rememberKnownVerb(exercise.text);
+      // A word, verb or phrasal verb answered right never comes back.
+      if (isWordMode(exercise.mode) && correction.isCorrect && exercise.reference) {
+        rememberKnown(exercise.mode, englishKey(exercise.reference));
       }
       if (!correction.isCorrect && correction.score < 10) {
         addMistake({

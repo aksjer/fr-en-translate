@@ -1,4 +1,4 @@
-import { generateText, Output, type LanguageModel } from "ai";
+import { generateText, Output } from "ai";
 import { z } from "zod";
 import { ERROR_TAGS, type ErrorTag } from "@/lib/mistakes";
 import {
@@ -133,17 +133,13 @@ function untagged(text: string) {
   return text.replace(/<\/?(french|reference|translation)>/gi, "");
 }
 
-// Asks the model to grade one translation. The language model can be replaced,
-// so tests can run this without calling a provider.
-export async function correctTranslation(
-  rawInput: CorrectInput,
-  languageModel?: LanguageModel,
-): Promise<Correction> {
+// Asks the model to grade one translation.
+export async function correctTranslation(rawInput: CorrectInput): Promise<Correction> {
   const input = correctInputSchema.parse(rawInput);
   const wordMode = isWordMode(input.mode);
   const output = await retryIfInvalid(async () => {
     const { output } = await generateText({
-      model: languageModel ?? modelFor(input.model),
+      model: modelFor(input.model),
       providerOptions: providerOptionsFor(input.model),
       temperature: temperatureFor(input.model, "correct"),
       maxRetries: 1,

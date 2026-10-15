@@ -13,8 +13,8 @@ import { providerOf, type Model } from "@/lib/model-list";
 const RATE_LIMIT = 15;
 const RATE_WINDOW_MS = 60_000;
 // Room for a long paragraph, its reference and the answer, or the avoid list,
-// the verbs already known (up to 500) and a review.
-const MAX_BODY_BYTES = 24_000;
+// the items already known (up to 1,000 per mode) and a review.
+const MAX_BODY_BYTES = 64_000;
 
 type Guarded<T> =
   | { data: T; error?: never }

@@ -1,4 +1,4 @@
-import { generateText, Output, type LanguageModel } from "ai";
+import { generateText, Output } from "ai";
 import { z } from "zod";
 import {
   InvalidAnswerError,
@@ -11,6 +11,8 @@ import {
   LEVEL_GRAMMAR,
   LEVEL_VOCABULARY,
   LEVELS,
+  englishKey,
+  MAX_KNOWN,
   MAX_TEXT_LENGTH,
   MODES,
   SENTENCE_WORDS,
@@ -26,7 +28,6 @@ import {
   settingsSchema,
   type Combination,
 } from "@/lib/settings";
-import { pickVerb, verbForms } from "@/lib/verbs";
 
 // Cuts a text from the page instead of rejecting it: mistakes stored in the
 // browser may be longer than today's limits.
@@ -50,7 +51,7 @@ type Review = z.infer<typeof reviewSchema>;
 
 export const generateInputSchema = settingsSchema.extend({
   // Recent exercises, so the model doesn't keep giving the same words. Items
-  // have their mode, except in an older page or the eval.
+  // have their mode, except in an older page.
   avoid: z
     .array(
       z.union([
@@ -63,8 +64,17 @@ export const generateInputSchema = settingsSchema.extend({
     )
     .max(40)
     .optional(),
-  // Verbs the learner got right, never given again.
-  known: z.array(clipped(80)).max(500).optional(),
+  // The English of the items the learner got right, by mode: never given again.
+  // A page from before this field changed shape sends none.
+  known: z
+    .object({
+      mot: z.array(clipped(40)).max(MAX_KNOWN),
+      verbe: z.array(clipped(40)).max(MAX_KNOWN),
+      "phrasal verb": z.array(clipped(40)).max(MAX_KNOWN),
+    })
+    .partial()
+    .optional()
+    .catch(undefined),
   // The exercise tests this mistake again. A page from before this field
   // changed shape gets a normal exercise.
   review: reviewSchema.optional().catch(undefined),
@@ -115,9 +125,17 @@ function learner(mode: Mode, level: Level) {
   );
 }
 
+// The learner wants the most useful English: words from the Oxford 5000, which
+// gives a CEFR level to each word up to C1. "A C1 learner should know" gave
+// basic words such as lose at every level.
+function commonAt(level: Level, kind: string) {
+  return level === "C2"
+    ? `an advanced ${kind}, beyond the Oxford 5000, that learners usually learn at CEFR C2`
+    : `a common ${kind} from the Oxford 5000 that learners usually learn at CEFR ${level}, ` +
+        "not at an easier level";
+}
+
 function instructions({ mode, level, tense, theme }: Combination) {
-  // "A C1 learner should know" gave basic words such as lose at every level.
-  const levelFit = `that learners usually learn at CEFR ${level}, not at an easier level`;
   // The model invents the situation itself; this keeps it from always
   // falling back on the most typical sentence for the theme.
   const variety =
@@ -133,7 +151,7 @@ function instructions({ mode, level, tense, theme }: Combination) {
       const kind = pickOne(WORD_KINDS);
       return (
         `Give a single French ${kind} whose American English translation ` +
-        `is a word ${levelFit}, related to the theme "${theme}". ` +
+        `is ${commonAt(level, kind)}, related to the theme "${theme}". ` +
         (kind === "noun" ? "Include its article (le, la, l', un, une). " : "") +
         "Pick a word whose American English translation looks different from the French " +
         "(not « généreux » → generous). The French must be the word a French speaker would " +
@@ -144,12 +162,13 @@ function instructions({ mode, level, tense, theme }: Combination) {
       );
     }
     case "verbe":
-      throw new Error("Verbs come from lib/verbs.ts, not from the model");
+      throw new Error("Verbs have their own prompt: see generateVerb");
     case "phrasal verb":
       return (
         "Give a French verb in the infinitive, or a short expression starting with one, " +
         `related to the theme "${theme}", that translates naturally into American English ` +
-        `as a phrasal verb ${levelFit}, with the particle "${pickOne(PARTICLES)}". ` +
+        `as one of the most common phrasal verbs that learners usually learn at CEFR ${level}, ` +
+        `with the particle "${pickOne(PARTICLES)}". ` +
         "The French must be what a French speaker would really say for this meaning. " +
         "If the French alone could also be translated by another common verb, add a short " +
         "context in parentheses that rules it out (e.g. « abandonner (une habitude) » for " +
@@ -195,7 +214,7 @@ function situationField(mode: Mode) {
     case "mot":
       return [`${start} the English word you chose, then the context it is used in.`];
     case "verbe":
-      throw new Error("Verbs come from lib/verbs.ts, not from the model");
+      throw new Error("Verbs have their own prompt: see generateVerb");
     case "phrasal verb":
       return [
         `${start} the English phrasal verb you chose, then the context`,
@@ -224,6 +243,7 @@ function withApostrophes(text: string) {
 
 function reviewSection(review: Review, mode: Mode) {
   const details = [
+    review.text && `- item: ${review.text}`,
     review.remark && `- remark: ${review.remark}`,
     review.tag && `- error type: ${review.tag}`,
     `- corrected answer (fixed words between **): ${review.correction}`,
@@ -251,12 +271,142 @@ export const exerciseSchema = z.object({
   reference: z.string(),
 });
 
-// Builds the prompt and asks the model for one exercise. The language model can
-// be replaced, so tests can run this without calling a provider.
-export async function generateExercise(
+// A verb gets its own fields: the English verb first, then its forms, then
+// the French. With one free "text" field, models kept writing a sentence.
+export const verbSchema = z.object({
+  english: z.string(),
+  past: z.string(),
+  participle: z.string(),
+  text: z.string(),
+});
+
+// A regular verb's past and participle are the same -ed form built on it
+// (worked, tried, stopped); fled or bled are shorter than their verb.
+function isRegular(verb: string, past: string, participle: string) {
+  return (
+    past === participle &&
+    past.endsWith("ed") &&
+    past.length > verb.length &&
+    past.startsWith(verb.slice(0, -1))
+  );
+}
+
+// The items of this mode the learner got right, and the ones given recently.
+function history(input: GenerateInput, mode: Mode) {
+  const known = mode === "mot" || mode === "verbe" || mode === "phrasal verb"
+    ? (input.known?.[mode] ?? [])
+    : [];
+  // Only the items of this mode, so a word isn't compared with sentences.
+  // The prompt only lists the last ones: a long list costs tokens and is
+  // followed no better.
+  const given = (input.avoid ?? [])
+    .flatMap((item) =>
+      typeof item === "string"
+        ? [item]
+        : !item.mode || item.mode === mode
+          ? [item.text]
+          : [],
+    )
+    .slice(-20);
+  return { known, given };
+}
+
+function knownSection(known: string[]) {
+  return known.length
+    ? "\n\n## Already learned\n" +
+        `The learner already knows these English words: ${known.join(", ")}. ` +
+        "Choose none of them."
+    : "";
+}
+
+// Models got around the list by changing a word's context (éteindre la
+// télévision, then la lumière) or by telling the same story again.
+function avoidSection(given: string[], mode: Mode) {
+  return given.length
+    ? "\n\n## Avoid\n" +
+        `These items were already given: ${given.join(" ; ")}\n` +
+        (isWordMode(mode)
+          ? "Give a different word: none of these, even with another context or article, " +
+            "and none with the same English translation."
+          : "Write something different: not the same structure, the same kind of event " +
+            "or the same characters.")
+    : "";
+}
+
+// Asks the model for one verb and checks it in code. A verb already known is
+// asked again once; the second answer is kept, so the page never gets an error.
+async function generateVerb(
   input: GenerateInput,
-  languageModel?: LanguageModel,
+  combination: Combination,
 ): Promise<Exercise> {
+  const { level } = combination;
+  const verbType = combination.verbType ?? "régulier";
+  const { known, given } = history(input, "verbe");
+  const english = verbType === "irrégulier" ? "irregular" : "regular";
+  let attempt = 0;
+  const verb = await retryIfInvalid(async () => {
+    attempt++;
+    const { output } = await generateText({
+      model: modelFor(input.model),
+      providerOptions: providerOptionsFor(input.model),
+      temperature: temperatureFor(input.model, "generate"),
+      maxRetries: 1,
+      maxOutputTokens: 1000,
+      output: Output.object({ schema: verbSchema }),
+      system: [
+        "You are an English teacher for a French speaker. You choose one English verb",
+        "that the learner will translate from French.",
+        "",
+        "## Fields, in this order",
+        '- english: the verb, in its base form, one word, without "to".',
+        "- past: its simple past in American English.",
+        "- participle: its past participle in American English (gotten, not got).",
+        "- text: the most common French infinitive for this verb (e.g. « conduire » for",
+        "  drive). If this infinitive often means something else too, add a short context",
+        "  in parentheses that points to this meaning (e.g. « louer (un appartement) » for",
+        "  rent, since louer can also mean to praise). Only the infinitive, never a sentence",
+        "  or a conjugated verb, with no quotation marks. Check its spelling and accents.",
+      ].join("\n"),
+      prompt:
+        learner("verbe", level) +
+        "\n\n## Task\n" +
+        `Choose ${commonAt(level, `${english} verb`)}. ` +
+        "Never a verb that looks like its French translation (decide → décider), or one " +
+        "whose look-alike French verb means something else (to attend is « assister à », " +
+        "not « attendre »)." +
+        knownSection(known) +
+        avoidSection(given, "verbe") +
+        (input.review ? reviewSection(input.review, "verbe") : ""),
+    });
+    const base = output.english.trim().toLowerCase().replace(/^to\s+/, "");
+    const past = output.past.trim().toLowerCase();
+    const participle = output.participle.trim().toLowerCase();
+    const text = output.text.trim();
+    if (!/^[a-z]+$/.test(base) || !past || !participle || !text) {
+      throw new InvalidAnswerError(`Not a verb: ${base}`);
+    }
+    if (/[.!?]$/.test(text) || text.replace(/\([^)]*\)/g, "").split(/\s+/).length > 6) {
+      throw new InvalidAnswerError(`A sentence instead of a verb: ${text}`);
+    }
+    if (isRegular(base, past, participle) !== (verbType === "régulier")) {
+      throw new InvalidAnswerError(`Not ${english}: ${base}, ${past}, ${participle}`);
+    }
+    if (attempt === 1 && known.includes(base)) {
+      throw new InvalidAnswerError(`Already known: ${base}`);
+    }
+    return { base, past, participle, text: withApostrophes(text) };
+  });
+
+  return {
+    text: verb.text,
+    reference: `to ${verb.base}`,
+    forms: [verb.base, verb.past, verb.participle],
+    ...combination,
+  };
+}
+
+// Builds the prompt and asks the model for one exercise.
+export async function generateExercise(input: GenerateInput): Promise<Exercise> {
   const { review } = input;
   // A review keeps the mistake's mode, level and tense. Mistakes saved before
   // the mode was stored come back as a sentence.
@@ -269,49 +419,16 @@ export async function generateExercise(
       verbType: review.verbType,
     },
   );
-  // Models got around the list by changing a word's context (éteindre la
-  // télévision, then la lumière) or by telling the same story again.
-  // Only the items of this mode, so a word isn't compared with sentences.
-  const sameMode = (input.avoid ?? []).flatMap((item) =>
-    typeof item === "string"
-      ? [item]
-      : !item.mode || item.mode === combination.mode
-        ? [item.text]
-        : [],
-  );
-  // Verbs come from a table, so they need no model call (see lib/verbs.ts),
-  // and can avoid every recent verb at no cost.
   if (combination.mode === "verbe") {
-    const { verb, french } = pickVerb(
-      combination.verbType ?? "régulier",
-      combination.level,
-      sameMode,
-      input.known,
-      review?.text,
-    );
-    return {
-      text: french,
-      reference: `to ${verb}`,
-      forms: verbForms(verb),
-      ...combination,
-    };
+    return generateVerb(input, combination);
   }
-  // The prompt only lists the last ones: a long list costs tokens and is
-  // followed no better.
-  const given = sameMode.slice(-20);
-  const avoid = given.length
-    ? "\n\n## Avoid\n" +
-      `These items were already given: ${given.join(" ; ")}\n` +
-      (isWordMode(combination.mode)
-        ? "Give a different word: none of these, even with another context or article, " +
-          "and none with the same English translation."
-        : "Write something different: not the same structure, the same kind of event " +
-          "or the same characters.")
-    : "";
+  const { known, given } = history(input, combination.mode);
 
+  let attempt = 0;
   const item = await retryIfInvalid(async () => {
+    attempt++;
     const { output } = await generateText({
-      model: languageModel ?? modelFor(input.model),
+      model: modelFor(input.model),
       providerOptions: providerOptionsFor(input.model),
       temperature: temperatureFor(input.model, "generate"),
       maxRetries: 1,
@@ -347,7 +464,8 @@ export async function generateExercise(
         learner(combination.mode, combination.level) +
         "\n\n## Task\n" +
         instructions(combination) +
-        avoid +
+        knownSection(known) +
+        avoidSection(given, combination.mode) +
         (review ? reviewSection(review, combination.mode) : ""),
     });
 
@@ -365,6 +483,10 @@ export async function generateExercise(
     }
     if (text.length > MAX_TEXT_LENGTH || reference.length > MAX_TEXT_LENGTH) {
       throw new InvalidAnswerError(`Item too long (${text.length} characters)`);
+    }
+    // The second answer is kept even if known, so the page never gets an error.
+    if (attempt === 1 && known.includes(englishKey(reference))) {
+      throw new InvalidAnswerError(`Already known: ${reference}`);
     }
     return { text, reference };
   });
