@@ -13,6 +13,10 @@ export async function POST(request: Request) {
     return Response.json(await generateExercise(data));
   } catch (error) {
     console.error("Model generation failed", error);
-    return providerErrorResponse(error, "Generation failed", data.model);
+    return providerErrorResponse(
+      error,
+      "La génération a échoué, réessaie.",
+      data.model,
+    );
   }
 }

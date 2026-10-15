@@ -1,22 +1,28 @@
 import { MockLanguageModelV4 } from "ai/test";
 
-// A fake model that always answers with this JSON, and keeps the prompts it got.
-export function mockModel(answer: unknown) {
+// A fake model that gives these answers in turn (the last one again after that),
+// and keeps the prompts it got. A string is sent as is, anything else as JSON.
+export function mockModel(...answers: unknown[]) {
+  let calls = 0;
   return new MockLanguageModelV4({
-    doGenerate: async () => ({
-      content: [{ type: "text", text: JSON.stringify(answer) }],
-      finishReason: { unified: "stop", raw: "stop" },
-      usage: {
-        inputTokens: {
-          total: 10,
-          noCache: 10,
-          cacheRead: undefined,
-          cacheWrite: undefined,
+    doGenerate: async () => {
+      const answer = answers[Math.min(calls++, answers.length - 1)];
+      const text = typeof answer === "string" ? answer : JSON.stringify(answer);
+      return {
+        content: [{ type: "text", text }],
+        finishReason: { unified: "stop", raw: "stop" },
+        usage: {
+          inputTokens: {
+            total: 10,
+            noCache: 10,
+            cacheRead: undefined,
+            cacheWrite: undefined,
+          },
+          outputTokens: { total: 10, text: 10, reasoning: undefined },
         },
-        outputTokens: { total: 10, text: 10, reasoning: undefined },
-      },
-      warnings: [],
-    }),
+        warnings: [],
+      };
+    },
   });
 }
 

@@ -1,13 +1,19 @@
 import { APICallError, RetryError } from "ai";
 import { z } from "zod";
-import { apiKeyName, PROVIDER_NAMES, safeModel } from "@/lib/model";
+import {
+  apiKeyName,
+  isInvalidAnswer,
+  PROVIDER_NAMES,
+  safeModel,
+} from "@/lib/model";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { providerOf, type Model } from "@/lib/model-list";
 
 // The free tier is rate limited too, so keep this conservative.
 const RATE_LIMIT = 15;
 const RATE_WINDOW_MS = 60_000;
-const MAX_BODY_BYTES = 4_000;
+// Room for a long paragraph, its reference and the answer, or the avoid list and a review.
+const MAX_BODY_BYTES = 8_000;
 
 type Guarded<T> =
   | { data: T; error?: never }
@@ -37,7 +43,10 @@ export async function guardRequest<T extends { model?: Model }>(
   const raw = await request.text();
   if (raw.length > MAX_BODY_BYTES) {
     return {
-      error: Response.json({ error: "Body too large" }, { status: 413 }),
+      error: Response.json(
+        { error: "La requête est trop longue." },
+        { status: 413 },
+      ),
     };
   }
 
@@ -47,7 +56,10 @@ export async function guardRequest<T extends { model?: Model }>(
       body = JSON.parse(raw);
     } catch {
       return {
-        error: Response.json({ error: "Invalid JSON" }, { status: 400 }),
+        error: Response.json(
+          { error: "La requête est invalide." },
+          { status: 400 },
+        ),
       };
     }
   }
@@ -56,7 +68,10 @@ export async function guardRequest<T extends { model?: Model }>(
   if (!parsed.success) {
     return {
       error: Response.json(
-        { error: "Invalid request", issues: z.treeifyError(parsed.error) },
+        {
+          error: "La requête est invalide.",
+          issues: z.treeifyError(parsed.error),
+        },
         { status: 400 },
       ),
     };
@@ -76,9 +91,8 @@ export async function guardRequest<T extends { model?: Model }>(
   return { data: parsed.data };
 }
 
-// Turns a failed model call into a response. A 429 from the provider gets its own
-// French message and status, so the page can tell the user to wait.
-// Each provider failure gets its own French message, so the page can say what to do.
+// Turns a failed model call into a response. Each failure gets its own French
+// message, and a 429 its own status, so the page can say what to do.
 export function providerErrorResponse(
   error: unknown,
   fallback: string,
@@ -86,6 +100,14 @@ export function providerErrorResponse(
 ) {
   const name = PROVIDER_NAMES[providerOf(safeModel(model))];
   const keyName = apiKeyName(model);
+  if (isInvalidAnswer(error)) {
+    return Response.json(
+      {
+        error: `${name} a renvoyé une réponse invalide. Réessaie, ou choisis un autre modèle.`,
+      },
+      { status: 502 },
+    );
+  }
   const apiError = RetryError.isInstance(error) ? error.lastError : error;
   if (APICallError.isInstance(apiError)) {
     switch (apiError.statusCode) {

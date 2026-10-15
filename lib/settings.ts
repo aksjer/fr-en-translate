@@ -44,14 +44,21 @@ function pick<T>(selected: readonly T[] | undefined, all: readonly T[]): T {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
-export function pickCombination(settings: Settings): Combination {
-  const mode = pick(settings.modes, MODES);
+// Fixed values win over the settings: a review keeps the mode, level, tense and
+// verb type of its mistake, and only the theme changes.
+export function pickCombination(
+  settings: Settings,
+  fixed: Omit<Partial<Combination>, "theme"> = {},
+): Combination {
+  const mode = fixed.mode ?? pick(settings.modes, MODES);
   const uses = MODE_USES[mode];
   return {
     mode,
-    level: pick(settings.levels, LEVELS),
-    ...(uses.tense && { tense: pick(settings.tenses, TENSES) }),
-    ...(uses.verbType && { verbType: pick(settings.verbTypes, VERB_TYPES) }),
+    level: fixed.level ?? pick(settings.levels, LEVELS),
+    ...(uses.tense && { tense: fixed.tense ?? pick(settings.tenses, TENSES) }),
+    ...(uses.verbType && {
+      verbType: fixed.verbType ?? pick(settings.verbTypes, VERB_TYPES),
+    }),
     ...(uses.theme && { theme: pick(settings.themes, THEMES) }),
   };
 }

@@ -17,6 +17,7 @@ import {
   type ErrorTag,
   type Mistake,
 } from "@/lib/mistakes";
+import { MAX_TEXT_LENGTH, MODES } from "@/lib/options";
 import type { Combination } from "@/lib/settings";
 import { isSeen, MAX_SENT, readSeen, rememberSeen } from "@/lib/seen-items";
 import { speak } from "@/lib/speak";
@@ -31,6 +32,7 @@ type Correction = {
   points: string[];
   alternative?: string;
   tag?: ErrorTag;
+  lesson?: string;
 };
 
 // Renders **text** from the API as bold, without using innerHTML.
@@ -77,8 +79,8 @@ export function Trainer() {
   const [error, setError] = useState<string | null>(null);
   // Settings used for the current exercise, to know when they've changed since.
   const [exerciseSettings, setExerciseSettings] = useState<string | null>(null);
-  // Mistakes being reviewed in the current exercise, if it is a review.
-  const [reviewIds, setReviewIds] = useState<string[] | null>(null);
+  // The mistake reviewed in the current exercise, if it is a review.
+  const [reviewId, setReviewId] = useState<string | null>(null);
   // Mistakes due for review now, stored in this browser.
   const due = useSyncExternalStore(
     subscribeMistakes,
@@ -111,15 +113,20 @@ export function Trainer() {
   }, [exercise]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Recent items from this browser, so the API varies its exercises.
-  // A due mistake is worked into the sentence, without being named.
-  function requestExercise(toReview: Mistake[]) {
+  // A due mistake comes back in its own mode, level and tense, without being named.
+  function requestExercise(toReview: Mistake | undefined) {
     const avoid = readSeen()
       .slice(-MAX_SENT)
       .map((item) => item.slice(0, 80));
-    const review = toReview.map((item) => ({
-      correction: item.correction,
-      tag: item.tag,
-    }));
+    const review = toReview && {
+      mode: toReview.mode,
+      level: toReview.level,
+      tense: toReview.tense,
+      verbType: toReview.verbType,
+      correction: toReview.correction,
+      remark: toReview.remark,
+      tag: toReview.tag,
+    };
     return post<Exercise>("/api/generate", { ...settings, avoid, review });
   }
 
@@ -127,13 +134,17 @@ export function Trainer() {
     setLoading("generate");
     setError(null);
     try {
-      const toReview = due.slice(0, 1);
+      // Only a mistake in a selected mode comes back (older ones count as sentences).
+      const modes: readonly string[] = settings.modes?.length
+        ? settings.modes
+        : MODES;
+      const toReview = due.find((item) => modes.includes(item.mode ?? "phrase"));
       let next = await requestExercise(toReview);
       // One retry if the item was already seen here.
       if (isSeen(next.text)) next = await requestExercise(toReview);
       countExercise();
       setExercise(next);
-      setReviewIds(toReview.map((item) => item.id));
+      setReviewId(toReview?.id ?? null);
       setExerciseSettings(JSON.stringify(settings));
       rememberSeen(next.text);
       setTranslation("");
@@ -165,11 +176,15 @@ export function Trainer() {
         addMistake({
           text: exercise.text,
           level: exercise.level,
+          mode: exercise.mode,
+          tense: exercise.tense,
+          verbType: exercise.verbType,
           correction: correction.correction,
+          remark: correction.lesson,
           tag: correction.tag,
         });
       }
-      reviewIds?.forEach((id) => recordReview(id, correction.isCorrect));
+      if (reviewId) recordReview(reviewId, correction.isCorrect);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -296,7 +311,7 @@ export function Trainer() {
                     ? 3
                     : 1
               }
-              maxLength={600}
+              maxLength={MAX_TEXT_LENGTH}
               placeholder="Écris ta traduction…"
               value={translation}
               onChange={(event) => setTranslation(event.target.value)}

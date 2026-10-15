@@ -1,5 +1,7 @@
 // Mistakes kept in this browser, reviewed again after a number of exercises.
 
+import type { Mode, Tense, VerbType } from "@/lib/options";
+
 export const ERROR_TAGS = [
   "accent",
   "article",
@@ -17,7 +19,14 @@ export type Mistake = {
   id: string;
   text: string;
   level: string;
+  // The exercise's mode, tense and verb type, so its review tests the same point.
+  // Mistakes stored before they were saved have none.
+  mode?: Mode;
+  tense?: Tense;
+  verbType?: VerbType;
   correction: string;
+  // The main remark of the correction, in French.
+  remark?: string;
   tag?: ErrorTag;
   // Index in REVIEW_GAPS: a success moves it further, a failure resets it.
   step: number;

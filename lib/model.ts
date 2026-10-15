@@ -1,6 +1,10 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createGroq } from "@ai-sdk/groq";
-import type { generateText } from "ai";
+import {
+  NoObjectGeneratedError,
+  NoOutputGeneratedError,
+  type generateText,
+} from "ai";
 import {
   DEFAULT_MODEL,
   MODELS,
@@ -54,4 +58,39 @@ export function providerOptionsFor(
   return model.startsWith("openai/gpt-oss")
     ? { groq: { reasoningEffort: "low" } }
     : {};
+}
+
+// Google strongly recommends keeping Gemini 3 at its default temperature of 1:
+// lower values can make it loop or get worse. Qwen recommends 0.6 when it thinks,
+// and warns that values near 0 cause endless repetitions. gpt-oss grades more
+// consistently at a low temperature. Generation stays at 1 for variety.
+export function temperatureFor(
+  id: Model | undefined,
+  task: "generate" | "correct",
+) {
+  const model = safeModel(id);
+  if (task === "generate" || providerOf(model) === "gemini") return 1;
+  return model.startsWith("qwen/") ? 0.6 : 0.2;
+}
+
+// The answer matched the schema, but its content can't be used (empty, too long).
+export class InvalidAnswerError extends Error {}
+
+export function isInvalidAnswer(error: unknown) {
+  return (
+    error instanceof InvalidAnswerError ||
+    NoObjectGeneratedError.isInstance(error) ||
+    NoOutputGeneratedError.isInstance(error)
+  );
+}
+
+// Answers are random: when one can't be used, a second try usually works.
+export async function retryIfInvalid<T>(call: () => Promise<T>): Promise<T> {
+  try {
+    return await call();
+  } catch (error) {
+    if (!isInvalidAnswer(error)) throw error;
+    console.warn("Unusable model answer, trying again:", (error as Error).message);
+    return call();
+  }
 }
