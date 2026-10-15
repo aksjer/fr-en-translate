@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { generateExercise } from "@/lib/generate";
 import { isInvalidAnswer } from "@/lib/model";
-import { verbsFor } from "@/lib/verbs";
+import { verbForms, verbsFor } from "@/lib/verbs";
 import { mockModel, promptText } from "./helpers";
 
 const answer = {
@@ -26,6 +26,7 @@ test("returns the item, its reference and the combination", async () => {
   assert.equal(exercise.level, "A2");
   assert.equal(exercise.tense, "impératif");
   assert.equal("situation" in exercise, false);
+  assert.equal("forms" in exercise, false);
 });
 
 test("the impératif only uses tu, nous or vous", async () => {
@@ -140,6 +141,7 @@ test("a verb is picked by the code from its type and level, and only translated"
   const prompt = promptText(model);
   const verb = exercise.reference.replace(/^to /, "");
   assert.ok(verbsFor("irrégulier", "C1").includes(verb));
+  assert.deepEqual(exercise.forms, verbForms(verb));
   assert.match(prompt, new RegExp(`the American English verb "to ${verb}"`));
   assert.doesNotMatch(prompt, /## Avoid/);
 });

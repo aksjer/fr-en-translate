@@ -24,6 +24,83 @@ const REGULAR: Record<Level, string[]> = {
   C2: ["appease", "ascertain", "placate", "relinquish", "reprimand", "belittle", "bolster", "cajole", "dither", "flout", "goad", "rebuke", "scold", "squander", "thwart", "wane", "wheedle", "wield"],
 };
 
+// Past simple and past participle of each irregular verb above, in American
+// English (gotten, spit). A slash gives two forms in common use.
+const IRREGULAR_FORMS: Record<string, [string, string]> = {
+  be: ["was/were", "been"], have: ["had", "had"], do: ["did", "done"], go: ["went", "gone"],
+  come: ["came", "come"], eat: ["ate", "eaten"], drink: ["drank", "drunk"], see: ["saw", "seen"],
+  make: ["made", "made"], get: ["got", "gotten"], give: ["gave", "given"], take: ["took", "taken"],
+  write: ["wrote", "written"], read: ["read", "read"], sleep: ["slept", "slept"],
+  buy: ["bought", "bought"], sit: ["sat", "sat"], speak: ["spoke", "spoken"],
+  swim: ["swam", "swum"], run: ["ran", "run"],
+  begin: ["began", "begun"], bring: ["brought", "brought"], choose: ["chose", "chosen"],
+  drive: ["drove", "driven"], fall: ["fell", "fallen"], feel: ["felt", "felt"],
+  find: ["found", "found"], forget: ["forgot", "forgotten"], hear: ["heard", "heard"],
+  know: ["knew", "known"], leave: ["left", "left"], lose: ["lost", "lost"], meet: ["met", "met"],
+  pay: ["paid", "paid"], put: ["put", "put"], sell: ["sold", "sold"], send: ["sent", "sent"],
+  sing: ["sang", "sung"], teach: ["taught", "taught"], tell: ["told", "told"],
+  think: ["thought", "thought"], understand: ["understood", "understood"],
+  wear: ["wore", "worn"], win: ["won", "won"],
+  bend: ["bent", "bent"], bite: ["bit", "bitten"], blow: ["blew", "blown"],
+  break: ["broke", "broken"], build: ["built", "built"], catch: ["caught", "caught"],
+  dig: ["dug", "dug"], draw: ["drew", "drawn"], feed: ["fed", "fed"], fight: ["fought", "fought"],
+  fly: ["flew", "flown"], freeze: ["froze", "frozen"], grow: ["grew", "grown"],
+  hang: ["hung", "hung"], hide: ["hid", "hidden"], hold: ["held", "held"], hurt: ["hurt", "hurt"],
+  keep: ["kept", "kept"], lend: ["lent", "lent"], let: ["let", "let"], light: ["lit", "lit"],
+  ride: ["rode", "ridden"], ring: ["rang", "rung"], shake: ["shook", "shaken"],
+  shine: ["shone", "shone"], shoot: ["shot", "shot"], shut: ["shut", "shut"],
+  spend: ["spent", "spent"], steal: ["stole", "stolen"], throw: ["threw", "thrown"],
+  bet: ["bet", "bet"], bleed: ["bled", "bled"], burst: ["burst", "burst"],
+  creep: ["crept", "crept"], deal: ["dealt", "dealt"], flee: ["fled", "fled"],
+  forbid: ["forbade", "forbidden"], forgive: ["forgave", "forgiven"],
+  grind: ["ground", "ground"], kneel: ["knelt/kneeled", "knelt/kneeled"], lay: ["laid", "laid"],
+  lead: ["led", "led"], mislead: ["misled", "misled"], overcome: ["overcame", "overcome"],
+  seek: ["sought", "sought"], shrink: ["shrank", "shrunk"], sink: ["sank", "sunk"],
+  slide: ["slid", "slid"], spin: ["spun", "spun"], spit: ["spit/spat", "spit/spat"],
+  split: ["split", "split"], spread: ["spread", "spread"], stick: ["stuck", "stuck"],
+  sting: ["stung", "stung"], strike: ["struck", "struck"], swear: ["swore", "sworn"],
+  sweep: ["swept", "swept"], swing: ["swung", "swung"], tear: ["tore", "torn"],
+  weep: ["wept", "wept"],
+  arise: ["arose", "arisen"], bind: ["bound", "bound"], cling: ["clung", "clung"],
+  dwell: ["dwelt/dwelled", "dwelt/dwelled"], fling: ["flung", "flung"],
+  foresee: ["foresaw", "foreseen"], forgo: ["forwent", "forgone"],
+  forsake: ["forsook", "forsaken"], outgrow: ["outgrew", "outgrown"],
+  overhear: ["overheard", "overheard"], override: ["overrode", "overridden"],
+  oversee: ["oversaw", "overseen"], overtake: ["overtook", "overtaken"],
+  overthrow: ["overthrew", "overthrown"], sling: ["slung", "slung"], sow: ["sowed", "sown"],
+  stride: ["strode", "stridden"], strive: ["strove", "striven"], thrust: ["thrust", "thrust"],
+  tread: ["trod", "trodden"], undergo: ["underwent", "undergone"],
+  undertake: ["undertook", "undertaken"], uphold: ["upheld", "upheld"],
+  weave: ["wove", "woven"], withdraw: ["withdrew", "withdrawn"],
+  withhold: ["withheld", "withheld"], withstand: ["withstood", "withstood"],
+  wring: ["wrung", "wrung"],
+  abide: ["abided/abode", "abided/abode"], beset: ["beset", "beset"],
+  forswear: ["forswore", "forsworn"], inlay: ["inlaid", "inlaid"], rend: ["rent", "rent"],
+  shear: ["sheared", "shorn"], slay: ["slew", "slain"], slit: ["slit", "slit"],
+  strew: ["strewed", "strewn"], swell: ["swelled", "swollen"], unbind: ["unbound", "unbound"],
+  waylay: ["waylaid", "waylaid"],
+};
+
+// Regular verbs whose last consonant doubles (regret → regretted). American
+// English doesn't double an unstressed l (traveled).
+const DOUBLED = new Set(["regret", "deter"]);
+
+function regularPast(verb: string) {
+  if (DOUBLED.has(verb)) return `${verb}${verb.at(-1)}ed`;
+  if (verb.endsWith("e")) return `${verb}d`;
+  if (/[^aeiou]y$/.test(verb)) return `${verb.slice(0, -1)}ied`;
+  return `${verb}ed`;
+}
+
+// The three forms the page shows after a verb is corrected, so the learner
+// sees the past and the participle every time (wear, wore, worn).
+export function verbForms(verb: string): [string, string, string] {
+  const irregular = IRREGULAR_FORMS[verb];
+  if (irregular) return [verb, ...irregular];
+  const past = regularPast(verb);
+  return [verb, past, past];
+}
+
 export function verbsFor(verbType: VerbType, level: Level) {
   return (verbType === "irrégulier" ? IRREGULAR : REGULAR)[level];
 }

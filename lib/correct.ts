@@ -103,8 +103,8 @@ const MODE_RULES: Record<Mode, string> = {
     "and any correct synonym. If the infinitive has several meanings and no context in " +
     "parentheses (« louer » alone is to rent or to praise), accept a correct translation " +
     "of any of them: the learner can't see the reference, so never mention a context " +
-    "the French item doesn't give. In the praise, always give the three forms " +
-    "(base, past simple, past participle) and say whether the verb is regular or irregular.",
+    "the French item doesn't give. The page already shows the verb's three forms, so " +
+    "don't list them: in the praise, give one short American English example with the verb.",
   "phrasal verb":
     "A phrasal verb is expected. A correct simple verb instead of a phrasal verb is " +
     "a major mistake (vocabulaire), and the correction gives the phrasal verb. " +

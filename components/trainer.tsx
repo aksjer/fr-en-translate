@@ -21,7 +21,11 @@ import { isSeen, MAX_SENT, readSeen, rememberSeen } from "@/lib/seen-items";
 import { speak } from "@/lib/speak";
 import { useSettings } from "@/lib/use-settings";
 
-type Exercise = Combination & { text: string; reference?: string };
+type Exercise = Combination & {
+  text: string;
+  reference?: string;
+  forms?: [string, string, string];
+};
 
 type Correction = {
   score: number;
@@ -353,6 +357,16 @@ export function Trainer() {
               </p>
               <p lang="en-US" className="text-lg">
                 <Marked text={result.correction} />
+              </p>
+            </div>
+          )}
+          {exercise?.forms && (
+            <div className="flex flex-col gap-1">
+              <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+                Base · prétérit · participe passé
+              </p>
+              <p lang="en-US" className="text-lg font-medium">
+                {exercise.forms.join(" · ")}
               </p>
             </div>
           )}

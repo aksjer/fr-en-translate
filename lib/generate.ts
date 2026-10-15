@@ -25,7 +25,7 @@ import {
   settingsSchema,
   type Combination,
 } from "@/lib/settings";
-import { verbsFor } from "@/lib/verbs";
+import { verbForms, verbsFor } from "@/lib/verbs";
 
 // Cuts a text from the page instead of rejecting it: mistakes stored in the
 // browser may be longer than today's limits.
@@ -67,7 +67,12 @@ export const generateInputSchema = settingsSchema.extend({
 
 export type GenerateInput = z.infer<typeof generateInputSchema>;
 
-export type Exercise = Combination & { text: string; reference: string };
+export type Exercise = Combination & {
+  text: string;
+  reference: string;
+  // A verb's base form, past simple and past participle.
+  forms?: [string, string, string];
+};
 
 // Picked by the code, not the model: each request is independent, so the model
 // can't vary these across exercises and would always pick the same ones.
@@ -352,5 +357,5 @@ export async function generateExercise(
     return { text, reference: verb ? `to ${verb}` : reference };
   });
 
-  return { ...item, ...combination };
+  return { ...item, ...combination, ...(verb && { forms: verbForms(verb) }) };
 }
