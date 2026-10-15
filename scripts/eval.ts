@@ -105,7 +105,8 @@ const PARTICLES =
 
 // The item without its article, to compare a French word with its translation.
 function bareWord(text: string) {
-  return normalize(text).replace(/^(le |la |l'|les |un |une |des |the |a |an |to )/, "");
+  // Without accents too, so « le stéthoscope » matches the stethoscope.
+  return normalize(text.normalize("NFD").replace(/\p{M}/gu, "")).replace(/^(le |la |l'|les |un |une |des |the |a |an |to )/, "");
 }
 
 // A word without its context in parentheses, to spot the same word given again.
