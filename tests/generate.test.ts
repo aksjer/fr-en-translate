@@ -114,6 +114,7 @@ test("word modes ask for a single item, with no grammar or conjugated verb", asy
     assert.match(prompt, /never a sentence/i, mode);
     assert.doesNotMatch(prompt, /already conjugated/, mode);
     assert.doesNotMatch(prompt, /present perfect vs simple past/, mode);
+    assert.doesNotMatch(prompt, /« ne »/, mode);
   }
 
   const model = mockModel(answer);

@@ -165,6 +165,9 @@ test("a word or a verb gets an example instead of another version", async () => 
   assert.equal(result.alternative, undefined);
   assert.match(promptText(model), /- example: /);
   assert.doesNotMatch(promptText(model), /- alternative: /);
+  // Sentence mistakes aren't listed for a single word.
+  assert.doesNotMatch(promptText(model), /depuis → for or since/);
+  assert.match(promptText(model), /false friends/);
 });
 
 test("a sentence gets another version and no example", async () => {
@@ -173,4 +176,5 @@ test("a sentence gets another version and no example", async () => {
   assert.equal(result.alternative, answer.alternative);
   assert.equal(result.example, undefined);
   assert.doesNotMatch(promptText(model), /- example: /);
+  assert.match(promptText(model), /depuis → for or since/);
 });

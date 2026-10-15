@@ -131,9 +131,12 @@ function instructions({ mode, level, tense, theme }: Combination) {
         `Give a single French ${kind} whose American English translation ` +
         `is a word ${levelFit}, related to the theme "${theme}". ` +
         (kind === "noun" ? "Include its article (le, la, l', un, une). " : "") +
-        "Pick a word whose American English translation is clear and looks different from " +
-        "the French (not « un smartphone » → a smartphone, or « généreux » → generous). " +
-        "Give only the word, never a sentence."
+        "Pick a word whose American English translation looks different from the French " +
+        "(not « généreux » → generous). The French must be the word a French speaker would " +
+        "really use for this English, never a look-alike with another meaning. If the French " +
+        "word also has another common meaning, add a short context in parentheses that rules " +
+        "it out (e.g. « la feuille (d'un arbre) » for leaf, since feuille is also a sheet of " +
+        "paper). Give only the word, never a sentence."
       );
     }
     case "verbe":
@@ -143,8 +146,10 @@ function instructions({ mode, level, tense, theme }: Combination) {
         "Give a French verb in the infinitive, or a short expression starting with one, " +
         `related to the theme "${theme}", that translates naturally into American English ` +
         `as a phrasal verb ${levelFit}, with the particle "${pickOne(PARTICLES)}". ` +
-        "Add a short context in parentheses " +
-        "if the meaning is ambiguous (e.g. « abandonner (une habitude) » for give up), " +
+        "The French must be what a French speaker would really say for this meaning. " +
+        "If the French alone could also be translated by another common verb, add a short " +
+        "context in parentheses that rules it out (e.g. « abandonner (une habitude) » for " +
+        "give up), " +
         `with ${MAX_PHRASAL_VERB_WORDS} words at most in all. ` +
         "Never a sentence or a conjugated verb. The reference must be a real phrasal verb " +
         "(find out, give up), not a simple verb such as quit."
@@ -314,14 +319,21 @@ export async function generateExercise(
         // "As people speak it today" gave slang and negations without « ne »;
         // "correct French" alone gave literary French. "No quotes" may have made
         // models drop apostrophes (« l avion »).
-        "- text: the item, in correct, modern French with a neutral register: no slang,",
-        "  swear words or literary style, always the « ne » of a negation, and no passé",
-        "  simple or imparfait du subjonctif. Use French punctuation (a space before",
-        "  ! ? : ;) and apostrophes (j'ai, qu'il), with no quotation marks around the item",
-        "  and no translation or explanation. Check the spelling and accents of every word.",
-        "- reference: a natural, correct American English translation of text, with the",
-        "  same meaning and the equivalent tense, in American words and spelling",
-        "  (apartment, color, not flat, colour).",
+        ...(isWordMode(combination.mode)
+          ? [
+              "- text: the French item only, with its context in parentheses if any, and no",
+              "  quotation marks, translation or explanation. Check its spelling and accents.",
+            ]
+          : [
+              "- text: the item, in correct, modern French with a neutral register: no slang,",
+              "  swear words or literary style, always the « ne » of a negation, and no passé",
+              "  simple or imparfait du subjonctif. Use French punctuation (a space before",
+              "  ! ? : ;) and apostrophes (j'ai, qu'il), with no quotation marks around the item",
+              "  and no translation or explanation. Check the spelling and accents of every word.",
+            ]),
+        "- reference: the most natural American English translation of text as the learner",
+        "  sees it (with its context, if any), with the same meaning and the equivalent tense,",
+        "  in American words and spelling (apartment, color, not flat, colour).",
       ].join("\n"),
       prompt:
         learner(combination.mode, combination.level) +

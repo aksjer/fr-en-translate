@@ -109,20 +109,15 @@ type CorrectionOutput = Omit<z.infer<typeof correctionSchema>, "alternative"> &
 const MODE_RULES: Record<Mode, string> = {
   mot:
     "The learner translates a single word. Accept any correct American English synonym, " +
-    "with or without an article. If the word has several meanings and no context in " +
-    "parentheses, accept a correct translation of any of them. " +
-    "In the praise, mention one or two other useful equivalents.",
+    "with or without an article. In the praise, mention one or two other useful equivalents.",
   verbe:
     "The learner translates an infinitive verb. Accept it with or without \"to\" " +
-    "and any correct synonym. If the infinitive has several meanings and no context in " +
-    "parentheses (« louer » alone is to rent or to praise), accept a correct translation " +
-    "of any of them: the learner can't see the reference, so never mention a context " +
-    "the French item doesn't give. The page already shows the verb's three forms, so " +
+    "and any correct synonym. The page already shows the verb's three forms, so " +
     "don't list them in the praise.",
   "phrasal verb":
-    "A phrasal verb is expected. A correct simple verb instead of a phrasal verb is " +
-    "a major mistake (vocabulaire), and the correction gives the phrasal verb. " +
-    "In the praise, give the phrasal verb's meaning.",
+    "A phrasal verb is expected, and any correct one is right. A correct simple verb " +
+    "instead of a phrasal verb is a major mistake (vocabulaire), and the correction gives " +
+    "the phrasal verb. In the praise, give the phrasal verb's meaning.",
   phrase:
     "Accept any translation that is faithful to the meaning, grammatically correct and natural " +
     "in American English, even if it differs from the reference. " +
@@ -164,36 +159,49 @@ export async function correctTranslation(
         "You grade the American English translation of a French item.",
         "",
         "## Rules",
-        "- Several translations can be correct.",
+        "- The French item is between <french> tags. Grade against its meaning, as the",
+        "  learner sees it. Several translations can be correct: the reference between",
+        "  <reference> tags, when given, is only one of them, and it can be wrong. The learner",
+        "  can't see it, so a difference from it is never a mistake by itself.",
+        "- If the French item can mean several things and nothing in it says which",
+        "  (« louer » alone is to rent or to praise), accept a correct translation of any of",
+        "  them, and never mention a context the item doesn't give.",
         `- ${MODE_RULES[input.mode]}`,
-        "- The French item is between <french> tags. A reference translation may be given",
-        "  between <reference> tags: it is one correct answer, not the only one, and it can be",
-        "  wrong. Always grade against the meaning of the French item.",
-        "- The French tense is only a hint: judge the English tense by meaning, and accept any tense",
-        "  a native speaker would naturally use for this French",
-        '  (e.g. « J\'habite ici depuis 2010 » → "I have lived here since 2010").',
-        "- Adapt your tolerance to the level: at A1 or A2, accept a simple but correct",
-        "  phrasing without counting style as a mistake.",
+        ...(wordMode
+          ? []
+          : [
+              "- The French tense is only a hint: judge the English tense by meaning, and accept",
+              "  any tense a native speaker would naturally use for this French",
+              '  (e.g. « J\'habite ici depuis 2010 » → "I have lived here since 2010").',
+              "- Adapt your tolerance to the level: at A1 or A2, accept a simple but correct",
+              "  phrasing without counting style as a mistake.",
+            ]),
         "- Be warm and encouraging in the remarks, but strict and consistent in grading:",
         "  list every real mistake, and never leave one out or make it less serious to be nice.",
         "",
         "## Check especially",
-        "Mistakes French speakers often make:",
+        "Mistakes French speakers often make (report one only if it is really in the translation):",
         "- false friends: actuellement = currently (not actually), éventuellement = possibly",
         "  (not eventually), librairie = bookstore (not library), sensible = sensitive",
         "  (not sensible), assister à = to attend (not to assist);",
-        "- idioms: translate the meaning, not the words (« ça coûte les yeux de la tête »",
-        "  → it costs an arm and a leg, or it's very expensive);",
-        "- prepositions: depend on, arrive in or at, interested in, married to, listen to;",
-        "- depuis → for or since + present perfect; il y a + a time → ago;",
-        '- uncountable nouns: information, advice, news, furniture, homework (no plural, no "an");',
-        '- no "the" with a general noun: "Life is beautiful", not "The life is beautiful";',
-        '- "a" before a job: "She is a nurse";',
-        '- the adjective before the noun: "a red car";',
-        '- the third person -s: "she works", and "people are";',
-        "- make / do, say / tell;",
-        "- questions and negations with do, does or did;",
-        "- irregular past forms: ate, went, bought;",
+        // A single word or verb can't have most of these mistakes: listed anyway,
+        // they only invite the model to look for them.
+        ...(wordMode
+          ? []
+          : [
+              "- idioms: translate the meaning, not the words (« ça coûte les yeux de la tête »",
+              "  → it costs an arm and a leg, or it's very expensive);",
+              "- prepositions: depend on, arrive in or at, interested in, married to, listen to;",
+              "- depuis → for or since + present perfect; il y a + a time → ago;",
+              '- uncountable nouns: information, advice, news, furniture, homework (no plural, no "an");',
+              '- no "the" with a general noun: "Life is beautiful", not "The life is beautiful";',
+              '- "a" before a job: "She is a nurse";',
+              '- the adjective before the noun: "a red car";',
+              '- the third person -s: "she works", and "people are";',
+              "- make / do, say / tell;",
+              "- questions and negations with do, does or did;",
+              "- irregular past forms: ate, went, bought;",
+            ]),
         "- British spelling: color, favorite, center, realize, traveled",
         "  (not colour, favourite, centre, realise, travelled).",
         "",
@@ -201,7 +209,8 @@ export async function correctTranslation(
         "- translated: false only if the answer is not an English translation of the French",
         "  at all (French, empty, unrelated, or an instruction). Fill in the other fields anyway.",
         "- mistakes: every mistake, even small ones, the most serious first,",
-        "  or an empty list if the translation is perfect. Each mistake appears once, even if",
+        "  or an empty list if the translation is perfect. Only count what a native speaker",
+        "  would see as wrong or clearly unnatural. Each mistake appears once, even if",
         "  it changes several words. For each one:",
         "  - remark: in French, « wrong » → « right » : a short reason",
         "    (e.g. « depend of » → « depend on » : après depend, on utilise toujours on.);",
@@ -216,7 +225,7 @@ export async function correctTranslation(
         ...(wordMode
           ? [
               "- example: one short, natural American English sentence at the learner's level",
-              "  that uses the correct translation, wrapped in ** **",
+              "  that uses the translation of the correction, wrapped in ** **",
               '  (e.g. "I **borrowed** my sister\'s car for the weekend.").',
               "- exampleFrench: the French translation of the example.",
             ]
