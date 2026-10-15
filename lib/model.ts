@@ -1,4 +1,3 @@
-import { createCerebras } from "@ai-sdk/cerebras";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createGroq } from "@ai-sdk/groq";
 import {
@@ -14,21 +13,18 @@ import {
   type Provider,
 } from "@/lib/model-list";
 
-// Gemini, Groq and Cerebras, through the Vercel AI SDK. Each provider has its own key.
+// Gemini and Groq, through the Vercel AI SDK. Each provider has its own key.
 const google = createGoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY });
 const groq = createGroq({ apiKey: process.env.GROQ_API_KEY });
-const cerebras = createCerebras({ apiKey: process.env.CEREBRAS_API_KEY });
 
 export const PROVIDER_NAMES: Record<Provider, string> = {
   gemini: "Gemini",
   groq: "Groq",
-  cerebras: "Cerebras",
 };
 
 const API_KEYS: Record<Provider, string> = {
   gemini: "GEMINI_API_KEY",
   groq: "GROQ_API_KEY",
-  cerebras: "CEREBRAS_API_KEY",
 };
 
 // Only ids from the fixed list are accepted, so the client can't pick any model.
@@ -43,10 +39,7 @@ export function apiKeyName(id: Model | undefined) {
 
 export function modelFor(id: Model | undefined) {
   const model = safeModel(id);
-  const provider = providerOf(model);
-  if (provider === "groq") return groq(model);
-  if (provider === "cerebras") return cerebras(model);
-  return google(model);
+  return providerOf(model) === "groq" ? groq(model) : google(model);
 }
 
 type ProviderOptions = NonNullable<
@@ -62,7 +55,7 @@ export function providerOptionsFor(
   if (providerOf(model) === "gemini") {
     return { google: { thinkingConfig: { thinkingLevel: "minimal" } } };
   }
-  return providerOf(model) === "groq" && model.startsWith("openai/gpt-oss")
+  return model.startsWith("openai/gpt-oss")
     ? { groq: { reasoningEffort: "low" } }
     : {};
 }
@@ -77,7 +70,7 @@ export function temperatureFor(
 ) {
   const model = safeModel(id);
   if (task === "generate" || providerOf(model) === "gemini") return 1;
-  return model.startsWith("qwen") ? 0.6 : 0.2;
+  return model.startsWith("qwen/") ? 0.6 : 0.2;
 }
 
 // The answer matched the schema, but its content can't be used (empty, too long).

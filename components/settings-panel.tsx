@@ -1,6 +1,6 @@
 "use client";
 
-import { DEFAULT_MODEL, MODEL_GROUPS } from "@/lib/model-list";
+import { DEFAULT_MODEL, GEMINI_MODELS, GROQ_MODELS } from "@/lib/model-list";
 import { LEVELS, MODES, TENSES, THEMES, VERB_TYPES } from "@/lib/options";
 import { settingApplies, type Settings } from "@/lib/settings";
 
@@ -12,31 +12,52 @@ type Props = {
 export function SettingsPanel({ settings, onChange }: Props) {
   return (
     <div className="flex flex-col gap-5">
-      {MODEL_GROUPS.map((group) => (
-        <fieldset key={group.provider}>
-          <legend className="mb-2 text-sm font-medium">{group.name} model</legend>
-          <div className="flex flex-wrap gap-2">
-            {group.models.map((model) => {
-              const active = (settings.model ?? DEFAULT_MODEL) === model;
-              return (
-                <button
-                  key={model}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => onChange({ ...settings, model })}
-                  className={`rounded-full border px-3 py-1 text-sm transition-colors ${
-                    active
-                      ? "border-blue-600 bg-blue-600 text-white"
-                      : "border-zinc-300 hover:border-zinc-500 dark:border-zinc-700 dark:hover:border-zinc-500"
-                  }`}
-                >
-                  {model}
-                </button>
-              );
-            })}
-          </div>
-        </fieldset>
-      ))}
+      <fieldset>
+        <legend className="mb-2 text-sm font-medium">Gemini model</legend>
+        <div className="flex flex-wrap gap-2">
+          {GEMINI_MODELS.map((model) => {
+            const active = (settings.model ?? DEFAULT_MODEL) === model;
+            return (
+              <button
+                key={model}
+                type="button"
+                aria-pressed={active}
+                onClick={() => onChange({ ...settings, model })}
+                className={`rounded-full border px-3 py-1 text-sm transition-colors ${
+                  active
+                    ? "border-blue-600 bg-blue-600 text-white"
+                    : "border-zinc-300 hover:border-zinc-500 dark:border-zinc-700 dark:hover:border-zinc-500"
+                }`}
+              >
+                {model}
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend className="mb-2 text-sm font-medium">Groq model</legend>
+        <div className="flex flex-wrap gap-2">
+          {GROQ_MODELS.map((model) => {
+            const active = (settings.model ?? DEFAULT_MODEL) === model;
+            return (
+              <button
+                key={model}
+                type="button"
+                aria-pressed={active}
+                onClick={() => onChange({ ...settings, model })}
+                className={`rounded-full border px-3 py-1 text-sm transition-colors ${
+                  active
+                    ? "border-blue-600 bg-blue-600 text-white"
+                    : "border-zinc-300 hover:border-zinc-500 dark:border-zinc-700 dark:hover:border-zinc-500"
+                }`}
+              >
+                {model}
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
       <ChipGroup
         label="Modes"
         options={MODES}

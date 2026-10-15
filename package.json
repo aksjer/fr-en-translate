@@ -9,7 +9,6 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@ai-sdk/cerebras": "^3.0.70",
     "@ai-sdk/google": "^4.0.93",
     "@ai-sdk/groq": "^4.0.61",
     "ai": "^7.0.137",
