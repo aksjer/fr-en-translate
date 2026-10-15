@@ -115,14 +115,17 @@ function instructions({ mode, level, tense, verbType, theme }: Combination) {
         "the French (not « un smartphone » → a smartphone, or « généreux » → generous). " +
         "Give only the word, never a sentence."
       );
-    case "verbe":
+    case "verbe": {
+      const kind = verbType === "irrégulier" ? "irregular" : "regular";
       return (
         "Give a single French verb in the infinitive (e.g. « conduire ») whose American English " +
-        `translation is ${verbType === "irrégulier" ? "an irregular" : "a regular"} verb ${levelFit} ` +
+        `translation is ${kind === "irregular" ? "an" : "a"} ${kind} verb ${levelFit} ` +
         "(go/went/gone is irregular, work/worked/worked is regular). " +
-        "No verb that translates as a phrasal verb. " +
+        `Being ${kind} matters more than the level. The English verb must look different ` +
+        "from the French (not « décider » → decide) and not translate as a phrasal verb. " +
         "Give only the infinitive, never a sentence or a conjugated verb."
       );
+    }
     case "phrasal verb":
       return (
         "Give a French verb in the infinitive, or a short expression starting with one, " +
@@ -151,13 +154,54 @@ function instructions({ mode, level, tense, verbType, theme }: Combination) {
       return (
         "Write a short French paragraph of exactly three sentences that tell one coherent " +
         `little story or moment, on the theme "${theme}", mainly told with the person ` +
-        `"${pickOne(PERSONS)}". Each sentence has ${SENTENCE_WORDS[level]} words. ` +
+        `"${pickOne(PERSONS)}" (other people or things can also be the subject of a sentence). ` +
+        `Each sentence has ${SENTENCE_WORDS[level]} words. ` +
         "Each sentence follows logically from the one before. Use a connector only where " +
         "a native speaker would (mais, alors, parce que, quand…), not at the start of every sentence." +
         variety +
         priority
       );
   }
+}
+
+// Word modes plan the English first, since the level is about English: starting
+// from the French gave loose translations (un périple → an ordeal) and a regular
+// verb as an irregular one (étirer → stretch). Only sentences plan a conjugated
+// French verb: for a single verb, it made models conjugate it and write a sentence.
+function situationField(mode: Mode) {
+  const start = "- situation: first, one short line in English:";
+  switch (mode) {
+    case "mot":
+      return [`${start} the English word you chose, then the context it is used in.`];
+    case "verbe":
+      return [
+        `${start} the English verb you chose with its three forms`,
+        "  (base, past simple, past participle), then the context it is used in.",
+      ];
+    case "phrasal verb":
+      return [
+        `${start} the English phrasal verb you chose, then the context`,
+        "  it is used in.",
+      ];
+    case "phrase":
+      return [
+        `${start} the situation you chose (who, where, when),`,
+        "  then the main French verb already conjugated in the required tense and person",
+        '  (e.g. "que nous partions").',
+      ];
+    case "paragraphe":
+      return [
+        `${start} the situation you chose (who, where, when),`,
+        "  then the main French verb of each of the three sentences, already conjugated.",
+      ];
+  }
+}
+
+// Gemini sometimes drops the apostrophe of l' (« dans l avion »): the code adds
+// it back. Only l', since a lone d or j can be a letter (la vitamine D, le jour J).
+function withApostrophes(text: string) {
+  const apostrophe = text.includes("’") ? "’" : "'";
+  return text.replace(/(^|[\s«(])(l) (?=[aeiouyhàâéèêëîïôûœ])/giu, `$1$2${apostrophe}`);
 }
 
 function reviewSection(review: Review, mode: Mode) {
@@ -211,11 +255,12 @@ export async function generateExercise(
   // télévision, then la lumière) or by telling the same story again.
   const avoid = input.avoid?.length
     ? "\n\n## Avoid\n" +
-      `- These items, already given: ${input.avoid.join(" ; ")}.\n` +
+      `These items were already given: ${input.avoid.join(" ; ")}\n` +
       (isWordMode(combination.mode)
-        ? "- One of these items with another context or article, or a word with the " +
-          "same English translation as one of them."
-        : "- Reusing the same structure, the same kind of event or the same characters.")
+        ? "Give a different word: none of these, even with another context or article, " +
+          "and none with the same English translation."
+        : "Write something different: not the same structure, the same kind of event " +
+          "or the same characters.")
     : "";
 
   const item = await retryIfInvalid(async () => {
@@ -232,28 +277,15 @@ export async function generateExercise(
         "that a French-speaking learner will translate into American English.",
         "",
         "## Fields, in this order",
-        // Only sentences plan a conjugated verb: for a single verb, it made
-        // models conjugate it and write a sentence.
-        ...(isWordMode(combination.mode)
-          ? ["- situation: first, one short line in English: the context the word is used in."]
-          : combination.mode === "phrase"
-            ? [
-                "- situation: first, one short line in English: the situation you chose",
-                "  (who, where, when), then the main French verb already conjugated in the",
-                '  required tense and person (e.g. "que nous partions").',
-              ]
-            : [
-                "- situation: first, one short line in English: the situation you chose",
-                "  (who, where, when), then the main French verb of each of the three",
-                "  sentences, already conjugated.",
-              ]),
+        ...situationField(combination.mode),
         // "As people speak it today" gave slang and negations without « ne »;
-        // "correct French" alone gave literary French.
+        // "correct French" alone gave literary French. "No quotes" may have made
+        // models drop apostrophes (« l avion »).
         "- text: the item, in correct, modern French with a neutral register: no slang,",
         "  swear words or literary style, always the « ne » of a negation, and no passé",
         "  simple or imparfait du subjonctif. Use French punctuation (a space before",
-        "  ! ? : ;) and no quotes, translation or explanation. Check the spelling, accents",
-        "  and apostrophes of every word.",
+        "  ! ? : ;) and apostrophes (j'ai, qu'il), with no quotation marks around the item",
+        "  and no translation or explanation. Check the spelling and accents of every word.",
         "- reference: a natural, correct American English translation of text, with the",
         "  same meaning and the equivalent tense, in American words and spelling",
         "  (apartment, color, not flat, colour).",
@@ -267,7 +299,9 @@ export async function generateExercise(
     });
 
     // The situation only helps the model think; the page doesn't need it.
-    const text = output.text.trim();
+    const raw = output.text.trim();
+    const text = withApostrophes(raw);
+    if (text !== raw) console.warn("Added a missing apostrophe:", raw);
     const reference = output.reference.trim();
     if (!text || !reference) {
       throw new InvalidAnswerError("Empty item or reference");

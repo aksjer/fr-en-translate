@@ -5,7 +5,10 @@ const STORAGE_KEY = "fr-en-translate:seen";
 const MAX_STORED = 500;
 export const MAX_SENT = 20;
 
-const normalize = (text: string) => text.trim().toLowerCase();
+// Without the context in parentheses, so a word given again with another context
+// (« se rattraper », then « se rattraper (le temps perdu) ») counts as seen.
+const normalize = (text: string) =>
+  text.replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
 
 export function readSeen(): string[] {
   try {

@@ -76,6 +76,26 @@ function hasWord(text: string, words: Set<string>) {
   );
 }
 
+// Verbs that are irregular in American English, to check the verb type.
+const IRREGULAR_VERBS = new Set(
+  (
+    "arise awake be bear beat become begin bend bet bid bind bite bleed blow break breed " +
+    "bring broadcast build burst buy cast catch choose cling come cost creep cut deal dig " +
+    "dive do draw drink drive dwell eat fall feed feel fight find fit flee fling fly forbid " +
+    "forecast foresee foretell forget forgive forgo forsake freeze get give go grind grow " +
+    "hang have hear hide hit hold hurt keep kneel know lay lead leap leave lend let lie " +
+    "light lose make mean meet mislay mislead mistake misunderstand mow outdo outgrow " +
+    "overcome overdo overhear override overrun oversee oversleep overtake overthrow pay " +
+    "prove put quit read rebuild redo remake repay rethink rewind rewrite rid ride ring " +
+    "rise run say see seek sell send set sew shake shed shine shoot show shrink shut sing " +
+    "sink sit slay sleep slide sling slit sow speak speed spend spin spit split spread " +
+    "spring stand steal stick sting stink stride strike string strive swear sweep swell " +
+    "swim swing take teach tear tell think thrive throw thrust tread undergo understand " +
+    "undertake undo unwind uphold upset wake wear weave wed weep wet win wind withdraw " +
+    "withhold withstand wring write"
+  ).split(" "),
+);
+
 // « l art » or « j ai »: a letter that needs an apostrophe before a vowel.
 const MISSING_APOSTROPHE = /(^|[\s«(])([cdjlmnst]|qu) [aeiouyhàâéèêëîïôûœ]/i;
 
@@ -85,7 +105,12 @@ const PARTICLES =
 
 // The item without its article, to compare a French word with its translation.
 function bareWord(text: string) {
-  return normalize(text).replace(/^(le |la |l'|les |un |une |des |the |a |an )/, "");
+  return normalize(text).replace(/^(le |la |l'|les |un |une |des |the |a |an |to )/, "");
+}
+
+// A word without its context in parentheses, to spot the same word given again.
+function head(text: string) {
+  return bareWord(text.replace(/\([^)]*\)/g, " "));
 }
 
 // The most words a sentence or a paragraph should have at this level.
@@ -105,6 +130,13 @@ function missingNe(text: string) {
     (sentence) =>
       /\b(pas|jamais)\b/i.test(sentence) && !/\b(ne\b|n['’])/i.test(sentence),
   );
+}
+
+// An irregular verb given as regular, or the other way around.
+function verbTypeFlag(reference: string, verbType: string | undefined) {
+  const irregular = IRREGULAR_VERBS.has(head(reference).split(" ")[0]);
+  if (verbType === "irrégulier" && !irregular) return "regular verb?";
+  if (verbType === "régulier" && irregular) return "irregular verb?";
 }
 
 function listOption<T extends string>(
@@ -191,8 +223,10 @@ async function evalGenerate(
   for (const mode of modes) {
     console.log(`\n${mode}`);
     const sentenceMode = mode === "phrase" || mode === "paragraphe";
+    const key = (text: string) => (sentenceMode ? normalize(text) : head(text));
     // Like the page, each request avoids the items given before it.
     const seen: string[] = [];
+    const references: string[] = [];
     for (const level of levels) {
       for (let run = 0; run < runs; run++) {
         try {
@@ -208,8 +242,10 @@ async function evalGenerate(
           const limit = maxWords(mode, level);
           const sentenceCount = sentences(exercise.text).length;
           const flags = [
-            seen.some((item) => normalize(item) === normalize(exercise.text)) &&
-              "repeated",
+            seen.some((item) => key(item) === key(exercise.text)) && "repeated",
+            !sentenceMode &&
+              references.some((item) => head(item) === head(exercise.reference)) &&
+              "same English as before",
             hasWord(exercise.text, ENGLISH_WORDS) && "English?",
             hasWord(exercise.text, SLANG_WORDS) && "slang?",
             sentenceMode && missingNe(exercise.text) && "no « ne »?",
@@ -227,9 +263,11 @@ async function evalGenerate(
             mode === "mot" &&
               bareWord(exercise.text) === bareWord(exercise.reference) &&
               "same word in English",
+            mode === "verbe" && verbTypeFlag(exercise.reference, exercise.verbType),
           ].filter(Boolean);
           if (flags.length) flagged++;
           seen.push(exercise.text);
+          references.push(exercise.reference);
 
           const tags = [level, exercise.tense, exercise.verbType, exercise.theme]
             .filter(Boolean)

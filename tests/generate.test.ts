@@ -126,3 +126,20 @@ test("asks for a neutral register and American words", async () => {
   assert.match(prompt, /always the « ne » of a negation/);
   assert.match(prompt, /in American words and spelling/);
 });
+
+test("word modes plan the English first, and a verb its three forms", async () => {
+  const model = mockModel(answer);
+  await generateExercise({ modes: ["verbe"], verbTypes: ["irrégulier"] }, model);
+  const prompt = promptText(model);
+  assert.match(prompt, /the English verb you chose with its three forms/);
+  assert.match(prompt, /Being irregular matters more than the level/);
+});
+
+test("adds back a missing apostrophe after l", async () => {
+  const model = mockModel({
+    ...answer,
+    text: "Vérifie ton passeport avant de monter dans l avion !",
+  });
+  const exercise = await generateExercise({ modes: ["phrase"] }, model);
+  assert.equal(exercise.text, "Vérifie ton passeport avant de monter dans l'avion !");
+});
