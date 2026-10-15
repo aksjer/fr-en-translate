@@ -2,8 +2,8 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 import { guardRequest, providerErrorResponse } from "@/lib/api";
 import { modelFor, providerOptionsFor } from "@/lib/model";
+import { LEVEL_DESCRIPTIONS } from "@/lib/options";
 import {
-  LEVEL_DESCRIPTIONS,
   pickCombination,
   settingsSchema,
   type Combination,

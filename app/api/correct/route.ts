@@ -3,7 +3,8 @@ import { z } from "zod";
 import { guardRequest, providerErrorResponse } from "@/lib/api";
 import { ERROR_TAGS } from "@/lib/mistakes";
 import { modelFor, providerOptionsFor } from "@/lib/model";
-import { LEVELS, MODELS, MODES, TENSES, type Mode } from "@/lib/settings";
+import { MODELS } from "@/lib/model-list";
+import { LEVELS, MODES, TENSES, type Mode } from "@/lib/options";
 
 const requestSchema = z.object({
   mode: z.enum(MODES).default("phrase"),

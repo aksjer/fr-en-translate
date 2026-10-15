@@ -7,7 +7,7 @@ import {
   providerOf,
   type Model,
   type Provider,
-} from "@/lib/settings";
+} from "@/lib/model-list";
 
 // Gemini and Groq, through the Vercel AI SDK. Each provider has its own key.
 const google = createGoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY });

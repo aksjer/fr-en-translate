@@ -2,7 +2,7 @@ import { APICallError, RetryError } from "ai";
 import { z } from "zod";
 import { apiKeyName, PROVIDER_NAMES, safeModel } from "@/lib/model";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
-import { providerOf, type Model } from "@/lib/settings";
+import { providerOf, type Model } from "@/lib/model-list";
 
 // The free tier is rate limited too, so keep this conservative.
 const RATE_LIMIT = 15;

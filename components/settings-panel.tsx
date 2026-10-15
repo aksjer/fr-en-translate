@@ -1,17 +1,8 @@
 "use client";
 
-import {
-  DEFAULT_MODEL,
-  GEMINI_MODELS,
-  GROQ_MODELS,
-  LEVELS,
-  MODES,
-  TENSES,
-  THEMES,
-  VERB_TYPES,
-  settingApplies,
-  type Settings,
-} from "@/lib/settings";
+import { DEFAULT_MODEL, GEMINI_MODELS, GROQ_MODELS } from "@/lib/model-list";
+import { LEVELS, MODES, TENSES, THEMES, VERB_TYPES } from "@/lib/options";
+import { settingApplies, type Settings } from "@/lib/settings";
 
 type Props = {
   settings: Settings;
