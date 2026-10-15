@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { SettingsPanel } from "@/components/settings-panel";
 import {
@@ -183,7 +184,10 @@ export function Trainer() {
         <p className="text-sm text-zinc-500">
           {stats.answered} réponses ·{" "}
           {Math.round((stats.correct / stats.answered) * 100)} % justes
-          {topErrors && ` · erreurs fréquentes : ${topErrors}`}
+          {topErrors && ` · erreurs fréquentes : ${topErrors}`} ·{" "}
+          <Link href="/progres" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">
+            Mes progrès
+          </Link>
         </p>
       )}
 
