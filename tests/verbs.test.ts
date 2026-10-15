@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { LEVELS } from "@/lib/options";
-import { verbForms, verbsFor } from "@/lib/verbs";
+import { frenchOf, verbForms, verbsFor } from "@/lib/verbs";
 
 test("every irregular verb has its own past forms", () => {
   for (const level of LEVELS) {
@@ -32,6 +32,21 @@ test("regular verbs follow American spelling", () => {
   for (const level of LEVELS) {
     for (const verb of verbsFor("régulier", level)) {
       assert.match(verbForms(verb)[1], /ed$/, verb);
+    }
+  }
+});
+
+test("every verb has its own French", () => {
+  const seen = new Map<string, string>();
+  for (const level of LEVELS) {
+    for (const verbType of ["régulier", "irrégulier"] as const) {
+      for (const verb of verbsFor(verbType, level)) {
+        const french = frenchOf(verb);
+        assert.ok(french, verb);
+        const other = seen.get(french);
+        assert.ok(!other || other === verb, `${verb} and ${other}: ${french}`);
+        seen.set(french, verb);
+      }
     }
   }
 });

@@ -26,7 +26,7 @@ import {
   settingsSchema,
   type Combination,
 } from "@/lib/settings";
-import { verbForms, verbsFor } from "@/lib/verbs";
+import { pickVerb, verbForms } from "@/lib/verbs";
 
 // Cuts a text from the page instead of rejecting it: mistakes stored in the
 // browser may be longer than today's limits.
@@ -111,10 +111,7 @@ function learner(mode: Mode, level: Level) {
   );
 }
 
-function instructions(
-  { mode, level, tense, theme }: Combination,
-  verb: string | undefined,
-) {
+function instructions({ mode, level, tense, theme }: Combination) {
   // "A C1 learner should know" gave basic words such as lose at every level.
   const levelFit = `that learners usually learn at CEFR ${level}, not at an easier level`;
   // The model invents the situation itself; this keeps it from always
@@ -140,15 +137,7 @@ function instructions(
       );
     }
     case "verbe":
-      return (
-        `Give the most common French infinitive for the American English verb "to ${verb}" ` +
-        "(e.g. « conduire » for to drive). If this infinitive often means something else " +
-        "too, add a short context in parentheses that points to this meaning " +
-        "(e.g. « louer (un appartement) » for to rent, since louer can also mean to praise). " +
-        "Never a French verb that looks like the English one but means something else " +
-        "(to attend is « assister à », not « attendre »). " +
-        "Give only the infinitive, never a sentence or a conjugated verb."
-      );
+      throw new Error("Verbs come from lib/verbs.ts, not from the model");
     case "phrasal verb":
       return (
         "Give a French verb in the infinitive, or a short expression starting with one, " +
@@ -197,9 +186,7 @@ function situationField(mode: Mode) {
     case "mot":
       return [`${start} the English word you chose, then the context it is used in.`];
     case "verbe":
-      // The code picks the verb: chosen by the model, verbs kept coming out as
-      // sentences, whatever the plan asked for.
-      return [`${start} a few words on what the English verb means.`];
+      throw new Error("Verbs come from lib/verbs.ts, not from the model");
     case "phrasal verb":
       return [
         `${start} the English phrasal verb you chose, then the context`,
@@ -273,11 +260,6 @@ export async function generateExercise(
       verbType: review.verbType,
     },
   );
-  // The code picks the English verb, so a verb has no avoid list or review to follow.
-  const verb =
-    combination.mode === "verbe"
-      ? pickOne(verbsFor(combination.verbType ?? "régulier", combination.level))
-      : undefined;
   // Models got around the list by changing a word's context (éteindre la
   // télévision, then la lumière) or by telling the same story again.
   // Only the items of this mode, so a word isn't compared with sentences.
@@ -290,7 +272,21 @@ export async function generateExercise(
           : [],
     )
     .slice(-20);
-  const avoid = given.length && !verb
+  // Verbs come from a table, so they need no model call (see lib/verbs.ts).
+  if (combination.mode === "verbe") {
+    const { verb, french } = pickVerb(
+      combination.verbType ?? "régulier",
+      combination.level,
+      given,
+    );
+    return {
+      text: french,
+      reference: `to ${verb}`,
+      forms: verbForms(verb),
+      ...combination,
+    };
+  }
+  const avoid = given.length
     ? "\n\n## Avoid\n" +
       `These items were already given: ${given.join(" ; ")}\n` +
       (isWordMode(combination.mode)
@@ -330,9 +326,9 @@ export async function generateExercise(
       prompt:
         learner(combination.mode, combination.level) +
         "\n\n## Task\n" +
-        instructions(combination, verb) +
+        instructions(combination) +
         avoid +
-        (review && !verb ? reviewSection(review, combination.mode) : ""),
+        (review ? reviewSection(review, combination.mode) : ""),
     });
 
     // The situation only helps the model think; the page doesn't need it.
@@ -350,8 +346,8 @@ export async function generateExercise(
     if (text.length > MAX_TEXT_LENGTH || reference.length > MAX_TEXT_LENGTH) {
       throw new InvalidAnswerError(`Item too long (${text.length} characters)`);
     }
-    return { text, reference: verb ? `to ${verb}` : reference };
+    return { text, reference };
   });
 
-  return { ...item, ...combination, ...(verb && { forms: verbForms(verb) }) };
+  return { ...item, ...combination };
 }

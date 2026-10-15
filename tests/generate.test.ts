@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { generateExercise } from "@/lib/generate";
 import { isInvalidAnswer } from "@/lib/model";
-import { verbForms, verbsFor } from "@/lib/verbs";
+import { frenchOf, pickVerb, verbForms, verbsFor } from "@/lib/verbs";
 import { mockModel, promptText } from "./helpers";
 
 const answer = {
@@ -107,7 +107,7 @@ test("the level is the learner's English level", async () => {
 });
 
 test("word modes ask for a single item, with no grammar or conjugated verb", async () => {
-  for (const mode of ["mot", "verbe", "phrasal verb"] as const) {
+  for (const mode of ["mot", "phrasal verb"] as const) {
     const model = mockModel(word);
     await generateExercise({ modes: [mode], levels: ["B1"] }, model);
     const prompt = promptText(model);
@@ -132,18 +132,25 @@ test("asks for a neutral register and American words", async () => {
   assert.match(prompt, /in American words and spelling/);
 });
 
-test("a verb is picked by the code from its type and level, and only translated", async () => {
+test("a verb comes from the code's table, with no model call", async () => {
   const model = mockModel(word);
   const exercise = await generateExercise(
-    { modes: ["verbe"], levels: ["C1"], verbTypes: ["irrégulier"], avoid: ["boire"] },
+    { modes: ["verbe"], levels: ["C1"], verbTypes: ["irrégulier"] },
     model,
   );
-  const prompt = promptText(model);
   const verb = exercise.reference.replace(/^to /, "");
   assert.ok(verbsFor("irrégulier", "C1").includes(verb));
+  assert.equal(exercise.text, frenchOf(verb));
   assert.deepEqual(exercise.forms, verbForms(verb));
-  assert.match(prompt, new RegExp(`the American English verb "to ${verb}"`));
-  assert.doesNotMatch(prompt, /## Avoid/);
+  assert.equal(model.doGenerateCalls.length, 0);
+});
+
+test("a verb given recently is not picked again", async () => {
+  const avoid = ["porter (un sac)", "devoir (de l'argent)"];
+  for (let i = 0; i < 50; i++) {
+    const { french } = pickVerb("régulier", "A2", avoid);
+    assert.ok(!avoid.includes(french), french);
+  }
 });
 
 test("adds back a missing apostrophe after l", async () => {
@@ -157,7 +164,7 @@ test("adds back a missing apostrophe after l", async () => {
 
 test("a sentence in a word mode is asked again once", async () => {
   const model = mockModel({ ...answer, text: "Est-ce que tu bois du café ?" }, { ...answer, text: "boire" });
-  const exercise = await generateExercise({ modes: ["verbe"] }, model);
+  const exercise = await generateExercise({ modes: ["mot"] }, model);
   assert.equal(exercise.text, "boire");
   assert.equal(model.doGenerateCalls.length, 2);
 });
