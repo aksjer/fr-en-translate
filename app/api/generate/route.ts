@@ -2,7 +2,6 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 import { guardRequest, providerErrorResponse } from "@/lib/api";
 import { modelFor, providerOptionsFor } from "@/lib/model";
-import { pickSituation } from "@/lib/situations";
 import {
   LEVEL_DESCRIPTIONS,
   pickCombination,
@@ -25,16 +24,15 @@ const requestSchema = settingsSchema.extend({
     .optional(),
 });
 
-function instructions(
-  { mode, level, tense, verbType, theme }: Combination,
-  situation?: string,
-) {
-  // Random ingredients make sentences differ even when the theme is the same.
-  // The model builds a situation around them that fits the theme.
-  const about = situation
-    ? `. First imagine a concrete, unusual situation that fits this theme and involves ` +
-      `${situation} (adapt them if needed), then write about it`
-    : "";
+function instructions({ mode, level, tense, verbType, theme }: Combination) {
+  // The model invents the situation itself; these rules keep it from always
+  // falling back on the most typical sentence for the theme.
+  const variety =
+    " Invent a specific, concrete situation on this theme: decide who is involved, " +
+    "where and when, and make it a little unexpected. Avoid clichés such as going " +
+    "to the market, the weather today or a simple daily routine. Vary the grammatical " +
+    "person (je, tu, il, elle, nous, vous, ils, elles, on) and the sentence type " +
+    "(statement, question, negation, exclamation).";
   const cefr = `CEFR level ${level} (${LEVEL_DESCRIPTIONS[level]})`;
   switch (mode) {
     case "mot":
@@ -59,12 +57,13 @@ function instructions(
     case "phrase":
       return (
         `Write one original French sentence at ${cefr}, ` +
-        `using the French tense "${tense}", on the theme "${theme}"${about}.`
+        `using the French tense "${tense}", on the theme "${theme}".` + variety
       );
     case "paragraphe":
       return (
         `Write a short French paragraph of three linked sentences at ${cefr}, ` +
-        `on the theme "${theme}"${about}. Use varied logical connectors, not always the same ones.`
+        `on the theme "${theme}". Use varied logical connectors, not always the same ones.` +
+        variety
       );
   }
 }
@@ -84,10 +83,6 @@ export async function POST(request: Request) {
   if (error) return error;
 
   const combination = pickCombination(data);
-  const situation =
-    combination.mode === "phrase" || combination.mode === "paragraphe"
-      ? pickSituation()
-      : undefined;
   const avoid = data.avoid?.length
     ? `\nAvoid these items, already given: ${data.avoid.join(" ; ")}. ` +
       "Also avoid reusing the same structure or the same characters."
@@ -113,7 +108,7 @@ export async function POST(request: Request) {
         "that a French-speaking learner will translate into American English. " +
         "text: the item, always written in French, with no quotes, translation or explanation. " +
         "reference: a natural, correct American English translation of text.",
-      prompt: instructions(combination, situation) + avoid + review,
+      prompt: instructions(combination) + avoid + review,
     });
 
     return Response.json({ ...output, ...combination });
