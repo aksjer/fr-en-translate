@@ -43,12 +43,14 @@ export function priority(withTense: boolean) {
 // Spelling, punctuation and "anything else" can't be built into a sentence.
 const UNPRACTICED_TAGS: ErrorTag[] = ["orthographe", "ponctuation", "autre"];
 
-// The kinds of mistakes the learner made most in their recent answers, in all
-// modes. Recent answers only, so a point they have fixed drops out by itself.
-// Words don't get it: a single word can't practice a tense or a preposition.
+// The kinds of mistakes the learner made most in their recent sentences and
+// paragraphs. Recent answers only, so a point they have fixed drops out by itself.
+// Not from words: a missed word already comes back, and its usual tag (sens)
+// can't be built into a sentence.
 export function weakPointsSection(input: GenerateInput) {
   const counts = new Map<ErrorTag, number>();
   for (const item of input.history ?? []) {
+    if (item.mode !== "phrase" && item.mode !== "paragraphe") continue;
     const tag = ERROR_TAGS.find((known) => known === item.tag);
     if (item.ok === false && tag && !UNPRACTICED_TAGS.includes(tag)) {
       counts.set(tag, (counts.get(tag) ?? 0) + 1);

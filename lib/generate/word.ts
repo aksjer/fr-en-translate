@@ -16,13 +16,15 @@ export function generateWord(input: GenerateInput, combination: Combination) {
     task:
       "Give a single French noun, adjective or adverb whose American English " +
       `translation is ${commonAt(level, "word")}, related to the theme "${theme}". ` +
-      "Choose the kind of word from the history: not always a noun. " +
+      "Choose the kind of word the recent history has had the fewest of: not always a noun. " +
       "Give a noun with its article (le, la, l', un, une). " +
       "Pick a word whose American English translation looks different from the French " +
       "(not « généreux » → generous). The French must be the word a French speaker would " +
       "really use for this English, never a look-alike with another meaning. If the French " +
       "word also has another common meaning, add a short context in parentheses that rules " +
       "it out (e.g. « la feuille (d'un arbre) » for leaf, since feuille is also a sheet of " +
-      "paper). Give only the word, never a sentence.",
+      "paper). Give only the word, never a sentence. " +
+      "The theme is only a direction: if no word fits it and every other rule, choose " +
+      "one loosely related to it rather than one at another level.",
   });
 }

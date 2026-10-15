@@ -202,6 +202,9 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
               "  spelling (colour) is a remark, but the answer stays right.",
               "- A more general word that loses part of the meaning (big for « énorme »,",
               "  say for « chuchoter ») is wrong, and the remark gives the precise word.",
+              "- Another form of the right word (leaves for « la feuille », pulled for « tirer »)",
+              "  is a remark (grammaire), but the answer stays right. A word of another kind",
+              "  (quick for « rapidement ») is wrong.",
             ]
           : [
               "- A small slip (a typo, punctuation, British spelling) is a remark, but the",

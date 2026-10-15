@@ -51,10 +51,12 @@ export const TENSE_GUIDES: Record<(typeof TENSES)[number], string> = {
   présent:
     "simple present or present continuous, but present perfect with depuis " +
     "(j'habite ici depuis 2010 → I have lived here since 2010) and just + present " +
-    "perfect for venir de",
+    "perfect or, very often in American English, just + simple past for venir de " +
+    "(je viens de finir → I just finished)",
   "passé composé":
     "simple past with a finished time (hier, en 2010), or present perfect for an " +
-    "experience or a result with no time given",
+    "experience or a result with no time given, where American English often uses " +
+    "the simple past too (j'ai perdu mes clés → I lost my keys)",
   imparfait:
     "simple past for a state, past continuous for an ongoing action, used to or would " +
     "for a habit",
