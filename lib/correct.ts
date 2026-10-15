@@ -103,11 +103,16 @@ type CorrectionOutput = Omit<z.infer<typeof correctionSchema>, "alternative"> &
 
 const MODE_RULES: Record<Mode, string> = {
   mot:
-    "The learner translates a single word. Accept any correct American English synonym, " +
-    "with or without an article. In the praise, mention one or two other useful equivalents.",
+    "The learner translates a single word. Accept any correct American English synonym " +
+    "that keeps the whole meaning, with or without an article. A more general word that " +
+    "loses part of the meaning (big for « énorme ») is a major mistake (vocabulaire), and " +
+    "the remark gives the precise word. In the praise, mention one or two other useful " +
+    "equivalents.",
   verbe:
     "The learner translates an infinitive verb. Accept it with or without \"to\" " +
-    "and any correct synonym. The page already shows the verb's three forms, so " +
+    "and any correct synonym that keeps the whole meaning. A more general verb that loses " +
+    "part of the meaning (say for « chuchoter ») is a major mistake (vocabulaire), and the " +
+    "remark gives the precise verb. The page already shows the verb's three forms, so " +
     "don't list them in the praise.",
   "phrasal verb":
     "A phrasal verb is expected, and any correct one is right. A correct simple verb " +
@@ -230,11 +235,20 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
             ]),
         "",
         "## Severity",
-        "- minor: spelling, punctuation, British spelling (colour, realise…),",
-        "  a missing or extra article, a slightly unnatural word.",
+        "One test decides between minor and major: is it a small slip a native speaker could",
+        "make too (minor), or a mistake that shows the learner doesn't know the English yet (major)?",
+        "- minor: spelling, punctuation, British spelling (colour, realise…), a missing or",
+        "  extra article.",
         "- major: a wrong tense or verb form, another real grammar mistake (word order,",
-        "  agreement, preposition), a wrong word a native speaker would not use",
-        "  (make my homework), or a clearly unnatural phrasing.",
+        "  agreement, preposition), a word a native speaker would not use there, or a",
+        '  phrasing that sounds foreign (e.g. "I am agree", "he explained me the problem",',
+        '  "since three years").',
+        ...(wordMode
+          ? [
+              "- For a single word, verb or phrasal verb, spelling the English word is part of",
+              "  what is tested: a misspelled word (recieve) is major. British spelling stays minor.",
+            ]
+          : []),
         "- critical: part of the meaning is wrong, missing or added. A false friend, or an idiom",
         "  translated word for word that an American wouldn't understand, is always critical.",
         "",
