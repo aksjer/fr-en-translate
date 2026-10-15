@@ -102,8 +102,7 @@ export function withApostrophes(text: string) {
 // The items of this mode the learner got right, and the recent ones.
 export function history(input: GenerateInput, mode: Mode) {
   const known = isWordMode(mode) ? (input.known?.[mode as "word" | "verb"] ?? []) : [];
-  // Only the items of this mode, so a word isn't compared with sentences. Items
-  // of a removed mode, or saved before the mode was stored, have none.
+  // Only the items of this mode, so a word isn't compared with sentences.
   // The prompt only lists the last ones: a long list costs tokens and is
   // followed no better.
   const recent = (input.history ?? [])

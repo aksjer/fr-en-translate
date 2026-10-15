@@ -1,4 +1,3 @@
-import { fromLegacy } from "@/lib/legacy-storage";
 import { MAX_KNOWN, type Mode } from "@/lib/options";
 
 // The exercises shown to this learner and how they did, kept in this browser
@@ -26,10 +25,7 @@ export function readSeen(): SeenItem[] {
     if (!Array.isArray(parsed)) return [];
     return parsed.flatMap((item): SeenItem[] => {
       if (typeof item === "string") return [{ text: item }];
-      if (item && typeof item.text === "string") {
-        // Items saved in French by the first version are read in English.
-        return [{ ...item, mode: fromLegacy(item.mode), tag: fromLegacy(item.tag) } as SeenItem];
-      }
+      if (item && typeof item.text === "string") return [item as SeenItem];
       return [];
     });
   } catch {
@@ -71,7 +67,7 @@ export function readKnown(): KnownItems {
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
     return Object.fromEntries(
       Object.entries(parsed).map(([mode, items]) => [
-        fromLegacy(mode),
+        mode,
         Array.isArray(items)
           ? items.filter((item): item is string => typeof item === "string").slice(-MAX_KNOWN)
           : [],
