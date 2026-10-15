@@ -32,6 +32,20 @@ export const TENSES = [
   "impératif",
 ] as const;
 
+// How each French tense is formed and used, and its usual American English
+// equivalent: small models often mix them up (e.g. a subjonctif without "que").
+export const TENSE_GUIDES: Record<(typeof TENSES)[number], string> = {
+  présent: "action now or a habit (je mange); English: simple present or present continuous",
+  "passé composé": "completed past action, avoir/être + participle (j'ai mangé, elle est partie); English: simple past or present perfect",
+  imparfait: "past description, habit or ongoing action (je mangeais); English: was doing, used to do or would do",
+  "plus-que-parfait": "past before another past, avoir/être in the imparfait + participle (j'avais mangé); English: past perfect (had eaten)",
+  "futur simple": "future, one word (je mangerai); English: will + verb",
+  "futur proche": "near future, aller + infinitive (je vais manger); English: be going to + verb",
+  "conditionnel présent": "hypothesis or politeness (je mangerais, si j'avais faim je mangerais); English: would + verb",
+  "subjonctif présent": "after que with a wish, need, feeling or doubt (il faut que je mange, je veux qu'il vienne); English: often an infinitive (I need to eat, I want him to come) or a base verb",
+  impératif: "an order or advice with no subject (mange !, allons-y, ne partez pas); English: base verb with no subject (Eat!, Let's go, Don't leave)",
+};
+
 // Regular or irregular in English, since that's what the learner must produce.
 export const VERB_TYPES = ["régulier", "irrégulier"] as const;
 

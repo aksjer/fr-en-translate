@@ -2,7 +2,7 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 import { guardRequest, providerErrorResponse } from "@/lib/api";
 import { modelFor, providerOptionsFor } from "@/lib/model";
-import { LEVEL_DESCRIPTIONS } from "@/lib/options";
+import { LEVEL_DESCRIPTIONS, TENSE_GUIDES } from "@/lib/options";
 import {
   pickCombination,
   settingsSchema,
@@ -28,7 +28,7 @@ function instructions({ mode, level, tense, verbType, theme }: Combination) {
   // The model invents the situation itself; these rules keep it from always
   // falling back on the most typical sentence for the theme.
   const variety =
-    " Invent a specific, concrete situation on this theme: decide who is involved, " +
+    "\n\n## Variety\nInvent a specific, concrete situation on this theme: decide who is involved, " +
     "where and when, and make it a little unexpected. Avoid clichés such as going " +
     "to the market, the weather today or a simple daily routine. Vary the grammatical " +
     "person (je, tu, il, elle, nous, vous, ils, elles, on) and the sentence type " +
@@ -57,7 +57,9 @@ function instructions({ mode, level, tense, verbType, theme }: Combination) {
     case "phrase":
       return (
         `Write one original French sentence at ${cefr}, ` +
-        `using the French tense "${tense}", on the theme "${theme}".` + variety
+        `using the French tense "${tense}" (${tense && TENSE_GUIDES[tense]}), ` +
+        `on the theme "${theme}".` +
+        variety
       );
     case "paragraphe":
       return (
@@ -69,7 +71,9 @@ function instructions({ mode, level, tense, verbType, theme }: Combination) {
 }
 
 // Every field is required: Groq's strict JSON mode rejects optional ones.
+// The situation comes first, so the model settles its idea before writing the item.
 const exerciseSchema = z.object({
+  situation: z.string().max(300),
   text: z.string().min(1).max(800),
   reference: z.string().min(1).max(800),
 });
@@ -84,11 +88,12 @@ export async function POST(request: Request) {
 
   const combination = pickCombination(data);
   const avoid = data.avoid?.length
-    ? `\nAvoid these items, already given: ${data.avoid.join(" ; ")}. ` +
-      "Also avoid reusing the same structure or the same characters."
+    ? "\n\n## Avoid\n" +
+      `- These items, already given: ${data.avoid.join(" ; ")}.\n` +
+      "- Reusing the same structure or the same characters."
     : "";
   const review = data.review?.length
-    ? "\nNaturally work in the following difficulty, without pointing it out: " +
+    ? "\n\n## Review\nNaturally work in the following difficulty, without pointing it out: " +
       data.review
         .map((item) => `${item.tag ?? "point"} (e.g. "${item.correction}")`)
         .join(" ; ") +
@@ -103,15 +108,22 @@ export async function POST(request: Request) {
       maxRetries: 1,
       maxOutputTokens: 800,
       output: Output.object({ schema: exerciseSchema }),
-      system:
-        "You are a French teacher. You give an item in natural, correct French " +
-        "that a French-speaking learner will translate into American English. " +
-        "text: the item, always written in French, with no quotes, translation or explanation. " +
-        "reference: a natural, correct American English translation of text.",
-      prompt: instructions(combination) + avoid + review,
+      system: [
+        "You are a French teacher. You give an item in natural, correct French",
+        "that a French-speaking learner will translate into American English.",
+        "",
+        "## Fields, in this order",
+        "- situation: first, one short line in English describing the idea or situation",
+        "  you chose (who, where, when), or the word's context for a single word or verb.",
+        "- text: the item, always written in French, with no quotes, translation or explanation.",
+        "- reference: a natural, correct American English translation of text.",
+      ].join("\n"),
+      prompt: "## Task\n" + instructions(combination) + avoid + review,
     });
 
-    return Response.json({ ...output, ...combination });
+    // The situation only helps the model think; the page doesn't need it.
+    const { text, reference } = output;
+    return Response.json({ text, reference, ...combination });
   } catch (error) {
     console.error("Model generation failed", error);
     return providerErrorResponse(error, "Generation failed", data.model);
