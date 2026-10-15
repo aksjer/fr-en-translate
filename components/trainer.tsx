@@ -35,7 +35,7 @@ type Exercise = Combination & {
 };
 
 type Correction = {
-  score: number;
+  perfect: boolean;
   isCorrect: boolean;
   correction: string;
   points: string[];
@@ -183,7 +183,7 @@ export function Trainer() {
       if (isWordMode(exercise.mode) && correction.isCorrect && exercise.reference) {
         rememberKnown(exercise.mode, englishKey(exercise.reference));
       }
-      if (!correction.isCorrect && correction.score < 10) {
+      if (!correction.isCorrect) {
         addMistake({
           text: exercise.text,
           level: exercise.level,
@@ -352,19 +352,10 @@ export function Trainer() {
               : "border-amber-600/30 bg-amber-50 dark:bg-amber-950/30"
           }`}
         >
-          <p className="flex items-center gap-3 text-lg font-semibold">
-            <span
-              className={`rounded-full px-3 py-1 text-sm ${
-                result.isCorrect
-                  ? "bg-green-600 text-white"
-                  : "bg-amber-500 text-zinc-950"
-              }`}
-            >
-              {result.score}/10
-            </span>
-            {result.isCorrect ? "Correct !" : "Presque !"}
+          <p className="text-lg font-semibold">
+            {result.perfect ? "Parfait !" : result.isCorrect ? "Correct !" : "Presque !"}
           </p>
-          {result.score < 10 && (
+          {!result.perfect && (
             <div className="flex flex-col gap-1">
               <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
                 Correction{result.tag && ` · erreur : ${result.tag}`}

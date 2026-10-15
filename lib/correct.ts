@@ -40,7 +40,9 @@ export type Correction = {
   alternative?: string;
   example?: { english: string; french: string };
   tag?: ErrorTag;
-  score: number;
+  // No mistake at all.
+  perfect: boolean;
+  // Only minor mistakes (spelling, an article…): the learner got it right.
   isCorrect: boolean;
   // The main remark, kept with the mistake so its review tests the same point.
   lesson?: string;
@@ -65,15 +67,6 @@ const TAG_DEFINITIONS: Record<ErrorTag, string> = {
 };
 
 const SEVERITIES = ["minor", "major", "critical"] as const;
-type Severity = (typeof SEVERITIES)[number];
-
-// The code computes the score from the mistakes, so the same answer gets the same
-// score whatever the model: one minor mistake gives 9, two give 8, one major 7
-// and one critical 4.
-const PENALTIES: Record<Severity, number> = { minor: 1, major: 3, critical: 6 };
-
-// A score of 8 or more counts as correct.
-const CORRECT_FROM = 8;
 
 const MAX_REMARKS = 6;
 
@@ -271,18 +264,13 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
       ...mistake,
       remark: mistake.remark.trim(),
       // A false friend always changes the meaning, but models sometimes call it
-      // major: the code makes it critical, so it always costs the same.
+      // major: the code makes it critical, so it always counts as wrong.
       severity:
         mistake.category === "faux ami" ? ("critical" as const) : mistake.severity,
     }))
     .filter((mistake) => mistake.remark)
     // The most serious first; the sort keeps the model's order otherwise.
-    .sort((a, b) => PENALTIES[b.severity] - PENALTIES[a.severity]);
-  const penalty = mistakes.reduce(
-    (total, mistake) => total + PENALTIES[mistake.severity],
-    0,
-  );
-  const score = output.translated ? Math.max(0, 10 - penalty) : 0;
+    .sort((a, b) => SEVERITIES.indexOf(b.severity) - SEVERITIES.indexOf(a.severity));
   const remarks = mistakes
     .slice(0, MAX_REMARKS)
     .map((mistake) => mistake.remark);
@@ -300,8 +288,9 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
         ? { english: output.example.trim(), french: output.exampleFrench.trim() }
         : undefined,
     tag: output.translated ? mistakes[0]?.category : "sens",
-    score,
-    isCorrect: score >= CORRECT_FROM,
+    perfect: output.translated && mistakes.length === 0,
+    isCorrect:
+      output.translated && mistakes.every((mistake) => mistake.severity === "minor"),
     lesson: output.translated ? mistakes[0]?.remark : undefined,
   };
 }
