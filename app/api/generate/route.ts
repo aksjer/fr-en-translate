@@ -1,7 +1,7 @@
 import { generateText } from "ai";
 import { z } from "zod";
 import { guardRequest, providerErrorResponse } from "@/lib/api";
-import { modelFor, providerOptions } from "@/lib/model";
+import { modelFor, providerOptionsFor } from "@/lib/model";
 import { pickSituation } from "@/lib/situations";
 import {
   pickCombination,
@@ -106,7 +106,7 @@ export async function POST(request: Request) {
   try {
     const output = await generateText({
       model: modelFor(data.model),
-      providerOptions,
+      providerOptions: providerOptionsFor(data.model),
       temperature: 1,
       maxRetries: 1,
       maxOutputTokens: 600,
@@ -123,7 +123,7 @@ export async function POST(request: Request) {
       ...combination,
     });
   } catch (error) {
-    console.error("Gemini generation failed", error);
-    return providerErrorResponse(error, "Generation failed");
+    console.error("Model generation failed", error);
+    return providerErrorResponse(error, "Generation failed", data.model);
   }
 }

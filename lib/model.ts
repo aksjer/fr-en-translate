@@ -1,19 +1,57 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { DEFAULT_MODEL, MODELS, type Model } from "@/lib/settings";
+import { createGroq } from "@ai-sdk/groq";
+import type { generateText } from "ai";
+import {
+  DEFAULT_MODEL,
+  MODELS,
+  providerOf,
+  type Model,
+  type Provider,
+} from "@/lib/settings";
 
-// Gemini, through the Vercel AI SDK. The key comes from LLM_API_KEY.
-const google = createGoogleGenerativeAI({ apiKey: process.env.LLM_API_KEY });
+// Gemini and Groq, through the Vercel AI SDK. Each provider has its own key.
+const google = createGoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY });
+const groq = createGroq({ apiKey: process.env.GROQ_API_KEY });
+
+export const PROVIDER_NAMES: Record<Provider, string> = {
+  gemini: "Gemini",
+  groq: "Groq",
+};
+
+const API_KEYS: Record<Provider, string> = {
+  gemini: "GEMINI_API_KEY",
+  groq: "GROQ_API_KEY",
+};
 
 // Only ids from the fixed list are accepted, so the client can't pick any model.
-function safeModel(id: Model | undefined): Model {
+export function safeModel(id: Model | undefined): Model {
   return id && (MODELS as readonly string[]).includes(id) ? id : DEFAULT_MODEL;
 }
 
-export function modelFor(id: Model | undefined) {
-  return google(safeModel(id));
+// The env variable that holds the key for this model's provider.
+export function apiKeyName(id: Model | undefined) {
+  return API_KEYS[providerOf(safeModel(id))];
 }
 
-// Both models are "lite" ones, which accept this level, so the JSON isn't cut short.
-export const providerOptions = {
-  google: { thinkingConfig: { thinkingLevel: "minimal" as const } },
-};
+export function modelFor(id: Model | undefined) {
+  const model = safeModel(id);
+  return providerOf(model) === "groq" ? groq(model) : google(model);
+}
+
+type ProviderOptions = NonNullable<
+  Parameters<typeof generateText>[0]["providerOptions"]
+>;
+
+// Keeps thinking short, so the JSON isn't cut short. Kimi K2 doesn't reason,
+// so it gets no reasoning option.
+export function providerOptionsFor(
+  id: Model | undefined,
+): ProviderOptions {
+  const model = safeModel(id);
+  if (providerOf(model) === "gemini") {
+    return { google: { thinkingConfig: { thinkingLevel: "minimal" } } };
+  }
+  return model.startsWith("openai/gpt-oss")
+    ? { groq: { reasoningEffort: "low" } }
+    : {};
+}

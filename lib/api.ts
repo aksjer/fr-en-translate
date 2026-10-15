@@ -1,6 +1,8 @@
 import { APICallError, RetryError } from "ai";
 import { z } from "zod";
+import { apiKeyName, PROVIDER_NAMES, safeModel } from "@/lib/model";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { providerOf, type Model } from "@/lib/settings";
 
 // The free tier is rate limited too, so keep this conservative.
 const RATE_LIMIT = 15;
@@ -11,20 +13,13 @@ type Guarded<T> =
   | { data: T; error?: never }
   | { data?: never; error: Response };
 
-// Shared checks for the AI routes: API key present, per-IP rate limit,
-// body size cap, then JSON parsing and schema validation.
-export async function guardRequest<T>(
+// Shared checks for the AI routes: per-IP rate limit, body size cap, JSON parsing,
+// schema validation, then the API key of the chosen model's provider.
+export async function guardRequest<T extends { model?: Model }>(
   request: Request,
   route: string,
   schema: z.ZodType<T>,
 ): Promise<Guarded<T>> {
-  if (!process.env.LLM_API_KEY) {
-    console.error("LLM_API_KEY is missing");
-    return {
-      error: Response.json({ error: "Server misconfigured" }, { status: 500 }),
-    };
-  }
-
   const { ok, retryAfter } = rateLimit(
     `${route}:${clientIp(request)}`,
     RATE_LIMIT,
@@ -67,13 +62,30 @@ export async function guardRequest<T>(
     };
   }
 
+  const keyName = apiKeyName(parsed.data.model);
+  if (!process.env[keyName]) {
+    console.error(`${keyName} is missing`);
+    return {
+      error: Response.json(
+        { error: `La clé ${keyName} manque sur le serveur. Choisis un autre modèle.` },
+        { status: 500 },
+      ),
+    };
+  }
+
   return { data: parsed.data };
 }
 
 // Turns a failed model call into a response. A 429 from the provider gets its own
 // French message and status, so the page can tell the user to wait.
 // Each provider failure gets its own French message, so the page can say what to do.
-export function providerErrorResponse(error: unknown, fallback: string) {
+export function providerErrorResponse(
+  error: unknown,
+  fallback: string,
+  model: Model | undefined,
+) {
+  const name = PROVIDER_NAMES[providerOf(safeModel(model))];
+  const keyName = apiKeyName(model);
   const apiError = RetryError.isInstance(error) ? error.lastError : error;
   if (APICallError.isInstance(apiError)) {
     switch (apiError.statusCode) {
@@ -81,7 +93,7 @@ export function providerErrorResponse(error: unknown, fallback: string) {
         return Response.json(
           {
             error:
-              "Gemini a refusé la demande (erreur 400). Signale-le si ça se répète.",
+              `${name} a refusé la demande (erreur 400). Signale-le si ça se répète.`,
           },
           { status: 502 },
         );
@@ -90,7 +102,7 @@ export function providerErrorResponse(error: unknown, fallback: string) {
         return Response.json(
           {
             error:
-              "La clé API Gemini est refusée. Vérifie LLM_API_KEY sur le serveur.",
+              `La clé API ${name} est refusée. Vérifie ${keyName} sur le serveur.`,
           },
           { status: 502 },
         );
@@ -98,7 +110,7 @@ export function providerErrorResponse(error: unknown, fallback: string) {
         return Response.json(
           {
             error:
-              "Le modèle Gemini n'est plus disponible. Il faut changer le modèle dans le code.",
+              `Le modèle ${name} n'est plus disponible. Il faut changer le modèle dans le code.`,
           },
           { status: 502 },
         );
@@ -106,7 +118,7 @@ export function providerErrorResponse(error: unknown, fallback: string) {
         return Response.json(
           {
             error:
-              "Gemini a atteint sa limite de requêtes par minute. Réessaie dans une minute.",
+              `${name} a atteint sa limite de requêtes par minute. Réessaie dans une minute.`,
           },
           { status: 429, headers: { "Retry-After": "60" } },
         );
@@ -114,7 +126,7 @@ export function providerErrorResponse(error: unknown, fallback: string) {
         return Response.json(
           {
             error:
-              "Gemini est très sollicité en ce moment. Réessaie dans une minute.",
+              `${name} est très sollicité en ce moment. Réessaie dans une minute.`,
           },
           { status: 503, headers: { "Retry-After": "60" } },
         );

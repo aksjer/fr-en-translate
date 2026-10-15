@@ -3,11 +3,17 @@ import { z } from "zod";
 // Options the user can multi-select in the settings panel (stored in localStorage).
 // The backend picks one random combination per exercise.
 
-// Gemini models the learner can pick. The server only accepts ids from this list.
-export const MODELS = [
+// Models the learner can pick, by provider. The server only accepts ids from these lists.
+export const GEMINI_MODELS = [
   "gemini-3.5-flash-lite",
   "gemini-3.1-flash-lite",
 ] as const;
+export const GROQ_MODELS = [
+  "openai/gpt-oss-120b",
+  "openai/gpt-oss-20b",
+  "moonshotai/kimi-k2-instruct-0905",
+] as const;
+export const MODELS = [...GEMINI_MODELS, ...GROQ_MODELS] as const;
 export const DEFAULT_MODEL = "gemini-3.5-flash-lite";
 
 export const MODES = [
@@ -49,6 +55,11 @@ export const THEMES = [
 ] as const;
 
 export type Model = (typeof MODELS)[number];
+export type Provider = "gemini" | "groq";
+
+export function providerOf(model: Model): Provider {
+  return (GROQ_MODELS as readonly string[]).includes(model) ? "groq" : "gemini";
+}
 export type Mode = (typeof MODES)[number];
 export type Level = (typeof LEVELS)[number];
 export type Tense = (typeof TENSES)[number];
