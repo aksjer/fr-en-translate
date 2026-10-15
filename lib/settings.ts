@@ -52,23 +52,19 @@ function tensesFor(level: Level) {
   );
 }
 
-// Fixed values win over the settings: a review keeps the mode, level, tense and
-// verb type of its mistake, and only the theme changes.
-export function pickCombination(
-  settings: Settings,
-  fixed: Omit<Partial<Combination>, "theme"> = {},
-): Combination {
-  const mode = fixed.mode ?? pick(settings.modes, MODES);
-  const level = fixed.level ?? pick(settings.levels, LEVELS);
+// One random value of each setting the mode uses.
+export function pickCombination(settings: Settings): Combination {
+  const mode = pick(settings.modes, MODES);
+  const level = pick(settings.levels, LEVELS);
   const uses = MODE_USES[mode];
   return {
     mode,
     level,
     ...(uses.tense && {
-      tense: fixed.tense ?? pick(settings.tenses, tensesFor(level)),
+      tense: pick(settings.tenses, tensesFor(level)),
     }),
     ...(uses.verbType && {
-      verbType: fixed.verbType ?? pick(settings.verbTypes, VERB_TYPES),
+      verbType: pick(settings.verbTypes, VERB_TYPES),
     }),
     ...(uses.theme && { theme: pick(settings.themes, THEMES) }),
   };

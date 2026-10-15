@@ -38,7 +38,7 @@ type Correction = {
   example?: { english: string; french: string };
   forms?: [string, string, string];
   tag?: ErrorTag;
-  lesson?: string;
+  remark?: string;
 };
 
 // Renders **text** from the API as bold, without using innerHTML.
@@ -156,7 +156,7 @@ export function Trainer() {
         english,
         ok: correction.isCorrect,
         tag: correction.isCorrect ? undefined : correction.tag,
-        remark: correction.isCorrect ? undefined : correction.lesson,
+        remark: correction.isCorrect ? undefined : correction.remark,
       });
       // A word, verb or phrasal verb answered right never comes back.
       if (english && correction.isCorrect) rememberKnown(exercise.mode, english);

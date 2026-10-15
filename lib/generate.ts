@@ -7,15 +7,13 @@ import {
   retryIfInvalid,
   temperatureFor,
 } from "@/lib/model";
+import { ERROR_TAG_DEFINITIONS, ERROR_TAGS, type ErrorTag } from "@/lib/mistakes";
 import {
-  LEVEL_GRAMMAR,
-  LEVEL_VOCABULARY,
   englishKey,
   MAX_HISTORY,
   MAX_KNOWN,
   MAX_TEXT_LENGTH,
   MODES,
-  SENTENCE_WORDS,
   TENSE_GUIDES,
   type Level,
   isWordMode,
@@ -71,16 +69,22 @@ export type Exercise = Combination & {
   context?: string;
 };
 
+// What the app is for: with it, the model can choose well in cases no rule covers.
+const GOAL =
+  "## Goal\n" +
+  "The app helps a French speaker learn the most useful American English they don't know " +
+  "yet. They translate your item into American English, and another teacher grades it. " +
+  "Each item should teach them something new and useful at their level.";
+
 // The level is the learner's English level: any French is easy for them, so what
-// matters is the English the translation needs. Word modes only get the
-// vocabulary: with the grammar too, models wrote sentences instead of a word.
+// matters is the English the translation needs.
 function learner(mode: Mode, level: Level) {
-  const intro = `## Learner\nA native French speaker learning American English. Their English level is CEFR ${level}: `;
-  if (isWordMode(mode)) return `${intro}${LEVEL_VOCABULARY[level]}.`;
+  const intro =
+    `## Learner\nA native French speaker learning American English, at CEFR ${level} in English.`;
+  if (isWordMode(mode)) return intro;
   return (
-    `${intro}${LEVEL_VOCABULARY[level]}; ${LEVEL_GRAMMAR[level]}. ` +
-    "The French is never the difficulty: choose French whose natural American English " +
-    `translation needs ${level} English.`
+    `${intro} The French is never the difficulty: choose French whose natural American ` +
+    `English translation needs the vocabulary and grammar learners usually study at ${level}.`
   );
 }
 
@@ -90,8 +94,9 @@ function learner(mode: Mode, level: Level) {
 function commonAt(level: Level, kind: string) {
   return level === "C2"
     ? `an advanced ${kind}, beyond the Oxford 5000, that learners usually learn at CEFR C2`
-    : `a ${kind} common in American English (COCA) from the Oxford 5000 that learners ` +
-        `usually learn at CEFR ${level}, not at an easier level`;
+    : `${/^[aeiou]/.test(kind) ? "an" : "a"} ${kind} common in American English (COCA) ` +
+        `from the Oxford 5000 that learners usually learn at CEFR ${level}, not at an ` +
+        "easier level";
 }
 
 // Sentences get the same frequency lists as words, so they use useful English.
@@ -112,8 +117,9 @@ function instructions({ mode, level, tense, theme }: Combination) {
     "obvious example for the theme (going to the market, today's weather…), " +
     "but stay realistic: no science fiction or fantasy.";
   const priority =
-    "\n\n## Priority\nIf two instructions conflict, the tense and the theme come first, " +
-    "then the level, then the variety.";
+    "\n\n## Priority\nIf two instructions conflict, " +
+    (tense ? "the tense and the theme come first" : "the theme comes first") +
+    ", then the level, then the variety.";
   switch (mode) {
     case "mot": {
       return (
@@ -150,7 +156,7 @@ function instructions({ mode, level, tense, theme }: Combination) {
       const imperative = tense === "impératif";
       return (
         `Write one original French sentence on the theme "${theme}", ` +
-        `using the French tense "${tense}", with ${SENTENCE_WORDS[level]} words. ` +
+        `using the French tense "${tense}", of a length typical of CEFR ${level}. ` +
         "Choose the person of the main verb " +
         (imperative
           ? "(tu, nous or vous) and whether it is a statement or a negation, "
@@ -159,7 +165,7 @@ function instructions({ mode, level, tense, theme }: Combination) {
         "different from the last items of the history." +
         sentenceVocabulary(level) +
         "\n" +
-        `About this tense: ${tense && TENSE_GUIDES[tense]}.` +
+        `This tense in American English: ${tense && TENSE_GUIDES[tense]}.` +
         variety +
         priority
       );
@@ -170,7 +176,7 @@ function instructions({ mode, level, tense, theme }: Combination) {
         `little story or moment, on the theme "${theme}", mainly told with one person ` +
         "(je, tu, il, elle, on, nous, vous, ils or elles) that you choose, different from the " +
         "last items of the history (other people or things can also be the subject of a sentence). " +
-        `Each sentence has ${SENTENCE_WORDS[level]} words. ` +
+        `Each sentence has a length typical of CEFR ${level}. ` +
         "Each sentence follows logically from the one before. Use a connector only where " +
         "a native speaker would (mais, alors, parce que, quand…), not at the start of every sentence." +
         sentenceVocabulary(level) +
@@ -228,20 +234,20 @@ function historySection(items: HistoryItem[], mode: Mode) {
         ? "not answered"
         : item.ok
           ? "right"
-          : `wrong${item.tag ? ` (${item.tag})` : ""}${item.remark ? `: ${item.remark}` : ""}`;
+          : `wrong${item.remark ? `: ${item.remark}` : ""}`;
     return `- « ${item.text} »${english}: ${result}`;
   });
   return (
     "\n\n## History\n" +
     "The learner's last items in this mode, oldest first:\n" +
     lines.join("\n") +
-    "\nUse it to choose the next item: never give an item answered right again; " +
-    "when a recent item was wrong, you may test the same point again in a new item, " +
-    "without pointing it out; and vary what the history shows " +
+    "\nUse it to choose the next item. " +
     (isWordMode(mode)
-      ? "(kind of word, theme, particle), and never give the same word with another context."
-      : "(person, sentence type, situations, characters): not the same structure, " +
-        "the same kind of event or the same characters.")
+      ? "Never give an item answered right again, even with another context. An item " +
+        "answered wrong may come back as is, but only after a few other items."
+      : "When a recent item was wrong, test the same difficulty again in a new item, " +
+        "without pointing it out. Vary the person, the sentence type, the situations and " +
+        "the characters: not the same structure, kind of event or characters.")
   );
 }
 
@@ -291,12 +297,14 @@ function history(input: GenerateInput, mode: Mode) {
 }
 
 // The kinds of mistakes the learner made most in their recent answers, in all
-// modes. Recent answers only, so a point they have fixed drops out by itself.
+// modes, for sentences only: a single word can't practice a tense or a
+// preposition. Recent answers only, so a point they have fixed drops out by itself.
 function weakPointsSection(input: GenerateInput) {
-  const counts = new Map<string, number>();
+  const counts = new Map<ErrorTag, number>();
   for (const item of input.history ?? []) {
-    if (item.ok === false && item.tag) {
-      counts.set(item.tag, (counts.get(item.tag) ?? 0) + 1);
+    const tag = ERROR_TAGS.find((known) => known === item.tag);
+    if (item.ok === false && tag && tag !== "autre") {
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
     }
   }
   const top = [...counts]
@@ -305,10 +313,10 @@ function weakPointsSection(input: GenerateInput) {
     .slice(0, 3);
   return top.length
     ? "\n\n## Weak points\n" +
-        "The learner's most frequent kinds of mistakes in their recent answers: " +
-        top.map(([tag, count]) => `${tag} (${count})`).join(", ") +
-        ". When this mode allows it, favor an item that practices one of these points, " +
-        "without pointing it out."
+        "The kinds of mistakes the learner made most in their recent answers:\n" +
+        top.map(([tag, count]) => `- ${ERROR_TAG_DEFINITIONS[tag]}: ${count} times`).join("\n") +
+        "\nBuild the item so its translation practices one of these points, without " +
+        "pointing it out."
     : "";
 }
 
@@ -341,8 +349,8 @@ async function generateVerb(
       maxOutputTokens: 1000,
       output: Output.object({ schema: verbSchema }),
       system: [
-        "You are an English teacher for a French speaker. You choose one English verb",
-        "that the learner will translate from French.",
+        "You are an American English teacher for a French speaker. You choose one English",
+        "verb that the learner will translate from French.",
         "",
         "## Fields, in this order",
         '- english: the verb, in its base form, one word, without "to".',
@@ -359,6 +367,8 @@ async function generateVerb(
         "  plage. » for rent). Check its spelling and accents.",
       ].join("\n"),
       prompt:
+        GOAL +
+        "\n\n" +
         learner("verbe", level) +
         "\n\n## Task\n" +
         `Choose ${commonAt(level, `${english} verb`)}. ` +
@@ -370,8 +380,7 @@ async function generateVerb(
         "rather answer another English verb (« confondre » is confuse or mix up, not " +
         "mistake), choose another verb." +
         knownSection(known) +
-        historySection(recent, "verbe") +
-        weakPointsSection(input),
+        historySection(recent, "verbe"),
     });
     const base = output.english.trim().toLowerCase().replace(/^to\s+/, "");
     const past = output.past.trim().toLowerCase();
@@ -431,8 +440,8 @@ export async function generateExercise(input: GenerateInput): Promise<Exercise> 
       maxOutputTokens: 1500,
       output: Output.object({ schema: exerciseSchema }),
       system: [
-        "You are a French teacher. You give an item in natural, correct French",
-        "that a French-speaking learner will translate into American English.",
+        "You are an American English teacher for a French speaker. You write an item in",
+        "natural, correct French that the learner will translate into American English.",
         "",
         "## Fields, in this order",
         ...situationField(combination.mode),
@@ -456,12 +465,14 @@ export async function generateExercise(input: GenerateInput): Promise<Exercise> 
         "  in American words and spelling (apartment, color, not flat, colour).",
       ].join("\n"),
       prompt:
+        GOAL +
+        "\n\n" +
         learner(combination.mode, combination.level) +
         "\n\n## Task\n" +
         instructions(combination) +
         knownSection(known) +
         historySection(recent, combination.mode) +
-        weakPointsSection(input),
+        (isWordMode(combination.mode) ? "" : weakPointsSection(input)),
     });
 
     // The situation only helps the model think; the page doesn't need it.
