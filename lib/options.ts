@@ -14,14 +14,25 @@ export const LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
 // and the correction share it, so anything generated can be corrected.
 export const MAX_TEXT_LENGTH = 1000;
 
-// What each CEFR level means, for the prompts: small models don't know it well.
+// The English each CEFR level needs, for the generation prompt. The learner is
+// French, so the level is about the English they must write, not the French.
 export const LEVEL_DESCRIPTIONS: Record<(typeof LEVELS)[number], string> = {
-  A1: "very common everyday words, short simple sentences (5 to 8 words), present tense mostly",
-  A2: "common words about daily life, simple sentences (6 to 10 words), basic connectors (et, mais, parce que)",
-  B1: "everyday and work vocabulary, sentences of 8 to 15 words, one subordinate clause at most",
-  B2: "varied vocabulary including some abstract words, sentences of 12 to 20 words with subordinate clauses",
-  C1: "rich and precise vocabulary, idiomatic expressions, complex sentences with nuance",
-  C2: "sophisticated, literary or idiomatic French, long sentences with subtle nuance",
+  A1: "very common words; simple present, present continuous, can, there is / are",
+  A2: "common everyday words; simple past, going to, comparatives, some / any",
+  B1: "everyday and work vocabulary; present perfect vs simple past, used to, first and second conditional, common phrasal verbs",
+  B2: "varied vocabulary; passive, third conditional, reported speech, modals of deduction (must be, can't be)",
+  C1: "precise vocabulary and idioms; less common phrasal verbs, past modals (should have, might have), mixed conditionals",
+  C2: "subtle register and nuance, rare idioms, formal structures such as inversion",
+};
+
+// How many words a sentence has at each level.
+export const SENTENCE_WORDS: Record<(typeof LEVELS)[number], string> = {
+  A1: "5 to 8",
+  A2: "6 to 10",
+  B1: "8 to 15",
+  B2: "12 to 20",
+  C1: "15 to 30",
+  C2: "20 to 35",
 };
 
 export const TENSES = [

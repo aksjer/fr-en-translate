@@ -12,9 +12,11 @@ import {
   LEVELS,
   MAX_TEXT_LENGTH,
   MODES,
+  SENTENCE_WORDS,
   TENSE_GUIDES,
   TENSES,
   VERB_TYPES,
+  type Level,
   type Mode,
 } from "@/lib/options";
 import {
@@ -62,16 +64,27 @@ const SENTENCE_TYPES = ["statement", "question", "negation", "exclamation"];
 // An order can't really be a question.
 const IMPERATIVE_TYPES = ["statement", "negation"];
 
-// Told to the model, since models count words better than characters. The code
-// also rejects any item over MAX_TEXT_LENGTH characters.
-const MAX_WORDS = { "phrasal verb": 10, phrase: 40, paragraphe: 120 };
+// Lengths are told to the model in words, which it counts better than characters
+// (see SENTENCE_WORDS for sentences). The code also rejects any item over
+// MAX_TEXT_LENGTH characters.
+const MAX_PHRASAL_VERB_WORDS = 10;
 
 function pickOne(items: string[]) {
   return items[Math.floor(Math.random() * items.length)];
 }
 
+// The level is the learner's English level: any French is easy for them, so what
+// matters is the English the translation needs.
+function learner(level: Level) {
+  return (
+    "## Learner\n" +
+    `A native French speaker learning American English. Their English level is CEFR ${level}: ` +
+    `${LEVEL_DESCRIPTIONS[level]}. The French is never the difficulty: choose French ` +
+    `whose natural American English translation needs ${level} English.`
+  );
+}
+
 function instructions({ mode, level, tense, verbType, theme }: Combination) {
-  const cefr = `CEFR level ${level} (${LEVEL_DESCRIPTIONS[level]})`;
   // The model invents the situation itself; this keeps it from always
   // falling back on the most typical sentence for the theme.
   const variety =
@@ -84,42 +97,43 @@ function instructions({ mode, level, tense, verbType, theme }: Combination) {
   switch (mode) {
     case "mot":
       return (
-        `Give a single French noun, adjective or adverb at ${cefr}, ` +
-        `related to the theme "${theme}". Include the article for a noun (le, la, l', un, une). ` +
+        "Give a single French noun, adjective or adverb whose American English translation " +
+        `a ${level} learner should know, related to the theme "${theme}". ` +
+        "Include the article for a noun (le, la, l', un, une). " +
         "Pick a word whose American English translation is clear."
       );
     case "verbe":
       return (
-        `Give a single French verb in the infinitive at ${cefr}, ` +
-        `whose American English translation is a ${verbType === "irrégulier" ? "irregular" : "regular"} verb ` +
-        "(go/went/gone is irregular, work/worked/worked is regular). " +
+        "Give a single French verb in the infinitive whose American English translation " +
+        `is a ${verbType === "irrégulier" ? "irregular" : "regular"} verb that a ${level} learner ` +
+        "should know (go/went/gone is irregular, work/worked/worked is regular). " +
         "No verb that translates as a phrasal verb."
       );
     case "phrasal verb":
       return (
-        `Give a French verb or short expression at ${cefr}, ` +
-        `related to the theme "${theme}", that translates naturally into American English ` +
-        "as a phrasal verb. Add a short context in parentheses if the meaning is ambiguous, " +
-        `with ${MAX_WORDS[mode]} words at most in all.`
+        `Give a French verb or short expression, related to the theme "${theme}", ` +
+        `that translates naturally into American English as a phrasal verb a ${level} ` +
+        "learner should know. Add a short context in parentheses if the meaning is ambiguous, " +
+        `with ${MAX_PHRASAL_VERB_WORDS} words at most in all.`
       );
     case "phrase": {
       const imperative = tense === "impératif";
       const person = pickOne(imperative ? IMPERATIVE_PERSONS : PERSONS);
       const type = pickOne(imperative ? IMPERATIVE_TYPES : SENTENCE_TYPES);
       return (
-        `Write one original French sentence at ${cefr}, ` +
-        `using the French tense "${tense}" (${tense && TENSE_GUIDES[tense]}), ` +
-        `on the theme "${theme}". The main verb uses the person "${person}", ` +
-        `and the sentence is a ${type}, with ${MAX_WORDS[mode]} words at most.` +
+        `Write one original French sentence on the theme "${theme}", ` +
+        `using the French tense "${tense}". The main verb uses the person "${person}", ` +
+        `the sentence is a ${type}, and it has ${SENTENCE_WORDS[level]} words.\n` +
+        `About this tense: ${tense && TENSE_GUIDES[tense]}.` +
         variety +
         priority
       );
     }
     case "paragraphe":
       return (
-        `Write a short French paragraph of three linked sentences at ${cefr}, ` +
-        `on the theme "${theme}", mainly told with the person "${pickOne(PERSONS)}", ` +
-        `with ${MAX_WORDS[mode]} words at most in all. ` +
+        "Write a short French paragraph of three linked sentences, " +
+        `on the theme "${theme}", mainly told with the person "${pickOne(PERSONS)}". ` +
+        `Each sentence has ${SENTENCE_WORDS[level]} words. ` +
         "Use logical connectors that fit the level." +
         variety +
         priority
@@ -194,14 +208,16 @@ export async function generateExercise(
         "that a French-speaking learner will translate into American English.",
         "",
         "## Fields, in this order",
-        "- situation: first, one short line in English describing the idea or situation",
-        "  you chose (who, where, when), or the word's context for a single word or verb.",
+        "- situation: first, one short line in English: the idea or situation you chose",
+        "  (who, where, when), then the main French verb already conjugated in the required",
+        '  tense and person (e.g. "que nous partions"). For a single word or verb, its context.',
         "- text: the item, always written in French, with no quotes, translation or explanation.",
         "- reference: a natural, correct American English translation of text,",
         "  with the same meaning and the equivalent tense, in American spelling.",
       ].join("\n"),
       prompt:
-        "## Task\n" +
+        learner(combination.level) +
+        "\n\n## Task\n" +
         instructions(combination) +
         avoid +
         (review ? reviewSection(review, combination.mode) : ""),

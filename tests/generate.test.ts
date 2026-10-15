@@ -88,3 +88,15 @@ test("an item too long to correct is refused", async () => {
     (error) => isInvalidAnswer(error),
   );
 });
+
+test("the level is the learner's English level", async () => {
+  const model = mockModel(answer);
+  await generateExercise(
+    { modes: ["phrase"], levels: ["B2"], tenses: ["présent"] },
+    model,
+  );
+  const prompt = promptText(model);
+  assert.match(prompt, /Their English level is CEFR B2: varied vocabulary; passive/);
+  assert.match(prompt, /it has 12 to 20 words/);
+  assert.match(prompt, /About this tense: action now/);
+});

@@ -14,7 +14,13 @@ import { correctTranslation, type CorrectInput } from "@/lib/correct";
 import { generateExercise } from "@/lib/generate";
 import { apiKeyName } from "@/lib/model";
 import { DEFAULT_MODEL, MODELS, type Model } from "@/lib/model-list";
-import { LEVELS, MODES, type Level, type Mode } from "@/lib/options";
+import {
+  LEVELS,
+  MODES,
+  SENTENCE_WORDS,
+  type Level,
+  type Mode,
+} from "@/lib/options";
 
 // One correction case: an answer and the score range a good teacher would give it.
 type CorrectCase = Omit<CorrectInput, "model"> & {
@@ -34,6 +40,10 @@ function fail(text: string): never {
   process.exit(1);
 }
 
+function count(total: number, word: string) {
+  return `${total} ${word}${total > 1 ? "s" : ""}`;
+}
+
 function message(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
@@ -50,6 +60,13 @@ function looksEnglish(text: string) {
   return (text.toLowerCase().match(/[\p{L}']+/gu) ?? []).some((word) =>
     ENGLISH_WORDS.has(word),
   );
+}
+
+// The most words a sentence or a paragraph should have at this level.
+function maxWords(mode: Mode, level: Level) {
+  const perSentence = Number(SENTENCE_WORDS[level].split(" to ")[1]);
+  if (mode === "phrase") return perSentence;
+  if (mode === "paragraphe") return 3 * perSentence;
 }
 
 function listOption<T extends string>(
@@ -127,7 +144,8 @@ async function evalGenerate(
   runs: number,
 ) {
   console.log(
-    `\nGeneration · ${model} · ${modes.length} modes × ${levels.length} levels × ${runs} runs`,
+    `\nGeneration · ${model} · ${count(modes.length, "mode")} × ` +
+      `${count(levels.length, "level")} × ${count(runs, "run")}`,
   );
 
   let flagged = 0;
@@ -147,10 +165,13 @@ async function evalGenerate(
               avoid: seen.slice(-20).map((item) => item.slice(0, 80)),
             }),
           );
+          const words = exercise.text.split(/\s+/).filter(Boolean).length;
+          const limit = maxWords(mode, level);
           const flags = [
             seen.some((item) => normalize(item) === normalize(exercise.text)) &&
               "repeated",
             looksEnglish(exercise.text) && "English?",
+            limit && words > limit && `${words} words (${limit} at most)`,
           ].filter(Boolean);
           if (flags.length) flagged++;
           seen.push(exercise.text);
