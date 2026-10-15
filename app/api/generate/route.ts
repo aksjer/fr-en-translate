@@ -1,9 +1,10 @@
-import { generateText } from "ai";
+import { generateText, Output } from "ai";
 import { z } from "zod";
 import { guardRequest, providerErrorResponse } from "@/lib/api";
 import { modelFor, providerOptionsFor } from "@/lib/model";
 import { pickSituation } from "@/lib/situations";
 import {
+  LEVEL_DESCRIPTIONS,
   pickCombination,
   settingsSchema,
   type Combination,
@@ -29,54 +30,46 @@ function instructions(
   situation?: string,
 ) {
   // A concrete situation makes sentences differ even when the theme is the same.
-  const about = situation ? `, à propos de : ${situation}` : "";
+  const about = situation ? `, about this situation: ${situation}` : "";
+  const cefr = `CEFR level ${level} (${LEVEL_DESCRIPTIONS[level]})`;
   switch (mode) {
     case "mot":
       return (
-        `Donne un seul nom, adjectif ou adverbe français de niveau CECRL ${level}, ` +
-        `lié au thème « ${theme} ». Ajoute l'article pour un nom (le, la, l', un, une). ` +
-        "Choisis un mot dont la traduction en anglais américain est claire."
+        `Give a single French noun, adjective or adverb at ${cefr}, ` +
+        `related to the theme "${theme}". Include the article for a noun (le, la, l', un, une). ` +
+        "Pick a word whose American English translation is clear."
       );
     case "verbe":
       return (
-        `Donne un seul verbe français à l'infinitif, de niveau CECRL ${level}, ` +
-        `dont la traduction en anglais américain est un verbe ${verbType} ` +
-        "(au sens des verbes irréguliers anglais : go/went/gone est irrégulier, " +
-        "work/worked/worked est régulier). Pas de verbe qui se traduit par un phrasal verb."
+        `Give a single French verb in the infinitive at ${cefr}, ` +
+        `whose American English translation is a ${verbType === "irrégulier" ? "irregular" : "regular"} verb ` +
+        "(go/went/gone is irregular, work/worked/worked is regular). " +
+        "No verb that translates as a phrasal verb."
       );
     case "phrasal verb":
       return (
-        `Donne un verbe ou une courte expression en français, de niveau CECRL ${level}, ` +
-        `lié au thème « ${theme} », qui se traduit naturellement en anglais américain ` +
-        "par un phrasal verb (ex. : « abandonner (une habitude) » → give up). " +
-        "Ajoute entre parenthèses un court contexte si le sens est ambigu."
+        `Give a French verb or short expression at ${cefr}, ` +
+        `related to the theme "${theme}", that translates naturally into American English ` +
+        "as a phrasal verb. Add a short context in parentheses if the meaning is ambiguous."
       );
     case "phrase":
       return (
-        `Écris une phrase originale de niveau CECRL ${level}, ` +
-        `conjuguée au ${tense}, sur le thème « ${theme} »${about}. ` +
-        "Adapte la longueur et le vocabulaire au niveau."
+        `Write one original French sentence at ${cefr}, ` +
+        `using the French tense "${tense}", on the theme "${theme}"${about}.`
       );
     case "paragraphe":
       return (
-        `Écris un court paragraphe de trois phrases liées entre elles, de niveau CECRL ${level}, ` +
-        `sur le thème « ${theme} »${about}. Utilise des connecteurs logiques variés, pas toujours les mêmes. ` +
-        "Adapte la longueur et le vocabulaire au niveau."
+        `Write a short French paragraph of three linked sentences at ${cefr}, ` +
+        `on the theme "${theme}"${about}. Use varied logical connectors, not always the same ones.`
       );
   }
 }
 
-// Some models answer with the JSON again inside the field, as {"text": "..."}.
-// Take the sentence out of it when that happens.
-function unwrapText(raw: string) {
-  // Strips a Markdown code fence, then a {"text": ...} wrapper, quoted or not.
-  const unfenced = raw
-    .trim()
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```$/, "");
-  const wrapped = unfenced.match(/^\{\s*"?text"?\s*:\s*"?([\s\S]*?)"?\s*\}$/);
-  return (wrapped ? wrapped[1] : unfenced).trim();
-}
+// Every field is required: Groq's strict JSON mode rejects optional ones.
+const exerciseSchema = z.object({
+  text: z.string().min(1).max(800),
+  reference: z.string().min(1).max(800),
+});
 
 export async function POST(request: Request) {
   const { data, error } = await guardRequest(
@@ -92,36 +85,34 @@ export async function POST(request: Request) {
       ? pickSituation()
       : undefined;
   const avoid = data.avoid?.length
-    ? `\nÉvite ces éléments déjà donnés : ${data.avoid.join(" ; ")}. ` +
-      "Évite aussi de reprendre la même structure ou les mêmes personnages."
+    ? `\nAvoid these items, already given: ${data.avoid.join(" ; ")}. ` +
+      "Also avoid reusing the same structure or the same characters."
     : "";
   const review = data.review?.length
-    ? "\nIntègre naturellement dans la phrase, sans le signaler, la difficulté suivante : " +
+    ? "\nNaturally work in the following difficulty, without pointing it out: " +
       data.review
-        .map((item) => `${item.tag ?? "point"} (ex. : « ${item.correction} »)`)
+        .map((item) => `${item.tag ?? "point"} (e.g. "${item.correction}")`)
         .join(" ; ") +
       "."
     : "";
 
   try {
-    const output = await generateText({
+    const { output } = await generateText({
       model: modelFor(data.model),
       providerOptions: providerOptionsFor(data.model),
       temperature: 1,
       maxRetries: 1,
-      maxOutputTokens: 600,
+      maxOutputTokens: 800,
+      output: Output.object({ schema: exerciseSchema }),
       system:
-        "Tu es un professeur de français. Tu donnes un élément en français, " +
-        "naturel et correct, qu'un apprenant devra traduire en anglais américain. " +
-        "Pas de traduction, pas d'explication, pas de guillemets. " +
-        "Réponds uniquement avec l'élément, en texte brut, sans JSON.",
+        "You are a French teacher. You give an item in natural, correct French " +
+        "that a French-speaking learner will translate into American English. " +
+        "text: the item, always written in French, with no quotes, translation or explanation. " +
+        "reference: a natural, correct American English translation of text.",
       prompt: instructions(combination, situation) + avoid + review,
     });
 
-    return Response.json({
-      text: unwrapText(output.text),
-      ...combination,
-    });
+    return Response.json({ ...output, ...combination });
   } catch (error) {
     console.error("Model generation failed", error);
     return providerErrorResponse(error, "Generation failed", data.model);

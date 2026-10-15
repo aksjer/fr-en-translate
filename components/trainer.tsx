@@ -22,7 +22,7 @@ import { isSeen, MAX_SENT, readSeen, rememberSeen } from "@/lib/seen-items";
 import { speak } from "@/lib/speak";
 import { useSettings } from "@/lib/use-settings";
 
-type Exercise = Combination & { text: string };
+type Exercise = Combination & { text: string; reference?: string };
 
 type Correction = {
   score: number;
@@ -155,6 +155,8 @@ export function Trainer() {
         text: exercise.text,
         translation,
         level: exercise.level,
+        tense: exercise.tense,
+        reference: exercise.reference,
         model: settings.model,
       });
       setResult(correction);
