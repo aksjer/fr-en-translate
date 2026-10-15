@@ -160,6 +160,36 @@ test("when every verb was given, the one given longest ago comes back", () => {
   assert.equal(picked, french[3]);
 });
 
+test("a verb the learner got right is never picked again", () => {
+  const verbs = verbsFor("irrégulier", "A2");
+  const known = verbs.slice(1).map((verb) => frenchOf(verb) ?? "");
+  for (let i = 0; i < 20; i++) {
+    assert.equal(pickVerb("irrégulier", "A2", [], known).verb, verbs[0]);
+  }
+  // Once every verb is known, they come back.
+  const all = verbs.map((verb) => frenchOf(verb) ?? "");
+  assert.ok(verbs.includes(pickVerb("irrégulier", "A2", [], all).verb));
+});
+
+test("a verb due for review comes back as is", async () => {
+  const model = mockModel(word);
+  const exercise = await generateExercise(
+    {
+      modes: ["verbe"],
+      review: {
+        mode: "verbe",
+        level: "B2",
+        verbType: "régulier",
+        text: "devoir (de l'argent)",
+        correction: "to **owe**",
+      },
+    },
+    model,
+  );
+  assert.equal(exercise.text, "devoir (de l'argent)");
+  assert.equal(exercise.reference, "to owe");
+});
+
 test("adds back a missing apostrophe after l", async () => {
   const model = mockModel({
     ...answer,

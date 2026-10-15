@@ -8,21 +8,21 @@ import type { Level, VerbType } from "@/lib/options";
 // Verbs that look like their French translation (decide, encourage) are left
 // out: they teach nothing.
 const IRREGULAR: Record<Level, string[]> = {
-  A1: ["be", "have", "do", "go", "come", "eat", "drink", "see", "make", "get", "give", "take", "write", "read", "sleep", "buy", "sit", "speak", "swim", "run"],
-  A2: ["begin", "bring", "choose", "drive", "fall", "feel", "find", "forget", "hear", "know", "leave", "lose", "meet", "pay", "put", "sell", "send", "sing", "teach", "tell", "think", "understand", "wear", "win"],
-  B1: ["bend", "bite", "blow", "break", "build", "catch", "dig", "draw", "feed", "fight", "fly", "freeze", "grow", "hang", "hide", "hold", "hurt", "keep", "lend", "let", "light", "ride", "ring", "shake", "shine", "shoot", "shut", "spend", "steal", "throw"],
-  B2: ["bet", "bleed", "burst", "creep", "deal", "flee", "forbid", "forgive", "grind", "kneel", "lay", "lead", "mislead", "overcome", "seek", "shrink", "sink", "slide", "spin", "spit", "split", "spread", "stick", "sting", "strike", "swear", "sweep", "swing", "tear", "weep"],
+  A1: ["be", "have", "do", "go", "come", "eat", "drink", "see", "make", "get", "give", "take", "write", "read", "sleep", "buy", "sit", "speak", "swim", "run", "say", "cut", "stand", "wake"],
+  A2: ["begin", "bring", "choose", "drive", "fall", "feel", "find", "forget", "hear", "know", "leave", "lose", "meet", "pay", "put", "sell", "send", "sing", "teach", "tell", "think", "understand", "wear", "win", "mean", "show"],
+  B1: ["bend", "bite", "blow", "break", "build", "catch", "dig", "draw", "feed", "fight", "fly", "freeze", "grow", "hang", "hide", "hold", "hurt", "keep", "lend", "let", "light", "ride", "ring", "shake", "shine", "shoot", "shut", "spend", "steal", "throw", "beat", "sew", "quit"],
+  B2: ["bet", "bleed", "burst", "creep", "deal", "flee", "forbid", "forgive", "grind", "kneel", "lay", "lead", "mislead", "overcome", "seek", "shrink", "sink", "slide", "spin", "spit", "split", "spread", "stick", "sting", "strike", "swear", "sweep", "swing", "tear", "weep", "lie", "bear", "cast", "leap", "stink", "wind"],
   C1: ["arise", "bind", "cling", "dwell", "fling", "foresee", "forgo", "forsake", "outgrow", "overhear", "override", "oversee", "overtake", "overthrow", "sling", "sow", "stride", "strive", "thrust", "tread", "undergo", "undertake", "uphold", "weave", "withdraw", "withhold", "withstand", "wring"],
   C2: ["abide", "beset", "forswear", "inlay", "rend", "shear", "slay", "slit", "strew", "swell", "unbind", "waylay", "bind", "cling", "forsake", "thrust", "tread", "withstand", "wring"],
 };
 
 const REGULAR: Record<Level, string[]> = {
-  A1: ["work", "play", "like", "love", "live", "watch", "listen", "walk", "want", "cook", "clean", "open", "close", "help", "start", "call", "talk", "wash", "stay"],
-  A2: ["ask", "borrow", "travel", "carry", "enjoy", "fix", "hope", "look", "miss", "move", "need", "remember", "try", "wait", "worry", "push", "pull", "laugh", "cry", "learn"],
-  B1: ["allow", "avoid", "complain", "breathe", "earn", "fail", "hurry", "improve", "notice", "pour", "lift", "share", "knock", "wonder", "warn", "apologize", "belong", "manage", "rely", "follow"],
-  B2: ["swallow", "scratch", "attempt", "claim", "sigh", "shiver", "owe", "rescue", "grumble", "struggle", "threaten", "urge", "bother", "blame", "cheat", "stumble", "frown", "stare", "tease", "whisper"],
-  C1: ["acknowledge", "convey", "deter", "enhance", "hinder", "jeopardize", "mitigate", "overlook", "postpone", "dismiss", "dread", "scrutinize", "undermine", "weigh", "dwindle", "foster", "hamper", "loom", "thrive", "yearn"],
-  C2: ["fathom", "ascertain", "placate", "relinquish", "loathe", "belittle", "bolster", "cajole", "dither", "flout", "goad", "rebuke", "scold", "squander", "thwart", "wane", "wheedle", "wield"],
+  A1: ["work", "play", "like", "love", "live", "watch", "listen", "walk", "want", "cook", "clean", "open", "close", "help", "start", "call", "talk", "wash", "stay", "jump", "smile", "fill", "paint", "rest", "answer", "count", "rent", "shout", "kiss"],
+  A2: ["ask", "borrow", "travel", "carry", "enjoy", "fix", "hope", "look", "miss", "move", "need", "remember", "try", "wait", "worry", "push", "pull", "laugh", "cry", "learn", "bake", "boil", "check", "guess", "hate", "kick", "marry", "taste", "thank", "turn", "cough"],
+  B1: ["allow", "avoid", "complain", "breathe", "earn", "fail", "hurry", "improve", "notice", "pour", "lift", "share", "knock", "wonder", "warn", "apologize", "belong", "manage", "rely", "follow", "bury", "chase", "deny", "fetch", "greet", "hire", "remind", "rush", "save", "sneeze", "stretch", "lock", "spill", "wipe"],
+  B2: ["swallow", "scratch", "attempt", "claim", "sigh", "shiver", "owe", "rescue", "grumble", "struggle", "threaten", "urge", "bother", "blame", "cheat", "stumble", "frown", "stare", "tease", "whisper", "bargain", "beg", "brag", "chew", "cuddle", "drown", "gasp", "hug", "nod", "scream", "squeeze", "sulk", "sweat", "wander", "yawn", "blush"],
+  C1: ["acknowledge", "convey", "deter", "enhance", "hinder", "jeopardize", "mitigate", "overlook", "postpone", "dismiss", "dread", "scrutinize", "undermine", "weigh", "dwindle", "foster", "hamper", "loom", "thrive", "yearn", "bewilder", "deem", "endorse", "entice", "flinch", "grasp", "hoard", "outweigh", "relish", "stifle", "unveil", "tamper"],
+  C2: ["fathom", "ascertain", "placate", "relinquish", "loathe", "belittle", "bolster", "cajole", "dither", "flout", "goad", "rebuke", "scold", "squander", "thwart", "wane", "wheedle", "wield", "bemoan", "cower", "dawdle", "embezzle", "fester", "gloat", "hobble", "jostle", "loiter", "quell", "rummage", "scoff", "wallow", "whimper"],
 };
 
 // The French the learner sees. A context in parentheses picks the meaning
@@ -75,6 +75,21 @@ const FRENCH: Record<string, string> = {
   forswear: "renoncer à (solennellement)", inlay: "incruster", rend: "déchirer (violemment)",
   shear: "tondre (un mouton)", slay: "tuer (au combat)", slit: "fendre (d'un coup)",
   strew: "éparpiller", swell: "enfler", unbind: "délier", waylay: "intercepter (quelqu'un)",
+  say: "dire",
+  cut: "couper",
+  stand: "être debout",
+  wake: "se réveiller",
+  mean: "vouloir dire",
+  show: "montrer",
+  beat: "battre",
+  sew: "coudre",
+  quit: "arrêter (de fumer)",
+  lie: "s'allonger",
+  bear: "supporter (une douleur)",
+  cast: "jeter (un sort)",
+  leap: "bondir",
+  stink: "puer",
+  wind: "remonter (une montre)",
   // Regular
   work: "travailler", play: "jouer", like: "aimer bien", love: "aimer (quelqu'un)",
   live: "habiter", watch: "regarder (la télévision)", listen: "écouter",
@@ -114,21 +129,110 @@ const FRENCH: Record<string, string> = {
   flout: "bafouer (une règle)", goad: "pousser à bout", rebuke: "faire des reproches à",
   scold: "gronder", squander: "gaspiller", thwart: "déjouer", wane: "décliner",
   wheedle: "enjôler", wield: "manier (une arme)",
+  jump: "sauter",
+  smile: "sourire",
+  fill: "remplir",
+  paint: "peindre",
+  rest: "se reposer",
+  answer: "répondre",
+  count: "compter",
+  rent: "louer (un appartement)",
+  shout: "crier",
+  kiss: "embrasser (sur la joue)",
+  bake: "faire cuire (au four)",
+  boil: "faire bouillir",
+  check: "vérifier",
+  guess: "deviner",
+  hate: "détester",
+  kick: "donner un coup de pied",
+  marry: "épouser",
+  taste: "goûter",
+  thank: "remercier",
+  turn: "tourner",
+  cough: "tousser",
+  bury: "enterrer",
+  chase: "courir après",
+  deny: "nier",
+  fetch: "aller chercher",
+  greet: "saluer",
+  hire: "embaucher",
+  remind: "rappeler (quelque chose à quelqu'un)",
+  rush: "se précipiter",
+  save: "économiser (de l'argent)",
+  sneeze: "éternuer",
+  stretch: "s'étirer",
+  lock: "fermer à clé",
+  spill: "renverser (un liquide)",
+  wipe: "essuyer",
+  bargain: "marchander",
+  beg: "supplier",
+  brag: "se vanter",
+  chew: "mâcher",
+  cuddle: "faire un câlin",
+  drown: "se noyer",
+  gasp: "avoir le souffle coupé",
+  hug: "serrer dans ses bras",
+  nod: "faire oui de la tête",
+  scream: "hurler",
+  squeeze: "presser (un citron)",
+  sulk: "bouder",
+  sweat: "transpirer",
+  wander: "errer",
+  yawn: "bâiller",
+  blush: "rougir",
+  bewilder: "déconcerter",
+  deem: "juger (considérer comme)",
+  endorse: "appuyer (une candidature)",
+  entice: "allécher",
+  flinch: "tressaillir",
+  grasp: "saisir (une idée)",
+  hoard: "amasser (des provisions)",
+  outweigh: "l'emporter sur",
+  relish: "savourer",
+  stifle: "étouffer",
+  unveil: "dévoiler",
+  tamper: "trafiquer (un compteur)",
+  bemoan: "se lamenter sur",
+  cower: "se recroqueviller (de peur)",
+  dawdle: "traînasser",
+  embezzle: "détourner (des fonds)",
+  fester: "s'envenimer",
+  gloat: "jubiler (méchamment)",
+  hobble: "boitiller",
+  jostle: "bousculer",
+  loiter: "traîner (dans la rue)",
+  quell: "réprimer (une révolte)",
+  rummage: "fouiller",
+  scoff: "se moquer de",
+  wallow: "se vautrer",
+  whimper: "gémir",
 };
 
 export function frenchOf(verb: string): string | undefined {
   return FRENCH[verb];
 }
 
-// Picks a verb of this type and level that isn't one of the French items
-// given recently (avoid, oldest first), and returns it with its French. When
-// all of them were given, the one given longest ago comes back.
-export function pickVerb(verbType: VerbType, level: Level, avoid: string[] = []) {
+// Picks a verb of this type and level, and returns it with its French:
+// never one the learner already got right (known) while others are left, and
+// if possible not one given recently (avoid, oldest first). A verb due for
+// review (its French) comes back as is.
+export function pickVerb(
+  verbType: VerbType,
+  level: Level,
+  avoid: string[] = [],
+  known: string[] = [],
+  review?: string,
+) {
+  const reviewed = Object.keys(FRENCH).find((verb) => FRENCH[verb] === review);
+  if (reviewed) return { verb: reviewed, french: FRENCH[reviewed] };
   const verbs = verbsFor(verbType, level);
-  const fresh = verbs.filter((verb) => !avoid.includes(FRENCH[verb]));
+  const unknown = verbs.filter((verb) => !known.includes(FRENCH[verb]));
+  // Every verb of this level is known: they come back, the oldest first.
+  const pool = unknown.length ? unknown : verbs;
+  const fresh = pool.filter((verb) => !avoid.includes(FRENCH[verb]));
   const verb = fresh.length
     ? fresh[Math.floor(Math.random() * fresh.length)]
-    : verbs.reduce((oldest, verb) =>
+    : pool.reduce((oldest, verb) =>
         avoid.lastIndexOf(FRENCH[verb]) < avoid.lastIndexOf(FRENCH[oldest]) ? verb : oldest,
       );
   return { verb, french: FRENCH[verb] };
@@ -189,11 +293,26 @@ const IRREGULAR_FORMS: Record<string, [string, string]> = {
   shear: ["sheared", "shorn"], slay: ["slew", "slain"], slit: ["slit", "slit"],
   strew: ["strewed", "strewn"], swell: ["swelled", "swollen"], unbind: ["unbound", "unbound"],
   waylay: ["waylaid", "waylaid"],
+  say: ["said", "said"],
+  cut: ["cut", "cut"],
+  stand: ["stood", "stood"],
+  wake: ["woke", "woken"],
+  mean: ["meant", "meant"],
+  show: ["showed", "shown"],
+  beat: ["beat", "beaten"],
+  sew: ["sewed", "sewn"],
+  quit: ["quit", "quit"],
+  lie: ["lay", "lain"],
+  bear: ["bore", "borne"],
+  cast: ["cast", "cast"],
+  leap: ["leaped/leapt", "leaped/leapt"],
+  stink: ["stank", "stunk"],
+  wind: ["wound", "wound"],
 };
 
 // Regular verbs whose last consonant doubles (deter → deterred). American
 // English doesn't double an unstressed l (traveled).
-const DOUBLED = new Set(["deter"]);
+const DOUBLED = new Set(["deter", "beg", "brag", "hug", "nod"]);
 
 function regularPast(verb: string) {
   if (DOUBLED.has(verb)) return `${verb}${verb.at(-1)}ed`;

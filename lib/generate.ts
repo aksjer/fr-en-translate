@@ -39,6 +39,8 @@ const reviewSchema = z.object({
   level: z.enum(LEVELS).optional().catch(undefined),
   tense: z.enum(TENSES).optional().catch(undefined),
   verbType: z.enum(VERB_TYPES).optional().catch(undefined),
+  // The item itself, so a verb due for review comes back as is.
+  text: clipped(80).optional(),
   correction: clipped(MAX_TEXT_LENGTH),
   remark: clipped(300).optional(),
   tag: clipped(40).optional(),
@@ -61,6 +63,8 @@ export const generateInputSchema = settingsSchema.extend({
     )
     .max(40)
     .optional(),
+  // Verbs the learner got right, never given again.
+  known: z.array(clipped(80)).max(500).optional(),
   // The exercise tests this mistake again. A page from before this field
   // changed shape gets a normal exercise.
   review: reviewSchema.optional().catch(undefined),
@@ -268,21 +272,22 @@ export async function generateExercise(
   // Models got around the list by changing a word's context (éteindre la
   // télévision, then la lumière) or by telling the same story again.
   // Only the items of this mode, so a word isn't compared with sentences.
-  const given = (input.avoid ?? [])
-    .flatMap((item) =>
-      typeof item === "string"
-        ? [item]
-        : !item.mode || item.mode === combination.mode
-          ? [item.text]
-          : [],
-    )
-    .slice(-20);
-  // Verbs come from a table, so they need no model call (see lib/verbs.ts).
+  const sameMode = (input.avoid ?? []).flatMap((item) =>
+    typeof item === "string"
+      ? [item]
+      : !item.mode || item.mode === combination.mode
+        ? [item.text]
+        : [],
+  );
+  // Verbs come from a table, so they need no model call (see lib/verbs.ts),
+  // and can avoid every recent verb at no cost.
   if (combination.mode === "verbe") {
     const { verb, french } = pickVerb(
       combination.verbType ?? "régulier",
       combination.level,
-      given,
+      sameMode,
+      input.known,
+      review?.text,
     );
     return {
       text: french,
@@ -291,6 +296,9 @@ export async function generateExercise(
       ...combination,
     };
   }
+  // The prompt only lists the last ones: a long list costs tokens and is
+  // followed no better.
+  const given = sameMode.slice(-20);
   const avoid = given.length
     ? "\n\n## Avoid\n" +
       `These items were already given: ${given.join(" ; ")}\n` +

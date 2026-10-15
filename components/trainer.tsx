@@ -17,7 +17,14 @@ import {
 } from "@/lib/mistakes";
 import { MAX_TEXT_LENGTH, MODES } from "@/lib/options";
 import type { Combination } from "@/lib/settings";
-import { isSeen, MAX_SENT, readSeen, rememberSeen } from "@/lib/seen-items";
+import {
+  isSeen,
+  MAX_SENT,
+  readKnownVerbs,
+  readSeen,
+  rememberKnownVerb,
+  rememberSeen,
+} from "@/lib/seen-items";
 import { speak } from "@/lib/speak";
 import { useSettings } from "@/lib/use-settings";
 
@@ -121,11 +128,13 @@ export function Trainer() {
       level: toReview.level,
       tense: toReview.tense,
       verbType: toReview.verbType,
+      text: toReview.text.slice(0, 80),
       correction: toReview.correction,
       remark: toReview.remark,
       tag: toReview.tag,
     };
-    return post<Exercise>("/api/generate", { ...settings, avoid, review });
+    const known = readKnownVerbs();
+    return post<Exercise>("/api/generate", { ...settings, avoid, known, review });
   }
 
   async function generate() {
@@ -170,6 +179,9 @@ export function Trainer() {
       });
       setResult(correction);
       recordAnswer(correction);
+      if (exercise.mode === "verbe" && correction.isCorrect) {
+        rememberKnownVerb(exercise.text);
+      }
       if (!correction.isCorrect && correction.score < 10) {
         addMistake({
           text: exercise.text,

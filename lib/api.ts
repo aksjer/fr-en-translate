@@ -12,8 +12,9 @@ import { providerOf, type Model } from "@/lib/model-list";
 // The free tier is rate limited too, so keep this conservative.
 const RATE_LIMIT = 15;
 const RATE_WINDOW_MS = 60_000;
-// Room for a long paragraph, its reference and the answer, or the avoid list and a review.
-const MAX_BODY_BYTES = 8_000;
+// Room for a long paragraph, its reference and the answer, or the avoid list,
+// the verbs already known (up to 500) and a review.
+const MAX_BODY_BYTES = 24_000;
 
 type Guarded<T> =
   | { data: T; error?: never }

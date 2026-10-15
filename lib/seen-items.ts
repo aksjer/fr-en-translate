@@ -44,3 +44,29 @@ export function rememberSeen(text: string, mode: Mode) {
     // Not saved: the next exercise may repeat this item, which is acceptable.
   }
 }
+
+// Verbs the learner translated correctly, kept for good: a verb answered
+// right never comes back. Sent in full, since the server only checks them.
+const KNOWN_VERBS_KEY = "fr-en-translate:known-verbs";
+export const MAX_KNOWN_VERBS = 500;
+
+export function readKnownVerbs(): string[] {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(KNOWN_VERBS_KEY) ?? "[]");
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+export function rememberKnownVerb(text: string) {
+  try {
+    const known = readKnownVerbs().filter((item) => item !== text.trim());
+    const items = [...known, text.trim()].slice(-MAX_KNOWN_VERBS);
+    localStorage.setItem(KNOWN_VERBS_KEY, JSON.stringify(items));
+  } catch {
+    // Not saved: this verb may come back, which is acceptable.
+  }
+}
