@@ -7,9 +7,11 @@ export function generateWord(input: GenerateInput, combination: Combination) {
   return generateItem(input, combination, {
     // The English comes first, since the level is about English: starting from
     // the French gave loose translations (un périple → an ordeal).
-    situation: [
+    fields: [
       "- situation: first, one short line in English: the English word you chose, then the",
       "  context it is used in.",
+      "- text: the French word only, with its context in parentheses if any, and no",
+      "  quotation marks, translation or explanation. Check its spelling and accents.",
     ],
     task:
       "Give a single French noun, adjective or adverb whose American English " +

@@ -4,6 +4,17 @@ import { ERROR_TAG_DEFINITIONS, ERROR_TAGS, type ErrorTag } from "@/lib/error-ta
 import type { Level } from "@/lib/options";
 import type { GenerateInput } from "@/lib/generate/shared";
 
+// The text field of sentences and paragraphs. "As people speak it today" gave
+// slang and negations without « ne »; "correct French" alone gave literary
+// French. "No quotes" may have made models drop apostrophes (« l avion »).
+export const SENTENCE_TEXT_FIELD = [
+  "- text: the item, in correct, modern French with a neutral register: no slang,",
+  "  swear words or literary style, always the « ne » of a negation, and no passé",
+  "  simple or imparfait du subjonctif. Use French punctuation (a space before",
+  "  ! ? : ;) and apostrophes (j'ai, qu'il), with no quotation marks around the item",
+  "  and no translation or explanation. Check the spelling and accents of every word.",
+];
+
 // Sentences get the same frequency lists as words, so they use useful English.
 export function sentenceVocabulary(level: Level) {
   return (

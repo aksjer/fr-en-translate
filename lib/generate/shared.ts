@@ -163,13 +163,13 @@ export const exerciseSchema = z.object({
 });
 
 // Asks the model for one word, phrasal verb, sentence or paragraph and its
-// reference. Each mode gives its plan line (situation), its task and its own
-// sections; an item already known is asked again once, and the second answer
-// is kept, so the page never gets an error.
+// reference. Each mode gives its own fields (situation and text), its task and
+// its own sections; an item already known is asked again once, and the second
+// answer is kept, so the page never gets an error.
 export async function generateItem(
   input: GenerateInput,
   combination: Combination,
-  prompt: { situation: string[]; task: string; sections?: string },
+  prompt: { fields: string[]; task: string; sections?: string },
 ): Promise<Exercise> {
   const { mode, level } = combination;
   const { known, recent } = history(input, mode);
@@ -190,22 +190,7 @@ export async function generateItem(
         "natural, correct French that the learner will translate into American English.",
         "",
         "## Fields, in this order",
-        ...prompt.situation,
-        // "As people speak it today" gave slang and negations without « ne »;
-        // "correct French" alone gave literary French. "No quotes" may have made
-        // models drop apostrophes (« l avion »).
-        ...(isWordMode(mode)
-          ? [
-              "- text: the French item only, with its context in parentheses if any, and no",
-              "  quotation marks, translation or explanation. Check its spelling and accents.",
-            ]
-          : [
-              "- text: the item, in correct, modern French with a neutral register: no slang,",
-              "  swear words or literary style, always the « ne » of a negation, and no passé",
-              "  simple or imparfait du subjonctif. Use French punctuation (a space before",
-              "  ! ? : ;) and apostrophes (j'ai, qu'il), with no quotation marks around the item",
-              "  and no translation or explanation. Check the spelling and accents of every word.",
-            ]),
+        ...prompt.fields,
         "- reference: the most natural American English translation of text as the learner",
         "  sees it (with its context, if any), with the same meaning and the equivalent tense,",
         "  in American words and spelling (apartment, color, not flat, colour).",
