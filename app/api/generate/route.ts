@@ -15,7 +15,7 @@ export async function POST(request: Request) {
     console.error("Model generation failed", error);
     return providerErrorResponse(
       error,
-      "La génération a échoué, réessaie.",
+      "The generation failed. Try again.",
       data.model,
     );
   }

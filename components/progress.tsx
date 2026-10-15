@@ -3,8 +3,8 @@
 import { useSyncExternalStore } from "react";
 import { readKnown, readSeen } from "@/lib/seen-items";
 
-const LEARNED_MODES = ["mot", "verbe"] as const;
-const LEARNED_TITLES = { mot: "Mots", verbe: "Verbes" };
+const LEARNED_MODES = ["word", "verb"] as const;
+const LEARNED_TITLES = { word: "Words", verb: "Verbs" };
 const RECENT = 30;
 
 const noSubscribe = () => () => {};
@@ -20,7 +20,7 @@ export function Progress() {
   const answered = seen.filter((item) => item.ok !== undefined);
   const learned = LEARNED_MODES.some((mode) => known[mode]?.length);
   if (!answered.length && !learned) {
-    return <p className="text-zinc-500">Aucune réponse pour l&apos;instant.</p>;
+    return <p className="text-zinc-500">No answers yet.</p>;
   }
 
   const recent = answered.slice(-RECENT).reverse();
@@ -31,7 +31,7 @@ export function Progress() {
   return (
     <div className="flex flex-col gap-6">
       <section className={card}>
-        <h2 className="font-medium">Appris</h2>
+        <h2 className="font-medium">Learned</h2>
         {LEARNED_MODES.map((mode) => {
           const items = known[mode] ?? [];
           return (
@@ -42,7 +42,7 @@ export function Progress() {
               {items.length > 0 ? (
                 <p className="text-sm">{[...items].reverse().join(", ")}</p>
               ) : (
-                <p className="text-sm text-zinc-400">Aucun pour l&apos;instant.</p>
+                <p className="text-sm text-zinc-400">None yet.</p>
               )}
             </div>
           );
@@ -51,7 +51,7 @@ export function Progress() {
 
       {recent.length > 0 && (
         <section className={card}>
-          <h2 className="font-medium">Dernières réponses</h2>
+          <h2 className="font-medium">Recent answers</h2>
           <ul className="flex flex-col gap-2 text-sm">
             {recent.map((item, index) => (
               <li key={index} className="flex gap-2">

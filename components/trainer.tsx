@@ -63,7 +63,7 @@ async function post<T>(url: string, body: unknown): Promise<T> {
   });
   if (!response.ok) {
     const body = await response.json().catch(() => null);
-    throw new Error(body?.error ?? "Le service ne répond pas, réessaie.");
+    throw new Error(body?.error ?? "The service isn't responding. Try again.");
   }
   return response.json();
 }
@@ -82,7 +82,7 @@ export function Trainer() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const nextRef = useRef<HTMLButtonElement>(null);
 
-  // Keep the keyboard flow going: after a correction, focus "Suivant";
+  // Keep the keyboard flow going: after a correction, focus "Next";
   // after a new exercise, focus the answer field.
   useEffect(() => {
     if (result) nextRef.current?.focus();
@@ -156,7 +156,7 @@ export function Trainer() {
   const tags = [
     exercise?.mode,
     exercise?.level,
-    exercise?.verbType && `verbe ${exercise.verbType}`,
+    exercise?.verbType && `${exercise.verbType} verb`,
     exercise?.tense,
     exercise?.theme,
   ].filter(Boolean);
@@ -164,18 +164,18 @@ export function Trainer() {
   return (
     <div className="flex flex-col gap-6">
       <nav className="flex gap-4 text-sm font-medium">
-        <Link href="/reglages" className="text-blue-700 hover:underline dark:text-blue-300">
-          Réglages
+        <Link href="/settings" className="text-blue-700 hover:underline dark:text-blue-300">
+          Settings
         </Link>
-        <Link href="/progres" className="text-blue-700 hover:underline dark:text-blue-300">
-          Mes progrès
+        <Link href="/progress" className="text-blue-700 hover:underline dark:text-blue-300">
+          My progress
         </Link>
       </nav>
 
       {!exercise && (
         <p className="text-zinc-600 dark:text-zinc-400">
-          Choisis tes réglages, puis commence. Tu recevras un élément en
-          français à traduire en anglais américain.
+          Pick your settings, then start. You&apos;ll get a French item to
+          translate into American English.
         </p>
       )}
 
@@ -194,7 +194,7 @@ export function Trainer() {
 
           <div className="flex flex-col gap-2">
             <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-              Traduis en anglais américain
+              Translate into American English
             </p>
             <p
               lang="fr"
@@ -220,15 +220,15 @@ export function Trainer() {
               htmlFor="translation"
               className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
             >
-              Ta réponse
+              Your answer
             </label>
             <textarea
               ref={inputRef}
               id="translation"
               lang="en-US"
-              rows={exercise.mode === "phrase" ? 3 : 1}
+              rows={exercise.mode === "sentence" ? 3 : 1}
               maxLength={MAX_TEXT_LENGTH}
-              placeholder="Écris ta traduction…"
+              placeholder="Type your translation…"
               value={translation}
               onChange={(event) => setTranslation(event.target.value)}
               onKeyDown={(event) => {
@@ -242,7 +242,7 @@ export function Trainer() {
               className="rounded-xl border border-zinc-300 bg-transparent p-3 text-lg outline-none focus-visible:ring-2 focus-visible:ring-blue-600 dark:border-zinc-700"
             />
             <p className="text-xs text-zinc-500">
-              Entrée pour corriger · Maj+Entrée pour une nouvelle ligne
+              Enter to check · Shift+Enter for a new line
             </p>
 
             {!result && (
@@ -252,7 +252,7 @@ export function Trainer() {
                   disabled={loading !== null || !translation.trim()}
                   className={primaryButton}
                 >
-                  {loading === "correct" ? "Correction en cours…" : "Corriger"}
+                  {loading === "correct" ? "Checking…" : "Check"}
                 </button>
                 <button
                   type="button"
@@ -260,7 +260,7 @@ export function Trainer() {
                   disabled={loading !== null}
                   className={secondaryButton}
                 >
-                  {settingsChanged ? "Nouvel exercice" : "Passer"}
+                  {settingsChanged ? "New exercise" : "Skip"}
                 </button>
               </div>
             )}
@@ -278,12 +278,12 @@ export function Trainer() {
           }`}
         >
           <p className="text-lg font-semibold">
-            {result.perfect ? "Parfait !" : result.isCorrect ? "Correct !" : "Presque !"}
+            {result.perfect ? "Perfect!" : result.isCorrect ? "Correct!" : "Almost!"}
           </p>
           {!result.perfect && (
             <div className="flex flex-col gap-1">
               <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-                Correction{result.tag && ` · erreur : ${result.tag}`}
+                Correction{result.tag && ` · mistake: ${result.tag}`}
               </p>
               <p lang="en-US" className="text-lg">
                 <Marked text={result.correction} />
@@ -293,7 +293,7 @@ export function Trainer() {
           {(result.forms ?? exercise?.forms) && (
             <div className="flex flex-col gap-1">
               <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-                Base · prétérit · participe passé
+                Base · past · past participle
               </p>
               <p lang="en-US" className="text-lg font-medium">
                 {(result.forms ?? exercise?.forms)?.join(" · ")}
@@ -303,7 +303,7 @@ export function Trainer() {
           {result.example && (
             <div className="flex flex-col gap-1">
               <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-                Exemple
+                Example
               </p>
               <p lang="en-US" className="text-lg">
                 <Marked text={result.example.english} />
@@ -316,7 +316,7 @@ export function Trainer() {
           {result.alternative && (
             <div className="flex flex-col gap-1">
               <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-                Version plus naturelle
+                Another natural way to say it
               </p>
               <p lang="en-US" className="text-lg">
                 {result.alternative}
@@ -337,7 +337,7 @@ export function Trainer() {
             onClick={() => speak(result.correction.replaceAll("**", ""))}
             className={`self-start ${secondaryButton}`}
           >
-            Écouter
+            Listen
           </button>
         </section>
       )}
@@ -357,10 +357,10 @@ export function Trainer() {
           className={`self-start ${primaryButton}`}
         >
           {loading === "generate"
-            ? "Génération…"
+            ? "Generating…"
             : exercise
-              ? "Suivant"
-              : "Commencer"}
+              ? "Next"
+              : "Start"}
         </button>
       )}
     </div>

@@ -8,9 +8,9 @@ import type { Combination } from "@/lib/settings";
 // without « ne »; "correct French" alone gave literary French. "No quotes" may have made models drop apostrophes (« l avion »).
 const SENTENCE_TEXT_FIELD = [
   "- text: the item, in correct, modern French with a neutral register: no slang,",
-  "  swear words or literary style, always the « ne » of a negation, and no passé",
-  "  simple or imparfait du subjonctif. Use French punctuation (a space before",
-  "  ! ? : ;) and apostrophes (j'ai, qu'il), with no quotation marks around the item",
+  "  swear words or literary style, always the « ne » of a negation, and no literary",
+  "  tense (the French simple past or imperfect subjunctive). Use French punctuation",
+  "  (a space before ! ? : ;) and apostrophes (j'ai, qu'il), with no quotation marks around the item",
   "  and no translation or explanation. Check the spelling and accents of every word.",
 ];
 
@@ -36,16 +36,16 @@ const PRIORITY =
   "then the level, then the variety.";
 
 // Spelling, punctuation and "anything else" can't be built into a sentence.
-const UNPRACTICED_TAGS: ErrorTag[] = ["orthographe", "ponctuation", "autre"];
+const UNPRACTICED_TAGS: ErrorTag[] = ["spelling", "punctuation", "other"];
 
 // The kinds of mistakes the learner made most in their recent sentences.
 // Recent answers only, so a point they have fixed drops out by itself.
-// Not from words: a missed word already comes back, and its usual tag (sens)
+// Not from words: a missed word already comes back, and its usual tag (meaning)
 // can't be built into a sentence.
 function weakPointsSection(input: GenerateInput) {
   const counts = new Map<ErrorTag, number>();
   for (const item of input.history ?? []) {
-    if (item.mode !== "phrase") continue;
+    if (item.mode !== "sentence") continue;
     const tag = ERROR_TAGS.find((known) => known === item.tag);
     if (item.ok === false && tag && !UNPRACTICED_TAGS.includes(tag)) {
       counts.set(tag, (counts.get(tag) ?? 0) + 1);
@@ -66,7 +66,7 @@ function weakPointsSection(input: GenerateInput) {
 
 export function generateSentence(input: GenerateInput, combination: Combination) {
   const { level, tense, theme } = combination;
-  const imperative = tense === "impératif";
+  const imperative = tense === "imperative";
   return generateItem(input, combination, {
     // Planning the conjugated verb first keeps the tense right.
     fields: [
@@ -77,7 +77,7 @@ export function generateSentence(input: GenerateInput, combination: Combination)
     ],
     task:
       `Write one original French sentence on the theme "${theme}", ` +
-      `using the French tense "${tense}", of a length typical of CEFR ${level}. ` +
+      `in the French ${tense}, of a length typical of CEFR ${level}. ` +
       "Choose the person of the main verb " +
       (imperative
         ? "(tu, nous or vous) and whether it is a statement or a negation."

@@ -15,7 +15,7 @@ export async function POST(request: Request) {
     console.error("Model correction failed", error);
     return providerErrorResponse(
       error,
-      "La correction a échoué, réessaie.",
+      "The correction failed. Try again.",
       data.model,
     );
   }

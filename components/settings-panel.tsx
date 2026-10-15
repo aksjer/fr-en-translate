@@ -13,7 +13,7 @@ export function SettingsPanel({ settings, onChange }: Props) {
   return (
     <div className="flex flex-col gap-5">
       <fieldset>
-        <legend className="mb-2 text-sm font-medium">Modèle Gemini</legend>
+        <legend className="mb-2 text-sm font-medium">Gemini model</legend>
         <div className="flex flex-wrap gap-2">
           {GEMINI_MODELS.map((model) => {
             const active = (settings.model ?? DEFAULT_MODEL) === model;
@@ -36,7 +36,7 @@ export function SettingsPanel({ settings, onChange }: Props) {
         </div>
       </fieldset>
       <fieldset>
-        <legend className="mb-2 text-sm font-medium">Modèle Groq</legend>
+        <legend className="mb-2 text-sm font-medium">Groq model</legend>
         <div className="flex flex-wrap gap-2">
           {GROQ_MODELS.map((model) => {
             const active = (settings.model ?? DEFAULT_MODEL) === model;
@@ -65,7 +65,7 @@ export function SettingsPanel({ settings, onChange }: Props) {
         onChange={(modes) => onChange({ ...settings, modes })}
       />
       <ChipGroup
-        label="Niveaux"
+        label="Levels"
         options={LEVELS}
         selected={settings.levels ?? []}
         onChange={(levels) => onChange({ ...settings, levels })}
@@ -73,7 +73,7 @@ export function SettingsPanel({ settings, onChange }: Props) {
       {/* Mode-specific settings only show when a selected mode uses them. */}
       {settingApplies(settings, "verbType") && (
         <ChipGroup
-          label="Verbes (en anglais)"
+          label="Verbs (in English)"
           options={VERB_TYPES}
           selected={settings.verbTypes ?? []}
           onChange={(verbTypes) => onChange({ ...settings, verbTypes })}
@@ -81,7 +81,7 @@ export function SettingsPanel({ settings, onChange }: Props) {
       )}
       {settingApplies(settings, "tense") && (
         <ChipGroup
-          label="Temps des phrases"
+          label="Sentence tenses"
           options={TENSES}
           selected={settings.tenses ?? []}
           onChange={(tenses) => onChange({ ...settings, tenses })}
@@ -89,7 +89,7 @@ export function SettingsPanel({ settings, onChange }: Props) {
       )}
       {settingApplies(settings, "theme") && (
         <ChipGroup
-          label="Thèmes"
+          label="Themes"
           options={THEMES}
           selected={settings.themes ?? []}
           onChange={(themes) => onChange({ ...settings, themes })}
@@ -127,7 +127,7 @@ function ChipGroup<T extends string>({
       <legend className="mb-2 flex w-full items-baseline justify-between text-sm font-medium">
         {label}
         <span className="text-xs font-normal text-zinc-500">
-          {selected.length === 0 ? "Tous" : `${selected.length} choisi(s)`}
+          {selected.length === 0 ? "All" : `${selected.length} selected`}
         </span>
       </legend>
       <div className="flex flex-wrap gap-2">

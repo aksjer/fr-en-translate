@@ -35,7 +35,7 @@ export async function guardRequest<T extends { model?: Model }>(
   if (!ok) {
     return {
       error: Response.json(
-        { error: "Tu envoies trop de requêtes, attends une minute." },
+        { error: "Too many requests. Wait a minute." },
         { status: 429, headers: { "Retry-After": String(retryAfter) } },
       ),
     };
@@ -45,7 +45,7 @@ export async function guardRequest<T extends { model?: Model }>(
   if (raw.length > MAX_BODY_BYTES) {
     return {
       error: Response.json(
-        { error: "La requête est trop longue." },
+        { error: "The request is too long." },
         { status: 413 },
       ),
     };
@@ -58,7 +58,7 @@ export async function guardRequest<T extends { model?: Model }>(
     } catch {
       return {
         error: Response.json(
-          { error: "La requête est invalide." },
+          { error: "The request is invalid." },
           { status: 400 },
         ),
       };
@@ -70,7 +70,7 @@ export async function guardRequest<T extends { model?: Model }>(
     return {
       error: Response.json(
         {
-          error: "La requête est invalide.",
+          error: "The request is invalid.",
           issues: z.treeifyError(parsed.error),
         },
         { status: 400 },
@@ -83,7 +83,7 @@ export async function guardRequest<T extends { model?: Model }>(
     console.error(`${keyName} is missing`);
     return {
       error: Response.json(
-        { error: `La clé ${keyName} manque sur le serveur. Choisis un autre modèle.` },
+        { error: `${keyName} is missing on the server. Choose another model.` },
         { status: 500 },
       ),
     };
@@ -92,7 +92,7 @@ export async function guardRequest<T extends { model?: Model }>(
   return { data: parsed.data };
 }
 
-// Turns a failed model call into a response. Each failure gets its own French
+// Turns a failed model call into a response. Each failure gets its own
 // message, and a 429 its own status, so the page can say what to do.
 export function providerErrorResponse(
   error: unknown,
@@ -104,7 +104,7 @@ export function providerErrorResponse(
   if (isInvalidAnswer(error)) {
     return Response.json(
       {
-        error: `${name} a renvoyé une réponse invalide. Réessaie, ou choisis un autre modèle.`,
+        error: `${name} sent back an invalid answer. Try again, or choose another model.`,
       },
       { status: 502 },
     );
@@ -116,7 +116,7 @@ export function providerErrorResponse(
         return Response.json(
           {
             error:
-              `${name} a refusé la demande (erreur 400). Signale-le si ça se répète.`,
+              `${name} rejected the request (error 400). Report it if it happens again.`,
           },
           { status: 502 },
         );
@@ -125,7 +125,7 @@ export function providerErrorResponse(
         return Response.json(
           {
             error:
-              `La clé API ${name} est refusée. Vérifie ${keyName} sur le serveur.`,
+              `The ${name} API key was rejected. Check ${keyName} on the server.`,
           },
           { status: 502 },
         );
@@ -133,7 +133,7 @@ export function providerErrorResponse(
         return Response.json(
           {
             error:
-              `Le modèle ${name} n'est plus disponible. Il faut changer le modèle dans le code.`,
+              `This ${name} model is no longer available. It must be changed in the code.`,
           },
           { status: 502 },
         );
@@ -141,7 +141,7 @@ export function providerErrorResponse(
         return Response.json(
           {
             error:
-              `${name} a atteint sa limite de requêtes par minute. Réessaie dans une minute.`,
+              `${name} reached its requests-per-minute limit. Try again in a minute.`,
           },
           { status: 429, headers: { "Retry-After": "60" } },
         );
@@ -149,7 +149,7 @@ export function providerErrorResponse(
         return Response.json(
           {
             error:
-              `${name} est très sollicité en ce moment. Réessaie dans une minute.`,
+              `${name} is very busy right now. Try again in a minute.`,
           },
           { status: 503, headers: { "Retry-After": "60" } },
         );

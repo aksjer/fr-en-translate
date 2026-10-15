@@ -9,9 +9,9 @@ import { pickCombination } from "@/lib/settings";
 export { generateInputSchema, type Exercise, type GenerateInput } from "@/lib/generate/shared";
 
 const GENERATORS = {
-  mot: generateWord,
-  verbe: generateVerb,
-  phrase: generateSentence,
+  word: generateWord,
+  verb: generateVerb,
+  sentence: generateSentence,
 };
 
 export function generateExercise(input: GenerateInput): Promise<Exercise> {

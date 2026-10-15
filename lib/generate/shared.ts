@@ -45,8 +45,8 @@ export const generateInputSchema = settingsSchema.extend({
   // A page from before this field changed shape sends none.
   known: z
     .object({
-      mot: z.array(clipped(40)).max(MAX_KNOWN),
-      verbe: z.array(clipped(40)).max(MAX_KNOWN),
+      word: z.array(clipped(40)).max(MAX_KNOWN),
+      verb: z.array(clipped(40)).max(MAX_KNOWN),
     })
     .partial()
     .optional()
@@ -101,7 +101,7 @@ export function withApostrophes(text: string) {
 
 // The items of this mode the learner got right, and the recent ones.
 export function history(input: GenerateInput, mode: Mode) {
-  const known = mode === "mot" || mode === "verbe" ? (input.known?.[mode] ?? []) : [];
+  const known = isWordMode(mode) ? (input.known?.[mode as "word" | "verb"] ?? []) : [];
   // Only the items of this mode, so a word isn't compared with sentences. Items
   // of a removed mode, or saved before the mode was stored, have none.
   // The prompt only lists the last ones: a long list costs tokens and is

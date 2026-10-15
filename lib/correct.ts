@@ -21,7 +21,7 @@ import {
 } from "@/lib/options";
 
 export const correctInputSchema = z.object({
-  mode: z.enum(MODES).default("phrase"),
+  mode: z.enum(MODES).default("sentence"),
   text: z.string().trim().min(1).max(MAX_TEXT_LENGTH),
   translation: z.string().trim().min(1).max(MAX_TEXT_LENGTH),
   level: z.enum(LEVELS).optional(),
@@ -54,7 +54,7 @@ export type Correction = {
 };
 
 // A mistake in these always makes the answer wrong, whatever the model says.
-const WRONG_TAGS: ErrorTag[] = ["sens", "faux ami"];
+const WRONG_TAGS: ErrorTag[] = ["meaning", "false friend"];
 
 const MAX_REMARKS = 6;
 
@@ -102,12 +102,12 @@ const WORD_RULE =
   'equivalent that keeps the whole meaning, with or without "to" or an article. ';
 
 const MODE_RULES: Record<Mode, string> = {
-  mot: WORD_RULE + "In the praise, mention one or two other useful equivalents.",
-  verbe:
+  word: WORD_RULE + "In the praise, mention one or two other useful equivalents.",
+  verb:
     WORD_RULE +
     "In the praise, mention one or two other useful equivalents. The page already " +
     "shows the verb's three forms, so don't list them.",
-  phrase:
+  sentence:
     "Accept any translation that is faithful to the meaning, grammatically correct and " +
     "natural in American English, even if it differs from the reference.",
 };
@@ -146,7 +146,7 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
       // Room for the thinking and the remarks on a long sentence.
       maxOutputTokens: 2000,
       output: Output.object({
-        schema: (input.mode === "verbe"
+        schema: (input.mode === "verb"
           ? verbCorrectionSchema
           : wordMode
             ? wordCorrectionSchema
@@ -196,7 +196,7 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
               "- A more general word that loses part of the meaning (big for « énorme »,",
               "  say for « chuchoter ») is wrong, and the remark gives the precise word.",
               "- Another form of the right word (leaves for « la feuille », pulled for « tirer »)",
-              "  is a remark (grammaire), but the answer stays right. A word of another kind",
+              "  is a remark (grammar), but the answer stays right. A word of another kind",
               "  (quick for « rapidement ») is wrong.",
             ]
           : [
@@ -255,7 +255,7 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
               "  from the French context sentence, if one is given.",
               "- exampleFrench: the French translation of the example, with the French word",
               "  wrapped in ** ** too.",
-              ...(input.mode === "verbe"
+              ...(input.mode === "verb"
                 ? [
                     "- base, past, participle: the base form, simple past and past participle,",
                     "  in American English, of the verb in the correction (e.g. go, went, gone).",
@@ -279,7 +279,7 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
       prompt: [
         input.level && `CEFR level: ${input.level}`,
         input.tense &&
-          `French tense: ${input.tense} (in American English: ${TENSE_GUIDES[input.tense]})`,
+          `French tense: the ${input.tense} (in American English: ${TENSE_GUIDES[input.tense]})`,
         `<french>${untagged(input.text)}</french>`,
         input.context && `<context>${untagged(input.context)}</context>`,
         input.reference &&
@@ -326,7 +326,7 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
         ? { english: output.example.trim(), french: output.exampleFrench.trim() }
         : undefined,
     forms: verbForms(output),
-    tag: output.translated ? main?.category : "sens",
+    tag: output.translated ? main?.category : "meaning",
     perfect: isCorrect && mistakes.length === 0,
     isCorrect,
     remark: output.translated ? main?.remark : undefined,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
+import { fromLegacy } from "@/lib/legacy-storage";
 import { settingsSchema, type Settings } from "@/lib/settings";
 
 const STORAGE_KEY = "fr-en-translate:settings";
@@ -29,7 +30,15 @@ function read(): Settings {
 
   cachedRaw = raw;
   try {
-    const parsed = settingsSchema.safeParse(raw ? JSON.parse(raw) : {});
+    const saved: Record<string, unknown> = raw ? JSON.parse(raw) : {};
+    // Settings saved in French by the first version are read in English.
+    const migrated = Object.fromEntries(
+      Object.entries(saved ?? {}).map(([key, value]) => [
+        key,
+        Array.isArray(value) ? value.map(fromLegacy) : value,
+      ]),
+    );
+    const parsed = settingsSchema.safeParse(migrated);
     cachedValue = parsed.success ? { ...EMPTY, ...parsed.data } : EMPTY;
   } catch {
     cachedValue = EMPTY;

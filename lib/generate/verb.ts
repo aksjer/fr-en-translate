@@ -52,9 +52,8 @@ export async function generateVerb(
   combination: Combination,
 ): Promise<Exercise> {
   const { level } = combination;
-  const verbType = combination.verbType ?? "régulier";
-  const { known, recent } = history(input, "verbe");
-  const english = verbType === "irrégulier" ? "irregular" : "regular";
+  const verbType = combination.verbType ?? "regular";
+  const { known, recent } = history(input, "verb");
   let attempt = 0;
   const verb = await retryIfInvalid(async () => {
     attempt++;
@@ -85,9 +84,9 @@ export async function generateVerb(
       prompt:
         GOAL +
         "\n\n" +
-        learner("verbe", level) +
+        learner("verb", level) +
         "\n\n## Task\n" +
-        `Choose ${commonAt(level, `${english} verb`)}. ` +
+        `Choose ${commonAt(level, `${verbType} verb`)}. ` +
         "Never a verb that looks like its French translation (decide → décider), or one " +
         "whose look-alike French verb means something else (to attend is « assister à », " +
         "not « attendre »). " +
@@ -96,7 +95,7 @@ export async function generateVerb(
         "rather answer another English verb (« confondre » is confuse or mix up, not " +
         "mistake), choose another verb." +
         knownSection(known) +
-        historySection(recent, "verbe"),
+        historySection(recent, "verb"),
     });
     const base = output.english.trim().toLowerCase().replace(/^to\s+/, "");
     const past = output.past.trim().toLowerCase();
@@ -112,8 +111,8 @@ export async function generateVerb(
     if (/[.!?]$/.test(text) || text.replace(/\([^)]*\)/g, "").split(/\s+/).length > 6) {
       throw new InvalidAnswerError(`A sentence instead of a verb: ${text}`);
     }
-    if (isRegular(base, past, participle) !== (verbType === "régulier")) {
-      throw new InvalidAnswerError(`Not ${english}: ${base}, ${past}, ${participle}`);
+    if (isRegular(base, past, participle) !== (verbType === "regular")) {
+      throw new InvalidAnswerError(`Not ${verbType}: ${base}, ${past}, ${participle}`);
     }
     if (attempt === 1 && known.includes(base)) {
       throw new InvalidAnswerError(`Already known: ${base}`);
