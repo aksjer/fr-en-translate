@@ -18,6 +18,16 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
+## Tests
+
+- `npm test` runs the unit tests with a fake model: no API key or network needed.
+- `npm run eval` runs the real prompts on a model: it grades the answers in
+  `evals/correct.json` and prints generated items to read. It needs the keys in
+  `.env.local` and uses the free quota (about 70 calls). Run it before and after
+  a prompt change to compare. Options: `--model openai/gpt-oss-120b`,
+  `--only correct` or `--only generate`, `--case depuis`, `--modes phrase`,
+  `--levels A2,B2`, `--runs 3`.
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More
