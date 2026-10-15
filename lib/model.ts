@@ -42,8 +42,8 @@ type ProviderOptions = NonNullable<
   Parameters<typeof generateText>[0]["providerOptions"]
 >;
 
-// Keeps thinking short, so the JSON isn't cut short. Kimi K2 doesn't reason,
-// so it gets no reasoning option.
+// Keeps thinking short, so the JSON isn't cut short. Qwen keeps Groq's default,
+// since it accepts other reasoning values.
 export function providerOptionsFor(
   id: Model | undefined,
 ): ProviderOptions {

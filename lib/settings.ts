@@ -11,7 +11,6 @@ export const GEMINI_MODELS = [
 export const GROQ_MODELS = [
   "openai/gpt-oss-120b",
   "openai/gpt-oss-20b",
-  "moonshotai/kimi-k2-instruct-0905",
   "qwen/qwen3.6-27b",
 ] as const;
 export const MODELS = [...GEMINI_MODELS, ...GROQ_MODELS] as const;
