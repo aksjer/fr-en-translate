@@ -1,3 +1,4 @@
+import { createMistral } from "@ai-sdk/mistral";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createGroq } from "@ai-sdk/groq";
 import {
@@ -13,18 +14,21 @@ import {
   type Provider,
 } from "@/lib/model-list";
 
-// Gemini and Groq, through the Vercel AI SDK. Each provider has its own key.
+// Gemini, Groq and Mistral, through the Vercel AI SDK. Each provider has its own key.
 const google = createGoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY });
 const groq = createGroq({ apiKey: process.env.GROQ_API_KEY });
+const mistral = createMistral({ apiKey: process.env.MISTRAL_API_KEY });
 
 export const PROVIDER_NAMES: Record<Provider, string> = {
   gemini: "Gemini",
   groq: "Groq",
+  mistral: "Mistral",
 };
 
 const API_KEYS: Record<Provider, string> = {
   gemini: "GEMINI_API_KEY",
   groq: "GROQ_API_KEY",
+  mistral: "MISTRAL_API_KEY",
 };
 
 // Only ids from the fixed list are accepted, so the client can't pick any model.
@@ -39,7 +43,10 @@ export function apiKeyName(id: Model | undefined) {
 
 export function modelFor(id: Model | undefined) {
   const model = safeModel(id);
-  return providerOf(model) === "groq" ? groq(model) : google(model);
+  const provider = providerOf(model);
+  if (provider === "groq") return groq(model);
+  if (provider === "mistral") return mistral(model);
+  return google(model);
 }
 
 type ProviderOptions = NonNullable<
@@ -55,7 +62,7 @@ export function providerOptionsFor(
   if (providerOf(model) === "gemini") {
     return { google: { thinkingConfig: { thinkingLevel: "minimal" } } };
   }
-  return model.startsWith("openai/gpt-oss")
+  return providerOf(model) === "groq" && model.startsWith("openai/gpt-oss")
     ? { groq: { reasoningEffort: "low" } }
     : {};
 }
@@ -70,7 +77,7 @@ export function temperatureFor(
 ) {
   const model = safeModel(id);
   if (task === "generate" || providerOf(model) === "gemini") return 1;
-  return model.startsWith("qwen/") ? 0.6 : 0.2;
+  return model.startsWith("qwen") ? 0.6 : 0.2;
 }
 
 // The answer matched the schema, but its content can't be used (empty, too long).
