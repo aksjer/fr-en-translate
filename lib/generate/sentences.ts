@@ -1,6 +1,6 @@
 // What sentences and paragraphs share: they use common English, invent a
 // situation, and practice the learner's weak points.
-import { ERROR_TAG_DEFINITIONS, ERROR_TAGS, type ErrorTag } from "@/lib/mistakes";
+import { ERROR_TAG_DEFINITIONS, ERROR_TAGS, type ErrorTag } from "@/lib/error-tags";
 import type { Level } from "@/lib/options";
 import type { GenerateInput } from "@/lib/generate/shared";
 

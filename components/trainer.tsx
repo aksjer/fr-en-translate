@@ -1,14 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import {
-  getServerStatsSnapshot,
-  getStatsSnapshot,
-  recordAnswer,
-  subscribeStats,
-  type ErrorTag,
-} from "@/lib/mistakes";
+import { useEffect, useRef, useState } from "react";
+import type { ErrorTag } from "@/lib/error-tags";
 import { englishKey, isWordMode, MAX_HISTORY, MAX_TEXT_LENGTH } from "@/lib/options";
 import type { Combination } from "@/lib/settings";
 import {
@@ -83,11 +77,6 @@ export function Trainer() {
   const [error, setError] = useState<string | null>(null);
   // Settings used for the current exercise, to know when they've changed since.
   const [exerciseSettings, setExerciseSettings] = useState<string | null>(null);
-  const stats = useSyncExternalStore(
-    subscribeStats,
-    getStatsSnapshot,
-    getServerStatsSnapshot,
-  );
   const settingsChanged =
     exercise !== null && exerciseSettings !== JSON.stringify(settings);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -145,7 +134,6 @@ export function Trainer() {
         model: settings.model,
       });
       setResult(correction);
-      recordAnswer(correction);
       const english =
         isWordMode(exercise.mode) && exercise.reference
           ? englishKey(exercise.reference)
@@ -173,12 +161,6 @@ export function Trainer() {
     exercise?.theme,
   ].filter(Boolean);
 
-  const topErrors = Object.entries(stats.byTag)
-    .sort(([, a], [, b]) => (b ?? 0) - (a ?? 0))
-    .slice(0, 3)
-    .map(([tag, count]) => `${tag} ${count}`)
-    .join(", ");
-
   return (
     <div className="flex flex-col gap-6">
       <nav className="flex gap-4 text-sm font-medium">
@@ -189,14 +171,6 @@ export function Trainer() {
           Mes progrès
         </Link>
       </nav>
-
-      {stats.answered > 0 && (
-        <p className="text-sm text-zinc-500">
-          {stats.answered} réponses ·{" "}
-          {Math.round((stats.correct / stats.answered) * 100)} % justes
-          {topErrors && ` · erreurs fréquentes : ${topErrors}`}
-        </p>
-      )}
 
       {!exercise && (
         <p className="text-zinc-600 dark:text-zinc-400">
