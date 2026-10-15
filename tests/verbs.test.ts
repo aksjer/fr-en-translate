@@ -22,7 +22,6 @@ test("regular verbs follow American spelling", () => {
     obey: "obeyed",
     convey: "conveyed",
     breathe: "breathed",
-    regret: "regretted",
     deter: "deterred",
     apologize: "apologized",
   };

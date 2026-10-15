@@ -5,7 +5,8 @@ import type { Level, VerbType } from "@/lib/options";
 // model: chosen by it, they kept coming out as sentences, and translated by it,
 // they came with false friends (pretend → « prétendre ») or with a French verb
 // that has another meaning (owe → « devoir », which is also have to).
-// Verbs that look like their French translation (decide, prefer) are left out.
+// Verbs that look like their French translation (decide, encourage) are left
+// out: they teach nothing.
 const IRREGULAR: Record<Level, string[]> = {
   A1: ["be", "have", "do", "go", "come", "eat", "drink", "see", "make", "get", "give", "take", "write", "read", "sleep", "buy", "sit", "speak", "swim", "run"],
   A2: ["begin", "bring", "choose", "drive", "fall", "feel", "find", "forget", "hear", "know", "leave", "lose", "meet", "pay", "put", "sell", "send", "sing", "teach", "tell", "think", "understand", "wear", "win"],
@@ -17,11 +18,11 @@ const IRREGULAR: Record<Level, string[]> = {
 
 const REGULAR: Record<Level, string[]> = {
   A1: ["work", "play", "like", "love", "live", "watch", "listen", "walk", "want", "cook", "clean", "open", "close", "help", "start", "call", "talk", "wash", "stay"],
-  A2: ["ask", "borrow", "travel", "carry", "enjoy", "finish", "hope", "look", "miss", "move", "need", "remember", "try", "wait", "worry", "push", "pull", "laugh", "cry", "learn"],
-  B1: ["allow", "avoid", "complain", "breathe", "earn", "fail", "hurry", "improve", "notice", "offer", "promise", "share", "suggest", "wonder", "warn", "apologize", "belong", "manage", "rely", "follow"],
-  B2: ["swallow", "scratch", "attempt", "claim", "encourage", "shiver", "owe", "rescue", "grumble", "struggle", "threaten", "urge", "bother", "blame", "cheat", "hesitate", "obey", "regret", "tease", "whisper"],
-  C1: ["acknowledge", "convey", "deter", "enhance", "hinder", "jeopardize", "mitigate", "overlook", "postpone", "reassure", "dread", "scrutinize", "undermine", "weigh", "dwindle", "foster", "hamper", "loom", "thrive", "yearn"],
-  C2: ["appease", "ascertain", "placate", "relinquish", "reprimand", "belittle", "bolster", "cajole", "dither", "flout", "goad", "rebuke", "scold", "squander", "thwart", "wane", "wheedle", "wield"],
+  A2: ["ask", "borrow", "travel", "carry", "enjoy", "fix", "hope", "look", "miss", "move", "need", "remember", "try", "wait", "worry", "push", "pull", "laugh", "cry", "learn"],
+  B1: ["allow", "avoid", "complain", "breathe", "earn", "fail", "hurry", "improve", "notice", "pour", "lift", "share", "knock", "wonder", "warn", "apologize", "belong", "manage", "rely", "follow"],
+  B2: ["swallow", "scratch", "attempt", "claim", "sigh", "shiver", "owe", "rescue", "grumble", "struggle", "threaten", "urge", "bother", "blame", "cheat", "stumble", "frown", "stare", "tease", "whisper"],
+  C1: ["acknowledge", "convey", "deter", "enhance", "hinder", "jeopardize", "mitigate", "overlook", "postpone", "dismiss", "dread", "scrutinize", "undermine", "weigh", "dwindle", "foster", "hamper", "loom", "thrive", "yearn"],
+  C2: ["fathom", "ascertain", "placate", "relinquish", "loathe", "belittle", "bolster", "cajole", "dither", "flout", "goad", "rebuke", "scold", "squander", "thwart", "wane", "wheedle", "wield"],
 };
 
 // The French the learner sees. A context in parentheses picks the meaning
@@ -82,33 +83,33 @@ const FRENCH: Record<string, string> = {
   start: "démarrer (une voiture)", call: "appeler", talk: "parler (avec un ami)",
   wash: "laver", stay: "rester",
   ask: "demander", borrow: "emprunter", travel: "voyager", carry: "porter (un sac)",
-  enjoy: "apprécier", finish: "finir", hope: "espérer", look: "regarder (une photo)",
+  enjoy: "apprécier", fix: "réparer", hope: "espérer", look: "regarder (une photo)",
   miss: "rater (le bus)", move: "bouger", need: "avoir besoin de",
   remember: "se souvenir de", try: "essayer", wait: "attendre", worry: "s'inquiéter",
   push: "pousser", pull: "tirer (sur une corde)", laugh: "rire", cry: "pleurer",
   learn: "apprendre (une leçon)",
   allow: "permettre", avoid: "éviter", complain: "se plaindre", breathe: "respirer",
   earn: "gagner (de l'argent)", fail: "échouer", hurry: "se dépêcher",
-  improve: "améliorer", notice: "remarquer", offer: "offrir", promise: "promettre",
-  share: "partager", suggest: "proposer", wonder: "se demander", warn: "avertir",
+  improve: "améliorer", notice: "remarquer", pour: "verser (de l'eau)", lift: "soulever",
+  share: "partager", knock: "frapper (à la porte)", wonder: "se demander", warn: "avertir",
   apologize: "s'excuser", belong: "appartenir", manage: "gérer (une équipe)",
   rely: "compter sur", follow: "suivre",
   swallow: "avaler", scratch: "gratter", attempt: "tenter",
-  claim: "prétendre (affirmer)", encourage: "encourager", shiver: "frissonner",
+  claim: "prétendre (affirmer)", sigh: "soupirer", shiver: "frissonner",
   owe: "devoir (de l'argent)", rescue: "secourir", grumble: "râler",
   struggle: "lutter", threaten: "menacer", urge: "inciter (vivement)",
   bother: "déranger", blame: "rejeter la faute sur", cheat: "tricher",
-  hesitate: "hésiter", obey: "obéir", regret: "regretter", tease: "taquiner",
+  stumble: "trébucher", frown: "froncer les sourcils", stare: "fixer (du regard)", tease: "taquiner",
   whisper: "chuchoter",
   acknowledge: "reconnaître (admettre)", convey: "transmettre", deter: "dissuader",
   enhance: "mettre en valeur", hinder: "entraver", jeopardize: "compromettre",
   mitigate: "atténuer", overlook: "laisser passer (une erreur)", postpone: "reporter",
-  reassure: "rassurer", dread: "redouter", scrutinize: "examiner minutieusement",
+  dismiss: "écarter (une idée)", dread: "redouter", scrutinize: "examiner minutieusement",
   undermine: "saper", weigh: "peser", dwindle: "diminuer (peu à peu)",
   foster: "favoriser", hamper: "freiner (un projet)", loom: "se profiler",
   thrive: "prospérer", yearn: "aspirer à",
-  appease: "apaiser", ascertain: "s'assurer de", placate: "calmer (quelqu'un)",
-  relinquish: "céder (un pouvoir)", reprimand: "réprimander", belittle: "rabaisser",
+  fathom: "comprendre (en profondeur)", ascertain: "s'assurer de", placate: "calmer (quelqu'un)",
+  relinquish: "céder (un pouvoir)", loathe: "détester (profondément)", belittle: "rabaisser",
   bolster: "renforcer", cajole: "amadouer", dither: "tergiverser",
   flout: "bafouer (une règle)", goad: "pousser à bout", rebuke: "faire des reproches à",
   scold: "gronder", squander: "gaspiller", thwart: "déjouer", wane: "décliner",
@@ -119,13 +120,17 @@ export function frenchOf(verb: string): string | undefined {
   return FRENCH[verb];
 }
 
-// Picks a verb of this type and level, if possible not one of the French
-// items given recently, and returns it with its French.
+// Picks a verb of this type and level that isn't one of the French items
+// given recently (avoid, oldest first), and returns it with its French. When
+// all of them were given, the one given longest ago comes back.
 export function pickVerb(verbType: VerbType, level: Level, avoid: string[] = []) {
   const verbs = verbsFor(verbType, level);
   const fresh = verbs.filter((verb) => !avoid.includes(FRENCH[verb]));
-  const pool = fresh.length ? fresh : verbs;
-  const verb = pool[Math.floor(Math.random() * pool.length)];
+  const verb = fresh.length
+    ? fresh[Math.floor(Math.random() * fresh.length)]
+    : verbs.reduce((oldest, verb) =>
+        avoid.lastIndexOf(FRENCH[verb]) < avoid.lastIndexOf(FRENCH[oldest]) ? verb : oldest,
+      );
   return { verb, french: FRENCH[verb] };
 }
 
@@ -186,9 +191,9 @@ const IRREGULAR_FORMS: Record<string, [string, string]> = {
   waylay: ["waylaid", "waylaid"],
 };
 
-// Regular verbs whose last consonant doubles (regret → regretted). American
+// Regular verbs whose last consonant doubles (deter → deterred). American
 // English doesn't double an unstressed l (traveled).
-const DOUBLED = new Set(["regret", "deter"]);
+const DOUBLED = new Set(["deter"]);
 
 function regularPast(verb: string) {
   if (DOUBLED.has(verb)) return `${verb}${verb.at(-1)}ed`;

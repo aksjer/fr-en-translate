@@ -153,6 +153,12 @@ test("a verb given recently is not picked again", async () => {
   }
 });
 
+test("when every verb was given, the one given longest ago comes back", () => {
+  const french = verbsFor("régulier", "A1").map((verb) => frenchOf(verb) ?? "");
+  const { french: picked } = pickVerb("régulier", "A1", [...french.slice(3), ...french.slice(0, 3)]);
+  assert.equal(picked, french[3]);
+});
+
 test("adds back a missing apostrophe after l", async () => {
   const model = mockModel({
     ...answer,
