@@ -206,8 +206,10 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
           : [
               "- A small slip (a typo, punctuation, a missing or extra article, British",
               "  spelling) is a remark, but the answer stays right.",
-              '- A wrong tense, a real grammar mistake or a phrasing that sounds foreign ("I am',
-              '  agree", "he explained me the problem", "since three years") makes it wrong.',
+              "- A wrong tense, preposition or word order, another real grammar mistake, a word",
+              "  a native speaker wouldn't use there (make my homework), or a phrasing that sounds",
+              '  foreign ("I am agree", "he explained me the problem", "since three years")',
+              "  makes it wrong.",
             ]),
         "- A wrong or missing meaning, or a false friend, always makes it wrong.",
         "",

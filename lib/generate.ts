@@ -299,11 +299,14 @@ function history(input: GenerateInput, mode: Mode) {
 // The kinds of mistakes the learner made most in their recent answers, in all
 // modes, for sentences only: a single word can't practice a tense or a
 // preposition. Recent answers only, so a point they have fixed drops out by itself.
+// Spelling, punctuation and "anything else" can't be built into a sentence.
+const UNPRACTICED_TAGS: ErrorTag[] = ["orthographe", "ponctuation", "autre"];
+
 function weakPointsSection(input: GenerateInput) {
   const counts = new Map<ErrorTag, number>();
   for (const item of input.history ?? []) {
     const tag = ERROR_TAGS.find((known) => known === item.tag);
-    if (item.ok === false && tag && tag !== "autre") {
+    if (item.ok === false && tag && !UNPRACTICED_TAGS.includes(tag)) {
       counts.set(tag, (counts.get(tag) ?? 0) + 1);
     }
   }
