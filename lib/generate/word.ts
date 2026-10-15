@@ -10,8 +10,8 @@ export function generateWord(input: GenerateInput, combination: Combination) {
     fields: [
       "- situation: first, one short line in English: the English word you chose and its",
       "  meaning here (e.g. leaf: part of a tree).",
-      "- text: the French word only, with no context, quotation marks, translation or",
-      "  explanation. Check its spelling and accents.",
+      "- text: the French word only, with its article for a noun (la feuille), and no",
+      "  context, quotation marks, translation or explanation. Check its spelling and accents.",
       "- context: one short, everyday French sentence that uses this French word in the",
       "  meaning of the English word. The learner sees it under the word, so it must leave",
       "  only this meaning possible (e.g. « Les feuilles tombent des arbres en automne. »",

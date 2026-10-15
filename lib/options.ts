@@ -51,7 +51,8 @@ export const TENSE_GUIDES: Record<
   past: {
     english:
       "simple past or past continuous (I worked, I was working), or used to for a past " +
-      "habit; American English also uses the simple past for a recent result (I lost my keys)",
+      "habit; American English also uses the simple past for a recent result and with " +
+      "already or yet (I lost my keys, I already ate, Did you eat yet?)",
     french:
       "a passé composé of a finished action, often with a finished time (hier, en 2010), " +
       "or an imparfait: of an action in progress for the past continuous, of a habit for " +
@@ -63,11 +64,13 @@ export const TENSE_GUIDES: Record<
       "have + past participle (I have worked), or have been + -ing for an ongoing " +
       "activity (I've been waiting for an hour)",
     french:
-      "a présent with depuis (j'habite ici depuis 2010 → I have lived here since 2010; " +
-      "j'attends depuis une heure → I've been waiting for an hour), or a passé composé " +
-      "with déjà, jamais, pas encore or plusieurs fois (je n'ai jamais vu la mer → I have " +
-      "never seen the ocean). Without such a word, a passé composé is a simple past in " +
-      "American English (j'ai mangé une pomme → I ate an apple), so never use one alone",
+      "a présent with depuis, ça fait … que or il y a + a duration + que (j'habite ici " +
+      "depuis 2010 → I have lived here since 2010; ça fait une heure que j'attends → I've " +
+      "been waiting for an hour), or a passé composé with jamais, plusieurs fois, pas " +
+      "encore, or déjà meaning once in one's life (j'ai déjà été à New York → I've been " +
+      "to New York; as-tu déjà vu… ? → have you ever seen…?). Not déjà meaning already: " +
+      "j'ai déjà mangé is I already ate in American English. Without such a word, a passé " +
+      "composé is a simple past (j'ai mangé une pomme → I ate an apple), so never use one alone",
   },
   "past perfect": {
     english:

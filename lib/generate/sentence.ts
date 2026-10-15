@@ -30,7 +30,8 @@ function learningPoint(level: Level) {
   return (
     "\n\n## Learning point\nThe tense is the main point of the sentence. Add at most " +
     "one other point, the first of these that fits the tense, without pointing it out:\n" +
-    "1. the difficulty of a recent wrong item in the history, when its remark names it;\n" +
+    "1. the difficulty of a wrong item among the 5 most recent ones (the last 5 lines of " +
+    "the history), when its remark names it;\n" +
     "2. else one of the weak points below, if any;\n" +
     `3. else one word or phrase that learners usually learn at CEFR ${level}.\n` +
     "Never more than one: a sentence with several difficulties is hard to learn from."
@@ -87,8 +88,9 @@ export function generateSentence(input: GenerateInput, combination: Combination)
       "  French verb as it will appear in the sentence.",
       ...SENTENCE_TEXT_FIELD,
       "- reference: the most natural American English translation of text, in the tense a",
-      `  native speaker would use for this French (it should be the ${tense}), in American`,
-      "  words and spelling (apartment, color, not flat, colour).",
+      `  native speaker would use for this French. It must be the ${tense}: if it isn't`,
+      "  natural, change the French, not the tense. Use American words and spelling",
+      "  (apartment, color, not flat, colour).",
     ],
     task:
       `Write one original French sentence on the theme "${theme}", of a length typical ` +
@@ -96,7 +98,8 @@ export function generateSentence(input: GenerateInput, combination: Combination)
       `${tense && TENSE_GUIDES[tense].english}. ` +
       `To get it, use ${tense && TENSE_GUIDES[tense].french}. ` +
       "Choose the person of the main verb (je, tu, il, elle, on, nous, vous, ils or " +
-      "elles) and the sentence type (statement, question, negation or exclamation)." +
+      "elles) and the sentence type (statement, question or negation; an exclamation only " +
+      "when the situation calls for one)." +
       sentenceVocabulary(level) +
       learningPoint(level) +
       VARIETY +

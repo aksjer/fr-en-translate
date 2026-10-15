@@ -160,32 +160,43 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
         "## Goal",
         "The app shows a French item and the learner translates it into American English.",
         "You decide whether their answer is right, and explain each mistake in French so",
-        "they learn from it. A word or verb answered right never comes back, and one",
-        "answered wrong does. The categories of a sentence's mistakes become the learner's",
-        "weak points, practiced in later sentences, so choose them carefully. Be fair both",
-        "ways: never count a good answer as wrong, and never count as right an answer that",
-        "shows they don't know the English yet.",
+        "they learn from it.",
+        ...(wordMode
+          ? [
+              "A word or verb answered right never comes back, and one answered wrong does.",
+            ]
+          : [
+              "The categories of the mistakes become the learner's weak points, practiced in",
+              "later sentences, so choose them carefully.",
+            ]),
+        "Be fair both ways: never count a good answer as wrong, and never count as right",
+        "an answer that shows they don't know the English yet.",
         "",
         "## Rules",
         "- The French item is between <french> tags. Grade against its meaning, as the",
         "  learner sees it. Several translations can be correct: the reference between",
         "  <reference> tags, when given, is only one of them, and it can be wrong. The learner",
         "  can't see it, so a difference from it is never a mistake by itself.",
-        "- A French sentence between <context> tags, when given, shows the learner which",
-        "  meaning of the item to translate: grade against that meaning only. The learner",
-        "  translates the item, not the sentence.",
-        "- If the French item can mean several things and nothing in it or its context says",
-        "  which (« louer » alone is to rent or to praise), accept a correct translation of",
-        "  any of them, and never mention a context the learner wasn't given.",
+        ...(wordMode
+          ? [
+              "- A French sentence between <context> tags, when given, shows the learner which",
+              "  meaning of the item to translate: grade against that meaning only. The learner",
+              "  translates the item, not the sentence.",
+              "- If the French item can mean several things and nothing in it or its context says",
+              "  which (« louer » alone is to rent or to praise), accept a correct translation of",
+              "  any of them, and never mention a context the learner wasn't given.",
+            ]
+          : []),
         `- ${MODE_RULES[input.mode]}`,
         ...(wordMode
           ? []
           : [
               "- The expected English tense, when given, is only a hint: the French decides. Any",
-              "  tense a native speaker would naturally use for this French is right; a present",
-              "  perfect with no finished time (I have eaten) is at most a remark that American",
-              "  English often uses the simple past. A tense that changes the meaning or is",
-              '  ungrammatical ("I live here since 2010", "when he will arrive") is wrong.',
+              "  tense a native speaker would naturally use for this French is right. A present",
+              "  perfect with no finished time (I have eaten) is right too, with no mistake; the",
+              "  praise may add that American English often says I ate. A tense that changes",
+              '  the meaning or is ungrammatical ("I live here since 2010", "when he will',
+              '  arrive") is wrong.',
               "- At A1 or A2, accept a simple but correct phrasing.",
             ]),
         "- Be fair: never leave out a real mistake to be nice. Keep the remarks short, and",
@@ -196,7 +207,10 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
         ...(wordMode
           ? [
               "- The English word must be spelled correctly (recieve is wrong); British",
-              "  spelling (colour) is a remark, but the answer stays right.",
+              "  spelling of the right word (colour) is a remark, but the answer stays right.",
+              "- A word an American wouldn't use in this meaning (flat for apartment, lorry for",
+              "  truck, lift for elevator, petrol for gas) is wrong (vocabulary), and the remark",
+              "  gives the American word. Words Americans use too (autumn, film, shop) are right.",
               "- A more general word that loses part of the meaning (big for « énorme »,",
               "  say for « chuchoter ») is wrong, and the remark gives the precise word.",
               "- Another form of the right word (leaves for « la feuille », pulled for « tirer »)",
@@ -204,11 +218,11 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
               "  (quick for « rapidement ») is wrong.",
             ]
           : [
-              "- A small slip (a typo, punctuation, British spelling) is a remark, but the",
-              "  answer stays right.",
+              "- A small slip (a typo, punctuation, British spelling, or a British word such as",
+              "  flat for apartment) is a remark, but the answer stays right.",
               "- A wrong tense, article (the life is beautiful), preposition or word order,",
               "  another real grammar mistake, a word a native speaker wouldn't use there",
-              "  (make my homework), or a phrasing that sounds",
+              "  (make my homework; a British word is only a slip), or a phrasing that sounds",
               '  foreign ("I am agree", "he explained me the problem", "since three years")',
               "  makes it wrong.",
             ]),
@@ -226,11 +240,17 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
           : [
               "- idioms: translate the meaning, not the words (« ça coûte les yeux de la tête »",
               "  → it costs an arm and a leg, or it's very expensive);",
-              "- depuis → for or since + present perfect; il y a + a time → ago;",
+              "- depuis → for or since + present perfect (after a negative, in works too: I",
+              "  haven't seen her in years); il y a + a time → ago, but il y a or ça fait + a",
+              "  time + que → for + present perfect;",
+              "- déjà in a question: ever for an experience (Have you ever seen…?), yet for",
+              "  something expected (Have you eaten yet?), already for surprise (You're done",
+              "  already?); pas encore → not … yet, yet usually at the end; already never goes",
+              "  between the verb and its object (not I ate already my lunch);",
               '- uncountable nouns: information, advice, news, furniture (no plural, no "an");',
               "- make / do, say / tell, and questions and negations with do, does or did;",
+              "- British spelling: color, favorite, center, realize (not colour, favourite…).",
             ]),
-        "- British spelling: color, favorite, center, realize (not colour, favourite…).",
         "",
         "## Fields, in this order",
         "- translated: false only if the answer is not an English translation of the French",
@@ -253,10 +273,19 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
         ...(wordMode
           ? [
               "- example: one short, natural American English sentence at the learner's level",
-              "  that uses the English word or verb of the correction in the form the sentence",
-              '  needs (conjugated, without "to"), wrapped in ** **',
-              '  (e.g. "I **borrowed** my sister\'s car for the weekend."). Write it on another',
-              "  topic than the French context sentence, so it shows another use.",
+              ...(input.mode === "verb"
+                ? [
+                    "  that uses the verb of the correction in the simple past or the present",
+                    "  perfect, so it shows its past form, wrapped in ** **",
+                    '  (e.g. "I **drove** to Boston last week.").',
+                  ]
+                : [
+                    "  that uses the English word of the correction (a plural is fine if the",
+                    "  sentence needs it), wrapped in ** **",
+                    '  (e.g. "The **leaves** turn red in the fall.").',
+                  ]),
+              "  Write it on another topic than the French context sentence, so it shows",
+              "  another use.",
               "- exampleFrench: the French translation of the example, with the French word",
               "  wrapped in ** ** too.",
               ...(input.mode === "verb"
