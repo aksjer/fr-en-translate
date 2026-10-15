@@ -29,8 +29,12 @@ function instructions(
   { mode, level, tense, verbType, theme }: Combination,
   situation?: string,
 ) {
-  // A concrete situation makes sentences differ even when the theme is the same.
-  const about = situation ? `, about this situation: ${situation}` : "";
+  // Random ingredients make sentences differ even when the theme is the same.
+  // The model builds a situation around them that fits the theme.
+  const about = situation
+    ? `. First imagine a concrete, unusual situation that fits this theme and involves ` +
+      `${situation} (adapt them if needed), then write about it`
+    : "";
   const cefr = `CEFR level ${level} (${LEVEL_DESCRIPTIONS[level]})`;
   switch (mode) {
     case "mot":
