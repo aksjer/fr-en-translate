@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { SettingsPanel } from "@/components/settings-panel";
 import {
   getServerStatsSnapshot,
   getStatsSnapshot,
@@ -76,8 +75,7 @@ async function post<T>(url: string, body: unknown): Promise<T> {
 }
 
 export function Trainer() {
-  const [settings, setSettings] = useSettings();
-  const [showSettings, setShowSettings] = useState(false);
+  const [settings] = useSettings();
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [translation, setTranslation] = useState("");
   const [result, setResult] = useState<Correction | null>(null);
@@ -183,35 +181,22 @@ export function Trainer() {
 
   return (
     <div className="flex flex-col gap-6">
+      <nav className="flex gap-4 text-sm font-medium">
+        <Link href="/reglages" className="text-blue-700 hover:underline dark:text-blue-300">
+          Réglages
+        </Link>
+        <Link href="/progres" className="text-blue-700 hover:underline dark:text-blue-300">
+          Mes progrès
+        </Link>
+      </nav>
+
       {stats.answered > 0 && (
         <p className="text-sm text-zinc-500">
           {stats.answered} réponses ·{" "}
           {Math.round((stats.correct / stats.answered) * 100)} % justes
-          {topErrors && ` · erreurs fréquentes : ${topErrors}`} ·{" "}
-          <Link href="/progres" className="underline hover:text-zinc-700 dark:hover:text-zinc-300">
-            Mes progrès
-          </Link>
+          {topErrors && ` · erreurs fréquentes : ${topErrors}`}
         </p>
       )}
-
-      <section className="rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-        <button
-          type="button"
-          onClick={() => setShowSettings(!showSettings)}
-          aria-expanded={showSettings}
-          className="flex w-full items-center justify-between rounded-2xl px-5 py-4 text-left font-medium"
-        >
-          Réglages
-          <span className="text-sm font-normal text-zinc-500">
-            {showSettings ? "Masquer" : "Afficher"}
-          </span>
-        </button>
-        {showSettings && (
-          <div className="border-t border-zinc-200 p-5 dark:border-zinc-800">
-            <SettingsPanel settings={settings} onChange={setSettings} />
-          </div>
-        )}
-      </section>
 
       {!exercise && (
         <p className="text-zinc-600 dark:text-zinc-400">
