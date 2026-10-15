@@ -2,14 +2,19 @@
 
 import type { Mode, Tense, VerbType } from "@/lib/options";
 
+// The kinds of mistakes French speakers make in English (defined in lib/correct.ts).
+// Counts of tags used before stay in the browser and still show in the stats.
 export const ERROR_TAGS = [
-  "accent",
-  "article",
+  "sens",
+  "faux ami",
   "temps",
+  "préposition",
+  "article",
+  "ordre des mots",
   "vocabulaire",
   "grammaire",
-  "ponctuation",
   "orthographe",
+  "ponctuation",
   "autre",
 ] as const;
 
