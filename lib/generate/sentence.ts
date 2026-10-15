@@ -1,4 +1,4 @@
-// One French sentence in the tense from the settings.
+// One French sentence whose translation needs the English tense from the settings.
 import { ERROR_TAG_DEFINITIONS, ERROR_TAGS, type ErrorTag } from "@/lib/error-tags";
 import { generateItem, type GenerateInput } from "@/lib/generate/shared";
 import { TENSE_GUIDES, type Level } from "@/lib/options";
@@ -66,26 +66,21 @@ function weakPointsSection(input: GenerateInput) {
 
 export function generateSentence(input: GenerateInput, combination: Combination) {
   const { level, tense, theme } = combination;
-  const imperative = tense === "imperative";
   return generateItem(input, combination, {
-    // Planning the conjugated verb first keeps the tense right.
+    // Planning the verb first keeps the tense right.
     fields: [
       "- situation: first, one short line in English: the situation you chose (who, where,",
-      `  when), then the main French verb, already conjugated in the ${tense} and in the`,
-      "  person you chose.",
+      `  when), then the main verb of the English translation in the ${tense}, and the`,
+      "  French verb as it will appear in the sentence.",
       ...SENTENCE_TEXT_FIELD,
     ],
     task:
-      `Write one original French sentence on the theme "${theme}", ` +
-      `in the French ${tense}, of a length typical of CEFR ${level}. ` +
-      "Choose the person of the main verb " +
-      (imperative
-        ? "(tu, nous or vous) and whether it is a statement or a negation."
-        : "(je, tu, il, elle, on, nous, vous, ils or elles) and the sentence type " +
-          "(statement, question, negation or exclamation).") +
+      `Write one original French sentence on the theme "${theme}", of a length typical ` +
+      `of CEFR ${level}, whose natural American English translation is in the ${tense}: ` +
+      `${tense && TENSE_GUIDES[tense]}. ` +
+      "Choose the person of the main verb (je, tu, il, elle, on, nous, vous, ils or " +
+      "elles) and the sentence type (statement, question, negation or exclamation)." +
       sentenceVocabulary(level) +
-      "\n" +
-      `This tense in American English: ${tense && TENSE_GUIDES[tense]}.` +
       VARIETY +
       PRIORITY,
     sections: weakPointsSection(input),

@@ -27,57 +27,51 @@ export function englishKey(reference: string) {
     .trim();
 }
 
+// The English tenses the learner practices: the French sentence is written so
+// its natural translation needs this tense.
 export const TENSES = [
   "present",
-  "compound past",
-  "imperfect",
-  "pluperfect",
-  "simple future",
-  "near future",
-  "present conditional",
-  "present subjunctive",
-  "imperative",
+  "past",
+  "present perfect",
+  "past perfect",
+  "future",
+  "conditional",
 ] as const;
 
-// How each French tense is usually translated into American English. Small
-// models mix tenses up, and one French tense can give several English ones.
+// What each English tense covers, and the French that usually leads to it.
 export const TENSE_GUIDES: Record<(typeof TENSES)[number], string> = {
   present:
-    "simple present or present continuous, but present perfect with depuis " +
-    "(j'habite ici depuis 2010 → I have lived here since 2010) and just + present " +
-    "perfect or, very often in American English, just + simple past for venir de " +
-    "(je viens de finir → I just finished)",
-  "compound past":
-    "simple past with a finished time (hier, en 2010), or present perfect for an " +
-    "experience or a result with no time given, where American English often uses " +
-    "the simple past too (j'ai perdu mes clés → I lost my keys)",
-  imperfect:
-    "simple past for a state, past continuous for an ongoing action, used to or would " +
-    "for a habit",
-  pluperfect: "past perfect (had eaten)",
-  "simple future": "will + verb, but simple present after when, as soon as, until (quand il arrivera → when he arrives)",
-  "near future": "be going to + verb",
-  "present conditional": "would + verb (could for pouvoir, should for devoir), with a simple past after if",
-  "present subjunctive": "after que (il faut que, je veux que); often an infinitive (I need to eat, I want him to come)",
-  imperative: "base verb with no subject (Eat!, Let's go, Don't leave)",
+    "simple present or present continuous (I work, I'm working), from a French présent",
+  past:
+    "simple past or past continuous (I worked, I was working), from a passé composé " +
+    "with a finished time (hier, en 2010) or an imparfait; American English also uses " +
+    "it for a recent result (j'ai perdu mes clés → I lost my keys)",
+  "present perfect":
+    "have + past participle (I have worked), from a présent with depuis (j'habite ici " +
+    "depuis 2010 → I have lived here since 2010) or a passé composé for an experience " +
+    "with no time given (je n'ai jamais vu la mer → I have never seen the ocean)",
+  "past perfect": "had + past participle (I had worked), from a plus-que-parfait",
+  future:
+    "will or be going to + verb (I will work, I'm going to work), from a futur simple " +
+    "or futur proche, with a simple present after when or as soon as (quand il " +
+    "arrivera → when he arrives)",
+  conditional:
+    "would + verb (I would work; could for pouvoir, should for devoir), from a " +
+    "conditionnel présent, with a simple past after if",
 };
 
-// The lowest English level each tense fits, from the English it needs (the simple
-// past at A2, would and the past perfect at B1). Only used when the learner
-// selects no tense: a tense they select is always used.
+// The lowest English level each tense fits. Only used when the learner selects
+// no tense: a tense they select is always used.
 export const TENSE_LEVELS: Record<
   (typeof TENSES)[number],
   (typeof LEVELS)[number]
 > = {
   present: "A1",
-  imperative: "A1",
-  "compound past": "A2",
-  imperfect: "A2",
-  "simple future": "A2",
-  "near future": "A2",
-  "present conditional": "B1",
-  "present subjunctive": "B1",
-  pluperfect: "B1",
+  past: "A2",
+  "present perfect": "A2",
+  future: "A2",
+  conditional: "B1",
+  "past perfect": "B1",
 };
 
 // Regular or irregular in English, since that's what the learner must produce.

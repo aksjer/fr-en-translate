@@ -179,8 +179,8 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
         ...(wordMode
           ? []
           : [
-              "- The French tense, when given, is only a hint: judge the English tense by",
-              "  meaning, and accept any tense a native speaker would naturally use for this French",
+              "- The expected English tense, when given, is only a hint: judge the English tense",
+              "  by meaning, and accept any tense a native speaker would naturally use for this French",
               '  (e.g. « J\'habite ici depuis 2010 » → "I have lived here since 2010").',
               "- At A1 or A2, accept a simple but correct phrasing.",
             ]),
@@ -279,7 +279,7 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
       prompt: [
         input.level && `CEFR level: ${input.level}`,
         input.tense &&
-          `French tense: the ${input.tense} (in American English: ${TENSE_GUIDES[input.tense]})`,
+          `Expected English tense: the ${input.tense} (${TENSE_GUIDES[input.tense]})`,
         `<french>${untagged(input.text)}</french>`,
         input.context && `<context>${untagged(input.context)}</context>`,
         input.reference &&
