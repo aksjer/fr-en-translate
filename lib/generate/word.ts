@@ -10,8 +10,12 @@ export function generateWord(input: GenerateInput, combination: Combination) {
     fields: [
       "- situation: first, one short line in English: the English word you chose, then the",
       "  context it is used in.",
-      "- text: the French word only, with its context in parentheses if any, and no",
-      "  quotation marks, translation or explanation. Check its spelling and accents.",
+      "- text: the French word only, with no context, quotation marks, translation or",
+      "  explanation. Check its spelling and accents.",
+      "- context: one short, everyday French sentence that uses this French word in the",
+      "  meaning of the English word. The learner sees it under the word, so it must leave",
+      "  only this meaning possible (e.g. « Les feuilles tombent des arbres en automne. »",
+      "  for leaf, since feuille is also a sheet of paper). Check its spelling and accents.",
     ],
     task:
       "Give a single French noun, adjective or adverb whose American English " +
@@ -20,10 +24,8 @@ export function generateWord(input: GenerateInput, combination: Combination) {
       "Give a noun with its article (le, la, l', un, une). " +
       "Pick a word whose American English translation looks different from the French " +
       "(not « généreux » → generous). The French must be the word a French speaker would " +
-      "really use for this English, never a look-alike with another meaning. If the French " +
-      "word also has another common meaning, add a short context in parentheses that rules " +
-      "it out (e.g. « la feuille (d'un arbre) » for leaf, since feuille is also a sheet of " +
-      "paper). Give only the word, never a sentence. " +
+      "really use for this English, never a look-alike with another meaning. " +
+      "The text is only the word, never a sentence: the sentence goes in context. " +
       "The theme is only a direction: if no word fits it and every other rule, choose " +
       "one loosely related to it rather than one at another level.",
   });

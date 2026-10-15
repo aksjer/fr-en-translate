@@ -160,8 +160,18 @@ export const exerciseSchema = z.object({
   reference: z.string(),
 });
 
-// Asks the model for one word or sentence and its
-// reference. Each mode gives its own fields (situation and text), its task and
+// A word also gets a French sentence that shows its meaning, written before the
+// reference so the reference translates the word in that meaning.
+const wordExerciseSchema = z.object({
+  situation: z.string(),
+  text: z.string(),
+  context: z.string(),
+  reference: z.string(),
+});
+
+// Asks the model for one word or sentence and its reference, plus a context
+// sentence for a word. Each mode gives its own fields (situation, text and the
+// context if any), its task and
 // its own sections; an item already known is asked again once, and the second
 // answer is kept, so the page never gets an error.
 export async function generateItem(
@@ -182,7 +192,11 @@ export async function generateItem(
       maxRetries: 1,
       // Room for the thinking and a long sentence, so the JSON isn't cut short.
       maxOutputTokens: 1500,
-      output: Output.object({ schema: exerciseSchema }),
+      output: Output.object({
+        schema: (isWordMode(mode) ? wordExerciseSchema : exerciseSchema) as z.ZodType<
+          z.infer<typeof exerciseSchema> & { context?: string }
+        >,
+      }),
       system: [
         "You are an American English teacher for a French speaker. You write an item in",
         "natural, correct French that the learner will translate into American English.",
@@ -210,20 +224,26 @@ export async function generateItem(
     const text = withApostrophes(raw);
     if (text !== raw) console.warn("Added a missing apostrophe:", raw);
     const reference = output.reference.trim();
-    if (!text || !reference) {
-      throw new InvalidAnswerError("Empty item or reference");
+    const context =
+      output.context === undefined ? undefined : withApostrophes(output.context.trim());
+    if (!text || !reference || context === "") {
+      throw new InvalidAnswerError("Empty item, context or reference");
     }
     // A word is never a sentence: ask again if it is one.
     if (isWordMode(mode) && /[.!?]$/.test(text)) {
       throw new InvalidAnswerError(`A sentence instead of a word: ${text}`);
     }
-    if (text.length > MAX_TEXT_LENGTH || reference.length > MAX_TEXT_LENGTH) {
+    if (
+      text.length > MAX_TEXT_LENGTH ||
+      reference.length > MAX_TEXT_LENGTH ||
+      (context?.length ?? 0) > MAX_TEXT_LENGTH
+    ) {
       throw new InvalidAnswerError(`Item too long (${text.length} characters)`);
     }
     if (attempt === 1 && known.includes(englishKey(reference))) {
       throw new InvalidAnswerError(`Already known: ${reference}`);
     }
-    return { text, reference };
+    return { text, reference, ...(context && { context }) };
   });
 
   return { ...item, ...combination };
