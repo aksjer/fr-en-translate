@@ -70,7 +70,8 @@ export const GOAL =
   "## Goal\n" +
   "The app helps a French speaker learn the most useful American English they don't know " +
   "yet. They translate your item into American English, and another teacher grades it. " +
-  "Each item should teach them something new and useful at their level.";
+  "Each item should teach them something new and useful at their level, or something " +
+  "they got wrong before.";
 
 // The level is the learner's English level: any French is easy for them, so what
 // matters is the English the translation needs.
@@ -78,10 +79,7 @@ export function learner(mode: Mode, level: Level) {
   const intro =
     `## Learner\nA native French speaker learning American English, at CEFR ${level} in English.`;
   if (isWordMode(mode)) return intro;
-  return (
-    `${intro} The French is never the difficulty: choose French whose natural American ` +
-    `English translation needs the vocabulary and grammar learners usually study at ${level}.`
-  );
+  return `${intro} The French is never the difficulty: what matters is the English its translation needs.`;
 }
 
 // The learner wants the most useful English: words from the Oxford 5000, which
@@ -124,7 +122,7 @@ export function historySection(items: HistoryItem[], mode: Mode) {
     const english = isWordMode(mode) && item.english ? ` → ${item.english}` : "";
     const result =
       item.ok === undefined
-        ? "not answered"
+        ? "skipped"
         : item.ok
           ? "right"
           : `wrong${item.remark ? `: ${item.remark}` : ""}`;
@@ -137,10 +135,10 @@ export function historySection(items: HistoryItem[], mode: Mode) {
     "\nUse it to choose the next item. " +
     (isWordMode(mode)
       ? "Never give an item answered right again, even with another context. An item " +
-        "answered wrong may come back as is, but only after a few other items."
+        "answered wrong or skipped may come back as is, but only after a few other items."
       : "When a recent item was wrong, test the same difficulty again in a new item, " +
-        "without pointing it out. Vary the person, the sentence type, the situations and " +
-        "the characters: not the same structure, kind of event or characters.")
+        "without pointing it out. Vary the person, the sentence type, the situation and " +
+        "the characters from one item to the next.")
   );
 }
 
@@ -192,7 +190,8 @@ export async function generateItem(
         "## Fields, in this order",
         ...prompt.fields,
         "- reference: the most natural American English translation of text as the learner",
-        "  sees it (with its context, if any), with the same meaning and the equivalent tense,",
+        "  sees it (with its context, if any), with the same meaning" +
+          (isWordMode(mode) ? "," : " and the equivalent tense,"),
         "  in American words and spelling (apartment, color, not flat, colour).",
       ].join("\n"),
       prompt:

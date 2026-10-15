@@ -186,13 +186,13 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
         ...(wordMode
           ? []
           : [
-              "- The French tense is only a hint: judge the English tense by meaning, and accept",
-              "  any tense a native speaker would naturally use for this French",
+              "- The French tense, when given, is only a hint: judge the English tense by",
+              "  meaning, and accept any tense a native speaker would naturally use for this French",
               '  (e.g. « J\'habite ici depuis 2010 » → "I have lived here since 2010").',
               "- At A1 or A2, accept a simple but correct phrasing.",
             ]),
-        "- Be warm and encouraging in the remarks, but fair: never leave out a real mistake",
-        "  to be nice.",
+        "- Be fair: never leave out a real mistake to be nice. Keep the remarks short, and",
+        "  put the encouragement in the praise.",
         "",
         "## When an answer is right",
         "Right means a native speaker would accept it as a correct translation of the French.",
@@ -204,10 +204,11 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
               "  say for « chuchoter ») is wrong, and the remark gives the precise word.",
             ]
           : [
-              "- A small slip (a typo, punctuation, a missing or extra article, British",
-              "  spelling) is a remark, but the answer stays right.",
-              "- A wrong tense, preposition or word order, another real grammar mistake, a word",
-              "  a native speaker wouldn't use there (make my homework), or a phrasing that sounds",
+              "- A small slip (a typo, punctuation, British spelling) is a remark, but the",
+              "  answer stays right.",
+              "- A wrong tense, article (the life is beautiful), preposition or word order,",
+              "  another real grammar mistake, a word a native speaker wouldn't use there",
+              "  (make my homework), or a phrasing that sounds",
               '  foreign ("I am agree", "he explained me the problem", "since three years")',
               "  makes it wrong.",
             ]),
@@ -242,7 +243,8 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
         "  - category: one of the categories below.",
         "- right: true if the answer is right as defined above, false otherwise (and false",
         "  if translated is false).",
-        "- praise: one short remark in French on what is done well.",
+        "- praise: one short remark in French on what is done well, or a short",
+        "  encouragement if nothing is.",
         "- correction: if there are no mistakes, copy the learner's translation as is;",
         "  otherwise fix every mistake listed, while keeping as many of the learner's",
         "  words as possible. If translated is false, give a correct translation instead.",

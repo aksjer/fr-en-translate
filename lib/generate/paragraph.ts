@@ -20,9 +20,9 @@ export function generateParagraph(input: GenerateInput, combination: Combination
     ],
     task:
       "Write a short French paragraph of exactly three sentences that tell one coherent " +
-      `little story or moment, on the theme "${theme}", mainly told with one person ` +
-      "(je, tu, il, elle, on, nous, vous, ils or elles) that you choose (other people or " +
-      "things can also be the subject of a sentence). " +
+      `little story or moment, on the theme "${theme}". Tell it mostly through one person ` +
+      "(je, tu, il, elle, on, nous, vous, ils or elles), which you choose; other people or " +
+      "things can be the subject of some sentences. " +
       `Each sentence has a length typical of CEFR ${level}. ` +
       "Each sentence follows logically from the one before. Use a connector only where " +
       "a native speaker would (mais, alors, parce que, quand…), not at the start of every sentence. " +
