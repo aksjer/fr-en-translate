@@ -144,7 +144,7 @@ export function Trainer() {
         tag: correction.isCorrect ? undefined : correction.tag,
         remark: correction.isCorrect ? undefined : correction.remark,
       });
-      // A word, verb or phrasal verb answered right never comes back.
+      // A word or verb answered right never comes back.
       if (english && correction.isCorrect) rememberKnown(exercise.mode, english);
     } catch (e) {
       setError((e as Error).message);
@@ -226,13 +226,7 @@ export function Trainer() {
               ref={inputRef}
               id="translation"
               lang="en-US"
-              rows={
-                exercise.mode === "paragraphe"
-                  ? 5
-                  : exercise.mode === "phrase"
-                    ? 3
-                    : 1
-              }
+              rows={exercise.mode === "phrase" ? 3 : 1}
               maxLength={MAX_TEXT_LENGTH}
               placeholder="Écris ta traduction…"
               value={translation}

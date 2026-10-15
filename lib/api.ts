@@ -12,7 +12,7 @@ import { providerOf, type Model } from "@/lib/model-list";
 // The free tier is rate limited too, so keep this conservative.
 const RATE_LIMIT = 15;
 const RATE_WINDOW_MS = 60_000;
-// Room for a long paragraph, its reference and the answer, or the history and
+// Room for a long sentence, its reference and the answer, or the history and
 // the items already known (up to 1,000 per mode).
 const MAX_BODY_BYTES = 64_000;
 

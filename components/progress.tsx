@@ -3,8 +3,8 @@
 import { useSyncExternalStore } from "react";
 import { readKnown, readSeen } from "@/lib/seen-items";
 
-const LEARNED_MODES = ["mot", "verbe", "phrasal verb"] as const;
-const LEARNED_TITLES = { mot: "Mots", verbe: "Verbes", "phrasal verb": "Phrasal verbs" };
+const LEARNED_MODES = ["mot", "verbe"] as const;
+const LEARNED_TITLES = { mot: "Mots", verbe: "Verbes" };
 const RECENT = 30;
 
 const noSubscribe = () => () => {};

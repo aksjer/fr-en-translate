@@ -1,7 +1,7 @@
 # FR → EN
 
-An app to learn American English from French. It gives a French word, verb,
-phrasal verb, sentence or paragraph; you translate it, and a model corrects
+An app to learn American English from French. It gives a French word, verb
+or sentence; you translate it, and a model corrects
 your answer and explains each mistake.
 
 The model chooses each item from the most common English (Oxford 5000, COCA)
@@ -14,4 +14,4 @@ Your history, settings and progress stay in your browser.
    (Gemini) and `GROQ_API_KEY` (Groq). One is enough for the models of its provider.
 2. `npm install`, then `npm run dev`, and open http://localhost:3000.
 
-The prompts are in `lib/generate.ts` and `lib/correct.ts`.
+The prompts are in `lib/generate/` (one file per mode) and `lib/correct.ts`.

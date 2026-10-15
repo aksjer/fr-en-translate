@@ -47,7 +47,6 @@ export const generateInputSchema = settingsSchema.extend({
     .object({
       mot: z.array(clipped(40)).max(MAX_KNOWN),
       verbe: z.array(clipped(40)).max(MAX_KNOWN),
-      "phrasal verb": z.array(clipped(40)).max(MAX_KNOWN),
     })
     .partial()
     .optional()
@@ -102,14 +101,13 @@ export function withApostrophes(text: string) {
 
 // The items of this mode the learner got right, and the recent ones.
 export function history(input: GenerateInput, mode: Mode) {
-  const known = mode === "mot" || mode === "verbe" || mode === "phrasal verb"
-    ? (input.known?.[mode] ?? [])
-    : [];
-  // Only the items of this mode, so a word isn't compared with sentences.
+  const known = mode === "mot" || mode === "verbe" ? (input.known?.[mode] ?? []) : [];
+  // Only the items of this mode, so a word isn't compared with sentences. Items
+  // of a removed mode, or saved before the mode was stored, have none.
   // The prompt only lists the last ones: a long list costs tokens and is
   // followed no better.
   const recent = (input.history ?? [])
-    .filter((item) => !item.mode || item.mode === mode)
+    .filter((item) => item.mode === mode)
     .slice(-30);
   return { known, recent };
 }
@@ -160,7 +158,7 @@ export const exerciseSchema = z.object({
   reference: z.string(),
 });
 
-// Asks the model for one word, phrasal verb, sentence or paragraph and its
+// Asks the model for one word or sentence and its
 // reference. Each mode gives its own fields (situation and text), its task and
 // its own sections; an item already known is asked again once, and the second
 // answer is kept, so the page never gets an error.
@@ -180,7 +178,7 @@ export async function generateItem(
       providerOptions: providerOptionsFor(input.model),
       temperature: temperatureFor(input.model, "generate"),
       maxRetries: 1,
-      // Room for the thinking and a long paragraph, so the JSON isn't cut short.
+      // Room for the thinking and a long sentence, so the JSON isn't cut short.
       maxOutputTokens: 1500,
       output: Output.object({ schema: exerciseSchema }),
       system: [
@@ -213,7 +211,7 @@ export async function generateItem(
     if (!text || !reference) {
       throw new InvalidAnswerError("Empty item or reference");
     }
-    // A word or phrasal verb is never a sentence: ask again if it is one.
+    // A word is never a sentence: ask again if it is one.
     if (isWordMode(mode) && /[.!?]$/.test(text)) {
       throw new InvalidAnswerError(`A sentence instead of a word: ${text}`);
     }

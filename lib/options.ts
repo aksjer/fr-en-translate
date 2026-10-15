@@ -1,12 +1,6 @@
 // Exercise options the user can multi-select in the settings panel.
 
-export const MODES = [
-  "mot",
-  "verbe",
-  "phrasal verb",
-  "phrase",
-  "paragraphe",
-] as const;
+export const MODES = ["mot", "verbe", "phrase"] as const;
 
 export const LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
 
@@ -104,9 +98,9 @@ export const THEMES = [
 
 export type Mode = (typeof MODES)[number];
 
-// A single word or verb, as opposed to a sentence or a paragraph.
+// A single word or verb, as opposed to a sentence.
 export function isWordMode(mode: Mode) {
-  return mode === "mot" || mode === "verbe" || mode === "phrasal verb";
+  return mode === "mot" || mode === "verbe";
 }
 export type Level = (typeof LEVELS)[number];
 export type Tense = (typeof TENSES)[number];
@@ -117,7 +111,5 @@ export type Theme = (typeof THEMES)[number];
 export const MODE_USES = {
   mot: { tense: false, verbType: false, theme: true },
   verbe: { tense: false, verbType: true, theme: false },
-  "phrasal verb": { tense: false, verbType: false, theme: true },
   phrase: { tense: true, verbType: false, theme: true },
-  paragraphe: { tense: false, verbType: false, theme: true },
 } satisfies Record<Mode, { tense: boolean; verbType: boolean; theme: boolean }>;

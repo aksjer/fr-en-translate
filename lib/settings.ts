@@ -23,7 +23,12 @@ import {
 export const settingsSchema = z.object({
   // A removed model saved in the browser falls back to the default instead of failing.
   model: z.enum(MODELS).optional().catch(undefined),
-  modes: z.array(z.enum(MODES)).max(MODES.length).optional(),
+  // A removed mode saved in the browser (phrasal verb, paragraphe) is dropped.
+  modes: z
+    .array(z.string())
+    .max(10)
+    .transform((modes) => MODES.filter((mode) => modes.includes(mode)))
+    .optional(),
   levels: z.array(z.enum(LEVELS)).max(LEVELS.length).optional(),
   tenses: z.array(z.enum(TENSES)).max(TENSES.length).optional(),
   verbTypes: z.array(z.enum(VERB_TYPES)).max(VERB_TYPES.length).optional(),

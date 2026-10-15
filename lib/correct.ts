@@ -96,7 +96,7 @@ type CorrectionOutput = Omit<z.infer<typeof correctionSchema>, "alternative"> &
   Partial<Pick<z.infer<typeof correctionSchema>, "alternative">> &
   Partial<z.infer<typeof verbCorrectionSchema>>;
 
-// Words, verbs and phrasal verbs share one rule; each adds what is its own.
+// Words and verbs share one rule; each adds what is its own.
 const WORD_RULE =
   "The learner translates a single French item. Accept any correct American English " +
   'equivalent that keeps the whole meaning, with or without "to" or an article. ';
@@ -107,18 +107,9 @@ const MODE_RULES: Record<Mode, string> = {
     WORD_RULE +
     "In the praise, mention one or two other useful equivalents. The page already " +
     "shows the verb's three forms, so don't list them.",
-  "phrasal verb":
-    WORD_RULE +
-    "A phrasal verb is expected: a correct simple verb instead (quit for give up) is " +
-    "wrong (vocabulaire), and the correction gives the phrasal verb. In the praise, " +
-    "give the phrasal verb's meaning.",
   phrase:
     "Accept any translation that is faithful to the meaning, grammatically correct and " +
     "natural in American English, even if it differs from the reference.",
-  paragraphe:
-    "The learner translates a paragraph of several sentences. Check each sentence, " +
-    "as well as the connectors and the flow. Accept any translation faithful to the " +
-    "meaning and natural in American English.",
 };
 
 // Tags typed in a text are removed, so it can't close its block early.
@@ -152,7 +143,7 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
       providerOptions: providerOptionsFor(input.model),
       temperature: temperatureFor(input.model, "correct"),
       maxRetries: 1,
-      // Room for the thinking and the remarks on a long paragraph.
+      // Room for the thinking and the remarks on a long sentence.
       maxOutputTokens: 2000,
       output: Output.object({
         schema: (input.mode === "verbe"
@@ -167,7 +158,7 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
         "## Goal",
         "The app shows a French item and the learner translates it into American English.",
         "You decide whether their answer is right, and explain each mistake in French so",
-        "they learn from it. A word, verb or phrasal verb answered right never comes back,",
+        "they learn from it. A word or verb answered right never comes back,",
         "and one answered wrong does. So be fair both ways: never count a good answer as",
         "wrong, and never count as right an answer that shows they don't know the English yet.",
         "",

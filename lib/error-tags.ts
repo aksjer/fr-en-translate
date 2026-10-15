@@ -25,8 +25,7 @@ export const ERROR_TAG_DEFINITIONS: Record<ErrorTag, string> = {
   préposition: "a wrong, missing or extra preposition (depend of)",
   article: "a wrong, missing or extra article (she is nurse, the life is beautiful)",
   "ordre des mots": "a wrong word order (a car red)",
-  vocabulaire:
-    "a wrong or unnatural word (make my homework), or a simple verb instead of a phrasal verb",
+  vocabulaire: "a wrong or unnatural word (make my homework)",
   grammaire:
     "any other grammar mistake: agreement, third person -s, verb forms (eated), " +
     "plurals (advices), questions and negations with do",

@@ -11,7 +11,7 @@ const MAX_STORED = 500;
 export type SeenItem = {
   text: string;
   mode?: Mode;
-  // The English of a word, verb or phrasal verb.
+  // The English of a word or verb.
   english?: string;
   // Right or wrong; none if the item wasn't answered.
   ok?: boolean;
@@ -55,7 +55,7 @@ export function rememberResult(text: string, result: Omit<SeenItem, "text" | "mo
   writeSeen(items);
 }
 
-// Words, verbs and phrasal verbs the learner translated correctly, by their
+// Words and verbs the learner translated correctly, by their
 // English (englishKey), kept for good: an item answered right never comes back.
 const KNOWN_KEY = "fr-en-translate:known";
 
