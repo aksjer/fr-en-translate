@@ -287,6 +287,28 @@ function history(input: GenerateInput, mode: Mode) {
   return { known, recent };
 }
 
+// The kinds of mistakes the learner made most in their recent answers, in all
+// modes. Recent answers only, so a point they have fixed drops out by itself.
+function weakPointsSection(input: GenerateInput) {
+  const counts = new Map<string, number>();
+  for (const item of input.history ?? []) {
+    if (item.ok === false && item.tag) {
+      counts.set(item.tag, (counts.get(item.tag) ?? 0) + 1);
+    }
+  }
+  const top = [...counts]
+    .filter(([, count]) => count >= 2)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3);
+  return top.length
+    ? "\n\n## Weak points\n" +
+        "The learner's most frequent kinds of mistakes in their recent answers: " +
+        top.map(([tag, count]) => `${tag} (${count})`).join(", ") +
+        ". When this mode allows it, favor an item that practices one of these points, " +
+        "without pointing it out."
+    : "";
+}
+
 function knownSection(known: string[]) {
   return known.length
     ? "\n\n## Already learned\n" +
@@ -337,7 +359,8 @@ async function generateVerb(
         "whose look-alike French verb means something else (to attend is « assister à », " +
         "not « attendre »)." +
         knownSection(known) +
-        historySection(recent, "verbe"),
+        historySection(recent, "verbe") +
+        weakPointsSection(input),
     });
     const base = output.english.trim().toLowerCase().replace(/^to\s+/, "");
     const past = output.past.trim().toLowerCase();
@@ -415,7 +438,8 @@ export async function generateExercise(input: GenerateInput): Promise<Exercise> 
         "\n\n## Task\n" +
         instructions(combination) +
         knownSection(known) +
-        historySection(recent, combination.mode),
+        historySection(recent, combination.mode) +
+        weakPointsSection(input),
     });
 
     // The situation only helps the model think; the page doesn't need it.
