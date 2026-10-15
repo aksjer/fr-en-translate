@@ -24,16 +24,30 @@ const requestSchema = settingsSchema.extend({
     .optional(),
 });
 
+// Picked by the code, not the model: each request is independent, so the model
+// can't vary these across exercises and would always pick the same ones.
+const PERSONS = ["je", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles"];
+// The impératif only exists with tu, nous and vous.
+const IMPERATIVE_PERSONS = ["tu", "nous", "vous"];
+const SENTENCE_TYPES = ["statement", "question", "negation", "exclamation"];
+// An order can't really be a question.
+const IMPERATIVE_TYPES = ["statement", "negation"];
+
+function pickOne(items: string[]) {
+  return items[Math.floor(Math.random() * items.length)];
+}
+
 function instructions({ mode, level, tense, verbType, theme }: Combination) {
-  // The model invents the situation itself; these rules keep it from always
+  const cefr = `CEFR level ${level} (${LEVEL_DESCRIPTIONS[level]})`;
+  // The model invents the situation itself; this keeps it from always
   // falling back on the most typical sentence for the theme.
   const variety =
-    "\n\n## Variety\nInvent a specific, concrete situation on this theme: decide who is involved, " +
-    "where and when, and make it a little unexpected. Avoid clichés such as going " +
-    "to the market, the weather today or a simple daily routine. Vary the grammatical " +
-    "person (je, tu, il, elle, nous, vous, ils, elles, on) and the sentence type " +
-    "(statement, question, negation, exclamation).";
-  const cefr = `CEFR level ${level} (${LEVEL_DESCRIPTIONS[level]})`;
+    "\n\n## Variety\nInvent a specific, concrete situation on this theme: decide who " +
+    "is involved, where and when, and make it a little unexpected. Avoid the most " +
+    "obvious example for the theme (going to the market, today's weather…).";
+  const priority =
+    "\n\n## Priority\nIf two instructions conflict, the tense and the theme come first, " +
+    "then the level, then the variety.";
   switch (mode) {
     case "mot":
       return (
@@ -54,18 +68,26 @@ function instructions({ mode, level, tense, verbType, theme }: Combination) {
         `related to the theme "${theme}", that translates naturally into American English ` +
         "as a phrasal verb. Add a short context in parentheses if the meaning is ambiguous."
       );
-    case "phrase":
+    case "phrase": {
+      const imperative = tense === "impératif";
+      const person = pickOne(imperative ? IMPERATIVE_PERSONS : PERSONS);
+      const type = pickOne(imperative ? IMPERATIVE_TYPES : SENTENCE_TYPES);
       return (
         `Write one original French sentence at ${cefr}, ` +
         `using the French tense "${tense}" (${tense && TENSE_GUIDES[tense]}), ` +
-        `on the theme "${theme}".` +
-        variety
+        `on the theme "${theme}". The main verb uses the person "${person}", ` +
+        `and the sentence is a ${type}.` +
+        variety +
+        priority
       );
+    }
     case "paragraphe":
       return (
         `Write a short French paragraph of three linked sentences at ${cefr}, ` +
-        `on the theme "${theme}". Use varied logical connectors, not always the same ones.` +
-        variety
+        `on the theme "${theme}", mainly told with the person "${pickOne(PERSONS)}". ` +
+        "Use logical connectors that fit the level." +
+        variety +
+        priority
       );
   }
 }
@@ -93,11 +115,14 @@ export async function POST(request: Request) {
       "- Reusing the same structure or the same characters."
     : "";
   const review = data.review?.length
-    ? "\n\n## Review\nNaturally work in the following difficulty, without pointing it out: " +
+    ? "\n\n## Review\nThe learner recently made these mistakes. Write the item so it " +
+      "tests the same point again, without pointing it out:\n" +
       data.review
-        .map((item) => `${item.tag ?? "point"} (e.g. "${item.correction}")`)
-        .join(" ; ") +
-      "."
+        .map(
+          (item) =>
+            `- type "${item.tag ?? "autre"}", correct form: "${item.correction}"`,
+        )
+        .join("\n")
     : "";
 
   try {
@@ -116,7 +141,8 @@ export async function POST(request: Request) {
         "- situation: first, one short line in English describing the idea or situation",
         "  you chose (who, where, when), or the word's context for a single word or verb.",
         "- text: the item, always written in French, with no quotes, translation or explanation.",
-        "- reference: a natural, correct American English translation of text.",
+        "- reference: a natural, correct American English translation of text,",
+        "  with the same meaning and the equivalent tense, in American spelling.",
       ].join("\n"),
       prompt: "## Task\n" + instructions(combination) + avoid + review,
     });
