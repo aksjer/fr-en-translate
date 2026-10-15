@@ -45,7 +45,7 @@ export type Correction = {
 
 // What each tag covers, so the model files every mistake under the right one.
 const TAG_DEFINITIONS: Record<ErrorTag, string> = {
-  sens: "the meaning is wrong, missing or added",
+  sens: "the meaning is wrong, missing or added, or an idiom is translated word for word",
   "faux ami": "a false friend (actually for actuellement, library for librairie)",
   temps: "a wrong tense (I have seen him yesterday)",
   préposition: "a wrong, missing or extra preposition (depend of)",
@@ -157,6 +157,7 @@ export async function correctTranslation(
         "- false friends: actuellement = currently (not actually), éventuellement = possibly",
         "  (not eventually), librairie = bookstore (not library), sensible = sensitive",
         "  (not sensible), assister à = to attend (not to assist);",
+        "- idioms: translate the meaning, not the words (« il pleut des cordes » → it's pouring);",
         "- prepositions: depend on, arrive in or at, interested in, married to, listen to;",
         "- depuis → for or since + present perfect; il y a + a time → ago;",
         '- uncountable nouns: information, advice, news, furniture, homework (no plural, no "an");',
@@ -194,8 +195,8 @@ export async function correctTranslation(
         "- major: a wrong tense or verb form, another real grammar mistake (word order,",
         "  agreement, preposition), a wrong word a native speaker would not use",
         "  (make my homework), or a clearly unnatural phrasing.",
-        "- critical: part of the meaning is wrong, missing or added.",
-        "  A false friend is always critical.",
+        "- critical: part of the meaning is wrong, missing or added. A false friend, or an idiom",
+        "  translated word for word that an American wouldn't understand, is always critical.",
         "",
         "## Categories",
         ...ERROR_TAGS.map((tag) => `- ${tag}: ${TAG_DEFINITIONS[tag]}.`),

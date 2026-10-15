@@ -76,6 +76,9 @@ function hasWord(text: string, words: Set<string>) {
   );
 }
 
+// « l art » or « j ai »: a letter that needs an apostrophe before a vowel.
+const MISSING_APOSTROPHE = /(^|[\s«(])([cdjlmnst]|qu) [aeiouyhàâéèêëîïôûœ]/i;
+
 // The small words that make a verb a phrasal verb (give up, find out).
 const PARTICLES =
   /\b(up|out|off|down|on|in|over|back|away|through|around|about|along|into|after|for|by|across|apart|ahead|forward)\b/i;
@@ -210,6 +213,7 @@ async function evalGenerate(
             hasWord(exercise.text, ENGLISH_WORDS) && "English?",
             hasWord(exercise.text, SLANG_WORDS) && "slang?",
             sentenceMode && missingNe(exercise.text) && "no « ne »?",
+            MISSING_APOSTROPHE.test(exercise.text) && "missing apostrophe?",
             hasWord(exercise.reference, BRITISH_WORDS) && "British?",
             limit && words > limit && `${words} words (${limit} at most)`,
             // A word, verb or phrasal verb should never be a whole sentence.

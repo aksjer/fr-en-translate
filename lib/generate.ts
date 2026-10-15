@@ -93,6 +93,8 @@ function learner(mode: Mode, level: Level) {
 }
 
 function instructions({ mode, level, tense, verbType, theme }: Combination) {
+  // "A C1 learner should know" gave basic words such as lose at every level.
+  const levelFit = `that learners usually learn at CEFR ${level}, not at an easier level`;
   // The model invents the situation itself; this keeps it from always
   // falling back on the most typical sentence for the theme.
   const variety =
@@ -107,16 +109,16 @@ function instructions({ mode, level, tense, verbType, theme }: Combination) {
     case "mot":
       return (
         "Give a single French noun, adjective or adverb whose American English translation " +
-        `a ${level} learner should know, typical of this level rather than an easier one, ` +
-        `related to the theme "${theme}". Include the article for a noun (le, la, l', un, une). ` +
-        "Pick a word whose American English translation is clear and different from the " +
-        "French (not « un smartphone » → a smartphone). Give only the word, never a sentence."
+        `is a word ${levelFit}, related to the theme "${theme}". ` +
+        "Include the article for a noun (le, la, l', un, une). " +
+        "Pick a word whose American English translation is clear and looks different from " +
+        "the French (not « un smartphone » → a smartphone, or « généreux » → generous). " +
+        "Give only the word, never a sentence."
       );
     case "verbe":
       return (
         "Give a single French verb in the infinitive (e.g. « conduire ») whose American English " +
-        `translation is ${verbType === "irrégulier" ? "an irregular" : "a regular"} verb that a ${level} ` +
-        "learner should know, typical of this level rather than an easier one " +
+        `translation is ${verbType === "irrégulier" ? "an irregular" : "a regular"} verb ${levelFit} ` +
         "(go/went/gone is irregular, work/worked/worked is regular). " +
         "No verb that translates as a phrasal verb. " +
         "Give only the infinitive, never a sentence or a conjugated verb."
@@ -125,7 +127,7 @@ function instructions({ mode, level, tense, verbType, theme }: Combination) {
       return (
         "Give a French verb in the infinitive, or a short expression starting with one, " +
         `related to the theme "${theme}", that translates naturally into American English ` +
-        `as a phrasal verb a ${level} learner should know. Add a short context in parentheses ` +
+        `as a phrasal verb ${levelFit}. Add a short context in parentheses ` +
         "if the meaning is ambiguous (e.g. « abandonner (une habitude) » for give up), " +
         `with ${MAX_PHRASAL_VERB_WORDS} words at most in all. ` +
         "Never a sentence or a conjugated verb. The reference must be a real phrasal verb, " +
@@ -205,10 +207,15 @@ export async function generateExercise(
       verbType: review.verbType,
     },
   );
+  // Models got around the list by changing a word's context (éteindre la
+  // télévision, then la lumière) or by telling the same story again.
   const avoid = input.avoid?.length
     ? "\n\n## Avoid\n" +
       `- These items, already given: ${input.avoid.join(" ; ")}.\n` +
-      "- Reusing the same structure or the same characters."
+      (isWordMode(combination.mode)
+        ? "- One of these items with another context or article, or a word with the " +
+          "same English translation as one of them."
+        : "- Reusing the same structure, the same kind of event or the same characters.")
     : "";
 
   const item = await retryIfInvalid(async () => {
@@ -237,15 +244,16 @@ export async function generateExercise(
               ]
             : [
                 "- situation: first, one short line in English: the situation you chose",
-                "  (who, where, when), then the main French verb of each sentence,",
-                "  already conjugated.",
+                "  (who, where, when), then the main French verb of each of the three",
+                "  sentences, already conjugated.",
               ]),
         // "As people speak it today" gave slang and negations without « ne »;
         // "correct French" alone gave literary French.
         "- text: the item, in correct, modern French with a neutral register: no slang,",
         "  swear words or literary style, always the « ne » of a negation, and no passé",
         "  simple or imparfait du subjonctif. Use French punctuation (a space before",
-        "  ! ? : ;) and no quotes, translation or explanation.",
+        "  ! ? : ;) and no quotes, translation or explanation. Check the spelling, accents",
+        "  and apostrophes of every word.",
         "- reference: a natural, correct American English translation of text, with the",
         "  same meaning and the equivalent tense, in American words and spelling",
         "  (apartment, color, not flat, colour).",
