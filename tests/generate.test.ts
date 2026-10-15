@@ -130,11 +130,11 @@ test("asks for a neutral register and American words", async () => {
   assert.match(prompt, /in American words and spelling/);
 });
 
-test("word modes plan the English first, and a verb its three forms", async () => {
+test("word modes plan the English first", async () => {
   const model = mockModel(word);
   await generateExercise({ modes: ["verbe"], verbTypes: ["irrégulier"] }, model);
   const prompt = promptText(model);
-  assert.match(prompt, /only the English verb you chose and its three forms/);
+  assert.match(prompt, /only the English verb you chose, in the base form/);
   assert.match(prompt, /Being irregular matters more than the level/);
 });
 

@@ -175,9 +175,9 @@ function situationField(mode: Mode) {
       return [`${start} the English word you chose, then the context it is used in.`];
     case "verbe":
       return [
-        // With "then the context it is used in", 6/6 verbs came out as sentences.
-        `${start} only the English verb you chose and its three forms`,
-        '  (e.g. "base, past simple, past participle"), with no sentence.',
+        // Planning its three forms or its context made 6/6 verbs come out as
+        // sentences, twice: the plan is the English verb alone.
+        `${start} only the English verb you chose, in the base form.`,
       ];
     case "phrasal verb":
       return [
