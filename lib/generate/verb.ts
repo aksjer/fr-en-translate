@@ -14,6 +14,7 @@ import {
   reviewFor,
   reviewTask,
   tryAgainSection,
+  lenient,
   usableAnswers,
   withApostrophes,
   type Exercise,
@@ -53,7 +54,10 @@ function isRegular(verb: string, past: string, participle: string) {
 // Checks one verb in code. In a review, the verb keeps its own type, whatever
 // the settings.
 function checkedVerb(output: z.infer<typeof verbSchema>, verbType?: VerbType) {
-  const base = output.english.trim().toLowerCase().replace(/^to\s+/, "");
+  const base = output.english
+    .trim()
+    .toLowerCase()
+    .replace(/^to\s+/, "");
   const past = output.past.trim().toLowerCase();
   const participle = output.participle.trim().toLowerCase();
   const text = output.text.trim();
@@ -64,12 +68,17 @@ function checkedVerb(output: z.infer<typeof verbSchema>, verbType?: VerbType) {
   if (context.length > MAX_TEXT_LENGTH) {
     throw new InvalidAnswerError(`Context too long: ${context}`);
   }
-  if (/[.!?]$/.test(text) || text.replace(/\([^)]*\)/g, "").split(/\s+/).length > 6) {
+  if (
+    /[.!?]$/.test(text) ||
+    text.replace(/\([^)]*\)/g, "").split(/\s+/).length > 6
+  ) {
     throw new InvalidAnswerError(`A sentence instead of a verb: ${text}`);
   }
   const regular = isRegular(base, past, participle);
   if (verbType && regular !== (verbType === "regular")) {
-    throw new InvalidAnswerError(`Not ${verbType}: ${base}, ${past}, ${participle}`);
+    throw new InvalidAnswerError(
+      `Not ${verbType}: ${base}, ${past}, ${participle}`,
+    );
   }
   return {
     english: base,
@@ -104,7 +113,9 @@ export async function generateVerb(
       maxRetries: 1,
       maxOutputTokens: review ? 1000 : 2000,
       output: Output.object({
-        schema: (review ? verbSchema : z.object({ verbs: z.array(verbSchema) })) as z.ZodType<
+        schema: lenient(
+          review ? verbSchema : z.object({ verbs: z.array(verbSchema) }),
+        ) as z.ZodType<
           z.infer<typeof verbSchema> | { verbs: z.infer<typeof verbSchema>[] }
         >,
       }),
@@ -116,7 +127,9 @@ export async function generateVerb(
         "## Fields, in this order",
         ...(review
           ? []
-          : [`verbs: ${CANDIDATES} different verbs, best first, each with these fields:`]),
+          : [
+              `verbs: ${CANDIDATES} different verbs, best first, each with these fields:`,
+            ]),
         '- english: the verb, in its base form, one word, without "to".',
         "- past: its simple past in American English.",
         "- participle: its past participle in American English (gotten, not got).",
@@ -153,11 +166,24 @@ export async function generateVerb(
     });
     const answers = review
       ? [output as z.infer<typeof verbSchema>]
-      : (output as { verbs: z.infer<typeof verbSchema>[] }).verbs.slice(0, CANDIDATES);
-    const usable = usableAnswers(answers, (answer) =>
+      : (output as { verbs: z.infer<typeof verbSchema>[] }).verbs.slice(
+          0,
+          CANDIDATES,
+        );
+    let usable = usableAnswers(answers, (answer) =>
       checkedVerb(answer, review ? undefined : verbType),
     );
-    if (!usable.length) throw new InvalidAnswerError("No usable verb");
+    // The second time, a verb of the other type is better than an error.
+    if (!usable.length && attempt > 1)
+      usable = usableAnswers(answers, (answer) => checkedVerb(answer));
+    if (!usable.length) {
+      if (!review)
+        tryAgain =
+          "\n\n## Try again\nYour last verbs weren't " +
+          `${verbType}: ${answers.map((answer) => answer.english).join(", ")}. ` +
+          `Give ${CANDIDATES} ${verbType} verbs.`;
+      throw new InvalidAnswerError("No usable verb");
+    }
     const chosen = chooseAnswer(usable, { known, recent, review });
     if (chosen) return { ...chosen, fits: true };
     if (attempt > 1) return { ...usable[0], fits: false };

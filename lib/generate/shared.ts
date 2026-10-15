@@ -51,7 +51,11 @@ const reviewItemSchema = z.object({
 export type ReviewItem = z.infer<typeof reviewItemSchema>;
 
 export const generateInputSchema = settingsSchema.extend({
-  history: z.array(historyItemSchema).max(MAX_HISTORY).optional().catch(undefined),
+  history: z
+    .array(historyItemSchema)
+    .max(MAX_HISTORY)
+    .optional()
+    .catch(undefined),
   // The English of the items the learner got right, by mode: never given again.
   // A page from before this field changed shape sends none.
   known: z
@@ -97,8 +101,7 @@ export const GOAL =
 // The level is the learner's English level: any French is easy for them, so what
 // matters is the English the translation needs.
 export function learner(mode: Mode, level: Level) {
-  const intro =
-    `## Learner\nA native French speaker learning American English, at CEFR ${level} in English.`;
+  const intro = `## Learner\nA native French speaker learning American English, at CEFR ${level} in English.`;
   if (isWordMode(mode)) return intro;
   return `${intro} The French is never the difficulty: the English needed to translate it is.`;
 }
@@ -118,12 +121,17 @@ export function commonAt(level: Level, kind: string) {
 // it back. Only l', since a lone d or j can be a letter (la vitamine D, le jour J).
 export function withApostrophes(text: string) {
   const apostrophe = text.includes("’") ? "’" : "'";
-  return text.replace(/(^|[\s«(])(l) (?=[aeiouyhàâéèêëîïôûœ])/giu, `$1$2${apostrophe}`);
+  return text.replace(
+    /(^|[\s«(])(l) (?=[aeiouyhàâéèêëîïôûœ])/giu,
+    `$1$2${apostrophe}`,
+  );
 }
 
 // The items of this mode the learner got right, and the recent ones.
 export function history(input: GenerateInput, mode: Mode) {
-  const known = isWordMode(mode) ? (input.known?.[mode as "word" | "verb"] ?? []) : [];
+  const known = isWordMode(mode)
+    ? (input.known?.[mode as "word" | "verb"] ?? [])
+    : [];
   // Only the items of this mode, so a word isn't compared with sentences.
   const recent = (input.history ?? [])
     .filter((item) => item.mode === mode)
@@ -141,7 +149,11 @@ export function reviewFor(input: GenerateInput, mode: "word" | "verb") {
 }
 
 // The task of a review: one of the missed items, as is, with a new context.
-export function reviewTask(items: ReviewItem[], mode: "word" | "verb", theme?: string) {
+export function reviewTask(
+  items: ReviewItem[],
+  mode: "word" | "verb",
+  theme?: string,
+) {
   const lines = items.map(
     (item) => `- « ${item.text} »${item.english ? ` → ${item.english}` : ""}`,
   );
@@ -191,8 +203,40 @@ export function chooseAnswer<T extends Choice>(
     rules.recent.flatMap((item) => (item.english ? [] : [sameText(item.text)])),
   );
   return answers.find(
-    (answer) => !english.has(answer.english) && !texts.has(sameText(answer.text)),
+    (answer) =>
+      !english.has(answer.english) && !texts.has(sameText(answer.text)),
   );
+}
+
+// Some small models wrap each field as {"type": "string", "value": "..."} and
+// add "type"/"properties" keys: this gives back the plain values.
+function unwrapValues(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(unwrapValues);
+  if (!value || typeof value !== "object") return value;
+  const fields = value as Record<string, unknown>;
+  if (
+    typeof fields.value === "string" &&
+    Object.keys(fields).every((key) => key === "type" || key === "value")
+  )
+    return fields.value;
+  return Object.fromEntries(
+    Object.entries(fields)
+      .filter(
+        ([key, field]) =>
+          !(
+            key === "properties" &&
+            field &&
+            typeof field === "object" &&
+            !Object.keys(field).length
+          ),
+      )
+      .map(([key, field]) => [key, unwrapValues(field)]),
+  );
+}
+
+// The schema given to Output.object, accepting wrapped values too.
+export function lenient<T extends z.ZodType>(schema: T) {
+  return z.preprocess(unwrapValues, schema);
 }
 
 // Told to the model when its first answers can't be used.
@@ -211,9 +255,11 @@ export function tryAgainSection(answers: Choice[], review: boolean) {
 export function historySection(items: HistoryItem[], mode: Mode) {
   if (!items.length) return "";
   const lines = items.map((item, index) => {
-    const english = isWordMode(mode) && item.english ? ` → ${item.english}` : "";
+    const english =
+      isWordMode(mode) && item.english ? ` → ${item.english}` : "";
     // The last 5 sentences can give the next one its extra learning point.
-    const recent = !isWordMode(mode) && items.length - index <= 5 ? " (recent)" : "";
+    const recent =
+      !isWordMode(mode) && items.length - index <= 5 ? " (recent)" : "";
     const result =
       item.ok === undefined
         ? "skipped"
@@ -265,7 +311,9 @@ function checkedItem(output: ItemAnswer, mode: Mode) {
   if (text !== raw) console.warn("Added a missing apostrophe:", raw);
   const reference = output.reference.trim();
   const context =
-    output.context === undefined ? undefined : withApostrophes(output.context.trim());
+    output.context === undefined
+      ? undefined
+      : withApostrophes(output.context.trim());
   if (!text || !reference || context === "") {
     throw new InvalidAnswerError("Empty item, context or reference");
   }
@@ -280,7 +328,12 @@ function checkedItem(output: ItemAnswer, mode: Mode) {
   ) {
     throw new InvalidAnswerError(`Item too long (${text.length} characters)`);
   }
-  return { text, reference, english: englishKey(reference), ...(context && { context }) };
+  return {
+    text,
+    reference,
+    english: englishKey(reference),
+    ...(context && { context }),
+  };
 }
 
 // Keeps the answers that pass the code's checks, and drops the others.
@@ -304,7 +357,12 @@ export function usableAnswers<T, U>(answers: T[], check: (answer: T) => U) {
 export async function generateItem(
   input: GenerateInput,
   combination: Combination,
-  prompt: { fields: string[]; task: string; sections?: string; review?: ReviewItem[] },
+  prompt: {
+    fields: string[];
+    task: string;
+    sections?: string;
+    review?: ReviewItem[];
+  },
 ): Promise<Exercise> {
   const { mode, level } = combination;
   const { known, recent } = history(input, mode);
@@ -324,9 +382,9 @@ export async function generateItem(
       // JSON isn't cut short.
       maxOutputTokens: several ? 2500 : 1500,
       output: Output.object({
-        schema: (several ? z.object({ items: z.array(schema) }) : schema) as z.ZodType<
-          ItemAnswer | { items: ItemAnswer[] }
-        >,
+        schema: lenient(
+          several ? z.object({ items: z.array(schema) }) : schema,
+        ) as z.ZodType<ItemAnswer | { items: ItemAnswer[] }>,
       }),
       system: [
         "You are an American English teacher for a French speaker. You write an item in",
@@ -334,7 +392,9 @@ export async function generateItem(
         "",
         "## Fields, in this order",
         ...(several
-          ? [`items: ${CANDIDATES} different items, best first, each with these fields:`]
+          ? [
+              `items: ${CANDIDATES} different items, best first, each with these fields:`,
+            ]
           : []),
         ...prompt.fields,
       ].join("\n"),
@@ -353,10 +413,16 @@ export async function generateItem(
     const answers = several
       ? (output as { items: ItemAnswer[] }).items.slice(0, CANDIDATES)
       : [output as ItemAnswer];
-    const usable = usableAnswers(answers, (answer) => checkedItem(answer, mode));
+    const usable = usableAnswers(answers, (answer) =>
+      checkedItem(answer, mode),
+    );
     if (!usable.length) throw new InvalidAnswerError("No usable item");
     if (!isWordMode(mode)) return { ...usable[0], fits: true };
-    const chosen = chooseAnswer(usable, { known, recent, review: prompt.review });
+    const chosen = chooseAnswer(usable, {
+      known,
+      recent,
+      review: prompt.review,
+    });
     if (chosen) return { ...chosen, fits: true };
     if (attempt > 1) return { ...usable[0], fits: false };
     tryAgain = tryAgainSection(usable, Boolean(prompt.review));
