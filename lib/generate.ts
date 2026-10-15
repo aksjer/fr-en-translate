@@ -141,8 +141,12 @@ function instructions(
     case "verbe":
       return (
         `Give the most common French infinitive for the American English verb "to ${verb}" ` +
-        "(e.g. « conduire » for to drive). Give only the infinitive, never a sentence " +
-        "or a conjugated verb."
+        "(e.g. « conduire » for to drive). If this infinitive often means something else " +
+        "too, add a short context in parentheses that points to this meaning " +
+        "(e.g. « louer (un appartement) » for to rent, since louer can also mean to praise). " +
+        "Never a French verb that looks like the English one but means something else " +
+        "(to attend is « assister à », not « attendre »). " +
+        "Give only the infinitive, never a sentence or a conjugated verb."
       );
     case "phrasal verb":
       return (

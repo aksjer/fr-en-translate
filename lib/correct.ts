@@ -95,10 +95,15 @@ export const correctionSchema = z.object({
 const MODE_RULES: Record<Mode, string> = {
   mot:
     "The learner translates a single word. Accept any correct American English synonym, " +
-    "with or without an article. In the praise, mention one or two other useful equivalents.",
+    "with or without an article. If the word has several meanings and no context in " +
+    "parentheses, accept a correct translation of any of them. " +
+    "In the praise, mention one or two other useful equivalents.",
   verbe:
     "The learner translates an infinitive verb. Accept it with or without \"to\" " +
-    "and any correct synonym. In the praise, always give the three forms " +
+    "and any correct synonym. If the infinitive has several meanings and no context in " +
+    "parentheses (« louer » alone is to rent or to praise), accept a correct translation " +
+    "of any of them: the learner can't see the reference, so never mention a context " +
+    "the French item doesn't give. In the praise, always give the three forms " +
     "(base, past simple, past participle) and say whether the verb is regular or irregular.",
   "phrasal verb":
     "A phrasal verb is expected. A correct simple verb instead of a phrasal verb is " +
@@ -143,7 +148,8 @@ export async function correctTranslation(
         "- Several translations can be correct.",
         `- ${MODE_RULES[input.mode]}`,
         "- The French item is between <french> tags. A reference translation may be given",
-        "  between <reference> tags: it is one correct answer, not the only one.",
+        "  between <reference> tags: it is one correct answer, not the only one, and it can be",
+        "  wrong. Always grade against the meaning of the French item.",
         "- The French tense is only a hint: judge the English tense by meaning, and accept any tense",
         "  a native speaker would naturally use for this French",
         '  (e.g. « J\'habite ici depuis 2010 » → "I have lived here since 2010").',
@@ -188,8 +194,9 @@ export async function correctTranslation(
         "  words as possible. If translated is false, give a correct translation instead.",
         "  Wrap in ** ** every word added, changed or missing, accents and punctuation included",
         '  (e.g. "I **am** going to the **café**.").',
-        "- alternative: another natural American English version at the learner's level,",
-        "  different from both the learner's translation and the correction.",
+        "- alternative: another correct and natural American English version at the learner's",
+        "  level, with the same meaning as the correction and different from both it and",
+        "  the learner's translation.",
         "",
         "## Severity",
         "- minor: spelling, punctuation, British spelling (colour, realise…),",

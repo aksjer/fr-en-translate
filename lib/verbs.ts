@@ -3,7 +3,9 @@ import type { Level, VerbType } from "@/lib/options";
 // English verbs by type and by the CEFR level learners usually learn them at,
 // in American English. The code picks one and the model only translates it:
 // asked to choose a verb itself, the model kept writing a sentence instead.
-// Verbs that look like their French translation (decide, prefer) are left out.
+// Verbs that look like their French translation (decide, prefer) are left out,
+// and so are false friends: asked for "pretend", the model gave « prétendre »,
+// which means to claim (achieve, argue, resent, deliver… are the same trap).
 const IRREGULAR: Record<Level, string[]> = {
   A1: ["be", "have", "do", "go", "come", "eat", "drink", "see", "make", "get", "give", "take", "write", "read", "sleep", "buy", "sit", "speak", "swim", "run"],
   A2: ["begin", "bring", "choose", "drive", "fall", "feel", "find", "forget", "hear", "know", "leave", "lose", "meet", "pay", "put", "sell", "send", "sing", "teach", "tell", "think", "understand", "wear", "win"],
@@ -16,9 +18,9 @@ const IRREGULAR: Record<Level, string[]> = {
 const REGULAR: Record<Level, string[]> = {
   A1: ["work", "play", "like", "love", "live", "watch", "listen", "walk", "want", "cook", "clean", "open", "close", "help", "start", "call", "talk", "wash", "stay"],
   A2: ["ask", "borrow", "travel", "carry", "enjoy", "finish", "hope", "look", "miss", "move", "need", "remember", "try", "wait", "worry", "push", "pull", "laugh", "cry", "learn"],
-  B1: ["allow", "avoid", "complain", "deliver", "earn", "fail", "hurry", "improve", "notice", "offer", "promise", "share", "suggest", "wonder", "warn", "apologize", "belong", "manage", "rely", "follow"],
-  B2: ["achieve", "argue", "attempt", "claim", "encourage", "ignore", "owe", "pretend", "resign", "struggle", "threaten", "urge", "bother", "blame", "cheat", "hesitate", "obey", "regret", "tease", "whisper"],
-  C1: ["acknowledge", "convey", "deter", "enhance", "hinder", "jeopardize", "mitigate", "overlook", "postpone", "reassure", "resent", "scrutinize", "undermine", "weigh", "dwindle", "foster", "hamper", "loom", "thrive", "yearn"],
+  B1: ["allow", "avoid", "complain", "breathe", "earn", "fail", "hurry", "improve", "notice", "offer", "promise", "share", "suggest", "wonder", "warn", "apologize", "belong", "manage", "rely", "follow"],
+  B2: ["swallow", "scratch", "attempt", "claim", "encourage", "shiver", "owe", "rescue", "grumble", "struggle", "threaten", "urge", "bother", "blame", "cheat", "hesitate", "obey", "regret", "tease", "whisper"],
+  C1: ["acknowledge", "convey", "deter", "enhance", "hinder", "jeopardize", "mitigate", "overlook", "postpone", "reassure", "dread", "scrutinize", "undermine", "weigh", "dwindle", "foster", "hamper", "loom", "thrive", "yearn"],
   C2: ["appease", "ascertain", "placate", "relinquish", "reprimand", "belittle", "bolster", "cajole", "dither", "flout", "goad", "rebuke", "scold", "squander", "thwart", "wane", "wheedle", "wield"],
 };
 

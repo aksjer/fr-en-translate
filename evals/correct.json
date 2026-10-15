@@ -258,6 +258,26 @@
     "note": "Infinitive without to is accepted too."
   },
   {
+    "id": "verb-other-meaning",
+    "mode": "verbe",
+    "level": "A2",
+    "text": "porter",
+    "reference": "to wear",
+    "translation": "carry",
+    "expected": [9, 10],
+    "note": "Porter alone also means to carry, and the learner can't see the reference."
+  },
+  {
+    "id": "verb-wrong-reference",
+    "mode": "verbe",
+    "level": "B2",
+    "text": "prétendre",
+    "reference": "to pretend",
+    "translation": "claim",
+    "expected": [9, 10],
+    "note": "The reference is a false friend: prétendre means to claim."
+  },
+  {
     "id": "word-american-synonym",
     "mode": "mot",
     "level": "A2",
