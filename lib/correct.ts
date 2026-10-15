@@ -10,6 +10,7 @@ import {
 } from "@/lib/model";
 import { MODELS } from "@/lib/model-list";
 import {
+  englishKey,
   isWordMode,
   LEVELS,
   MAX_TEXT_LENGTH,
@@ -155,6 +156,11 @@ function verbForms(output: CorrectionOutput): Correction["forms"] {
     : undefined;
 }
 
+// A word-mode answer without what the rules let the learner leave out.
+function answerKey(text: string) {
+  return englishKey(text.replace(/\*\*/g, "").replace(/[.!?]+\s*$/, ""));
+}
+
 // Asks the model to grade one translation.
 export async function correctTranslation(rawInput: CorrectInput): Promise<Correction> {
   const input = correctInputSchema.parse(rawInput);
@@ -248,9 +254,12 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
         ...(wordMode
           ? [
               "- example: one short, natural American English sentence at the learner's level",
-              "  that uses the translation of the correction, wrapped in ** **",
-              '  (e.g. "I **borrowed** my sister\'s car for the weekend.").',
-              "- exampleFrench: the French translation of the example.",
+              "  that uses the translation of the correction in the form the sentence needs",
+              '  (conjugated, without "to"), wrapped in ** **',
+              '  (e.g. "I **borrowed** my sister\'s car for the weekend."). Make it different',
+              "  from the French context sentence, if one is given.",
+              "- exampleFrench: the French translation of the example, with the French word",
+              "  wrapped in ** ** too.",
               ...(input.mode === "verbe"
                 ? [
                     "- base, past, participle: the base form, simple past and past participle,",
@@ -309,7 +318,11 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
     return output;
   });
 
-  const mistakes = output.mistakes
+  // Models sometimes count a missing "to" or article as a mistake although the
+  // rules accept it: an answer equal to its correction but for these has none.
+  const sameAsCorrection =
+    wordMode && answerKey(input.translation) === answerKey(output.correction);
+  const mistakes = (sameAsCorrection ? [] : output.mistakes)
     .map((mistake) => ({
       ...mistake,
       remark: mistake.remark.trim(),

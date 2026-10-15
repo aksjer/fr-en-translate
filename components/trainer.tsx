@@ -355,8 +355,8 @@ export function Trainer() {
               <p lang="en-US" className="text-lg">
                 <Marked text={result.example.english} />
               </p>
-              <p className="text-zinc-600 dark:text-zinc-400">
-                {result.example.french}
+              <p lang="fr" className="text-zinc-600 dark:text-zinc-400">
+                <Marked text={result.example.french} />
               </p>
             </div>
           )}
