@@ -88,8 +88,17 @@ function learner(mode: Mode, level: Level) {
 function commonAt(level: Level, kind: string) {
   return level === "C2"
     ? `an advanced ${kind}, beyond the Oxford 5000, that learners usually learn at CEFR C2`
-    : `a common ${kind} from the Oxford 5000 that learners usually learn at CEFR ${level}, ` +
-        "not at an easier level";
+    : `a ${kind} common in American English (COCA) from the Oxford 5000 that learners ` +
+        `usually learn at CEFR ${level}, not at an easier level`;
+}
+
+// Sentences get the same frequency lists as words, so they use useful English.
+function sentenceVocabulary(level: Level) {
+  return (
+    "\nBuild it so its American English translation uses common words (Oxford 5000, COCA) " +
+    `at or below CEFR ${level}, plus one or two words or one structure typical of ` +
+    `${level}, so it teaches something new.`
+  );
 }
 
 function instructions({ mode, level, tense, theme }: Combination) {
@@ -145,7 +154,9 @@ function instructions({ mode, level, tense, theme }: Combination) {
           ? "(tu, nous or vous) and whether it is a statement or a negation, "
           : "(je, tu, il, elle, on, nous, vous, ils or elles) and the sentence type " +
             "(statement, question, negation or exclamation), ") +
-        "different from the last items of the history.\n" +
+        "different from the last items of the history." +
+        sentenceVocabulary(level) +
+        "\n" +
         `About this tense: ${tense && TENSE_GUIDES[tense]}.` +
         variety +
         priority
@@ -160,6 +171,7 @@ function instructions({ mode, level, tense, theme }: Combination) {
         `Each sentence has ${SENTENCE_WORDS[level]} words. ` +
         "Each sentence follows logically from the one before. Use a connector only where " +
         "a native speaker would (mais, alors, parce que, quand…), not at the start of every sentence." +
+        sentenceVocabulary(level) +
         variety +
         priority
       );
