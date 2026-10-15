@@ -67,6 +67,8 @@ export type Exercise = Combination & {
   reference: string;
   // A verb's base form, past simple and past participle.
   forms?: [string, string, string];
+  // A French sentence using a verb in the meaning to translate (tirer: pull or shoot).
+  context?: string;
 };
 
 // The level is the learner's English level: any French is easy for them, so what
@@ -260,6 +262,7 @@ export const verbSchema = z.object({
   past: z.string(),
   participle: z.string(),
   text: z.string(),
+  context: z.string(),
 });
 
 // A regular verb's past and participle are the same -ed form built on it
@@ -350,6 +353,10 @@ async function generateVerb(
         "  in parentheses that points to this meaning (e.g. « louer (un appartement) » for",
         "  rent, since louer can also mean to praise). Only the infinitive, never a sentence",
         "  or a conjugated verb, with no quotation marks. Check its spelling and accents.",
+        "- context: one short, natural French sentence at the learner's level that uses",
+        "  this French verb, conjugated, in the meaning of the English verb, so the learner",
+        "  knows which meaning to translate (e.g. « Nous louons un appartement près de la",
+        "  plage. » for rent). Check its spelling and accents.",
       ].join("\n"),
       prompt:
         learner("verbe", level) +
@@ -366,8 +373,12 @@ async function generateVerb(
     const past = output.past.trim().toLowerCase();
     const participle = output.participle.trim().toLowerCase();
     const text = output.text.trim();
-    if (!/^[a-z]+$/.test(base) || !past || !participle || !text) {
+    const context = output.context.trim();
+    if (!/^[a-z]+$/.test(base) || !past || !participle || !text || !context) {
       throw new InvalidAnswerError(`Not a verb: ${base}`);
+    }
+    if (context.length > MAX_TEXT_LENGTH) {
+      throw new InvalidAnswerError(`Context too long: ${context}`);
     }
     if (/[.!?]$/.test(text) || text.replace(/\([^)]*\)/g, "").split(/\s+/).length > 6) {
       throw new InvalidAnswerError(`A sentence instead of a verb: ${text}`);
@@ -378,13 +389,20 @@ async function generateVerb(
     if (attempt === 1 && known.includes(base)) {
       throw new InvalidAnswerError(`Already known: ${base}`);
     }
-    return { base, past, participle, text: withApostrophes(text) };
+    return {
+      base,
+      past,
+      participle,
+      text: withApostrophes(text),
+      context: withApostrophes(context),
+    };
   });
 
   return {
     text: verb.text,
     reference: `to ${verb.base}`,
     forms: [verb.base, verb.past, verb.participle],
+    context: verb.context,
     ...combination,
   };
 }

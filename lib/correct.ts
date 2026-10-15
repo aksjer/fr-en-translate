@@ -27,6 +27,8 @@ export const correctInputSchema = z.object({
   tense: z.enum(TENSES).optional(),
   // A good translation from generation, used as one correct answer among others.
   reference: z.string().trim().max(MAX_TEXT_LENGTH).optional(),
+  // A French sentence the learner sees under a verb, showing its meaning.
+  context: z.string().trim().max(MAX_TEXT_LENGTH).optional(),
   // A removed model saved in the browser falls back to the default instead of failing.
   model: z.enum(MODELS).optional().catch(undefined),
 });
@@ -123,7 +125,7 @@ const MODE_RULES: Record<Mode, string> = {
 
 // Tags typed in a text are removed, so it can't close its block early.
 function untagged(text: string) {
-  return text.replace(/<\/?(french|reference|translation)>/gi, "");
+  return text.replace(/<\/?(french|context|reference|translation)>/gi, "");
 }
 
 // Asks the model to grade one translation.
@@ -152,9 +154,12 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
         "  learner sees it. Several translations can be correct: the reference between",
         "  <reference> tags, when given, is only one of them, and it can be wrong. The learner",
         "  can't see it, so a difference from it is never a mistake by itself.",
-        "- If the French item can mean several things and nothing in it says which",
-        "  (« louer » alone is to rent or to praise), accept a correct translation of any of",
-        "  them, and never mention a context the item doesn't give.",
+        "- A French sentence between <context> tags, when given, shows the learner which",
+        "  meaning of the item to translate: grade against that meaning only. The learner",
+        "  translates the item, not the sentence.",
+        "- If the French item can mean several things and nothing in it or its context says",
+        "  which (« louer » alone is to rent or to praise), accept a correct translation of",
+        "  any of them, and never mention a context the learner wasn't given.",
         `- ${MODE_RULES[input.mode]}`,
         ...(wordMode
           ? []
@@ -246,6 +251,7 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
         input.tense &&
           `French tense: ${input.tense} (${TENSE_GUIDES[input.tense]})`,
         `<french>${untagged(input.text)}</french>`,
+        input.context && `<context>${untagged(input.context)}</context>`,
         input.reference &&
           `<reference>${untagged(input.reference)}</reference>`,
         `<translation>${untagged(input.translation)}</translation>`,

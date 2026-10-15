@@ -26,6 +26,7 @@ type Exercise = Combination & {
   text: string;
   reference?: string;
   forms?: [string, string, string];
+  context?: string;
 };
 
 type Correction = {
@@ -141,6 +142,7 @@ export function Trainer() {
         level: exercise.level,
         tense: exercise.tense,
         reference: exercise.reference,
+        context: exercise.context,
         model: settings.model,
       });
       setResult(correction);
@@ -240,6 +242,11 @@ export function Trainer() {
             >
               {exercise.text}
             </p>
+            {exercise.context && (
+              <p lang="fr" className="text-zinc-500 italic">
+                {exercise.context}
+              </p>
+            )}
           </div>
 
           <form
