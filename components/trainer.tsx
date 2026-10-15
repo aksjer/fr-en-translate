@@ -3,26 +3,19 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { SettingsPanel } from "@/components/settings-panel";
 import {
-  addMistake,
-  countExercise,
-  getDueSnapshot,
-  getServerDueSnapshot,
   getServerStatsSnapshot,
   getStatsSnapshot,
   recordAnswer,
-  recordReview,
-  subscribeMistakes,
+  subscribeStats,
   type ErrorTag,
-  type Mistake,
 } from "@/lib/mistakes";
-import { englishKey, isWordMode, MAX_TEXT_LENGTH, MODES } from "@/lib/options";
+import { englishKey, isWordMode, MAX_HISTORY, MAX_TEXT_LENGTH } from "@/lib/options";
 import type { Combination } from "@/lib/settings";
 import {
-  isSeen,
-  MAX_SENT,
   readKnown,
   readSeen,
   rememberKnown,
+  rememberResult,
   rememberSeen,
 } from "@/lib/seen-items";
 import { speak } from "@/lib/speak";
@@ -89,16 +82,8 @@ export function Trainer() {
   const [error, setError] = useState<string | null>(null);
   // Settings used for the current exercise, to know when they've changed since.
   const [exerciseSettings, setExerciseSettings] = useState<string | null>(null);
-  // The mistake reviewed in the current exercise, if it is a review.
-  const [reviewId, setReviewId] = useState<string | null>(null);
-  // Mistakes due for review now, stored in this browser.
-  const due = useSyncExternalStore(
-    subscribeMistakes,
-    getDueSnapshot,
-    getServerDueSnapshot,
-  );
   const stats = useSyncExternalStore(
-    subscribeMistakes,
+    subscribeStats,
     getStatsSnapshot,
     getServerStatsSnapshot,
   );
@@ -117,41 +102,21 @@ export function Trainer() {
     if (exercise && !result) inputRef.current?.focus();
   }, [exercise]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Recent items from this browser, so the API varies its exercises.
-  // A due mistake comes back in its own mode, level and tense, without being named.
-  function requestExercise(toReview: Mistake | undefined) {
-    const avoid = readSeen()
-      .slice(-MAX_SENT)
-      .map((item) => ({ ...item, text: item.text.slice(0, 80) }));
-    const review = toReview && {
-      mode: toReview.mode,
-      level: toReview.level,
-      tense: toReview.tense,
-      verbType: toReview.verbType,
-      text: toReview.text.slice(0, 80),
-      correction: toReview.correction,
-      remark: toReview.remark,
-      tag: toReview.tag,
-    };
-    const known = readKnown();
-    return post<Exercise>("/api/generate", { ...settings, avoid, known, review });
-  }
-
   async function generate() {
     setLoading("generate");
     setError(null);
     try {
-      // Only a mistake in a selected mode comes back (older ones count as sentences).
-      const modes: readonly string[] = settings.modes?.length
-        ? settings.modes
-        : MODES;
-      const toReview = due.find((item) => modes.includes(item.mode ?? "phrase"));
-      let next = await requestExercise(toReview);
-      // One retry if the item was already seen here.
-      if (isSeen(next.text)) next = await requestExercise(toReview);
-      countExercise();
+      // The recent exercises and their results, and the items already learned:
+      // the model chooses the next item from them.
+      const history = readSeen()
+        .slice(-MAX_HISTORY)
+        .map((item) => ({ ...item, text: item.text.slice(0, 300) }));
+      const next = await post<Exercise>("/api/generate", {
+        ...settings,
+        history,
+        known: readKnown(),
+      });
       setExercise(next);
-      setReviewId(toReview?.id ?? null);
       setExerciseSettings(JSON.stringify(settings));
       rememberSeen(next.text, next.mode);
       setTranslation("");
@@ -179,23 +144,18 @@ export function Trainer() {
       });
       setResult(correction);
       recordAnswer(correction);
+      const english =
+        isWordMode(exercise.mode) && exercise.reference
+          ? englishKey(exercise.reference)
+          : undefined;
+      rememberResult(exercise.text, {
+        english,
+        ok: correction.isCorrect,
+        tag: correction.isCorrect ? undefined : correction.tag,
+        remark: correction.isCorrect ? undefined : correction.lesson,
+      });
       // A word, verb or phrasal verb answered right never comes back.
-      if (isWordMode(exercise.mode) && correction.isCorrect && exercise.reference) {
-        rememberKnown(exercise.mode, englishKey(exercise.reference));
-      }
-      if (!correction.isCorrect) {
-        addMistake({
-          text: exercise.text,
-          level: exercise.level,
-          mode: exercise.mode,
-          tense: exercise.tense,
-          verbType: exercise.verbType,
-          correction: correction.correction,
-          remark: correction.lesson,
-          tag: correction.tag,
-        });
-      }
-      if (reviewId) recordReview(reviewId, correction.isCorrect);
+      if (english && correction.isCorrect) rememberKnown(exercise.mode, english);
     } catch (e) {
       setError((e as Error).message);
     } finally {

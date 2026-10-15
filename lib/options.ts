@@ -18,6 +18,10 @@ export const MAX_TEXT_LENGTH = 1000;
 // this many per mode, the most recent ones.
 export const MAX_KNOWN = 1000;
 
+// The recent exercises sent with their results, all modes together: the
+// server keeps the last ones of the mode it picks.
+export const MAX_HISTORY = 100;
+
 // The English an item is known by: "to wear" → wear, "the couch" → couch,
 // without the context in parentheses.
 export function englishKey(reference: string) {

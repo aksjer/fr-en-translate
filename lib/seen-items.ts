@@ -1,20 +1,23 @@
 import { MAX_KNOWN, type Mode } from "@/lib/options";
 
-// Items already shown to this learner, kept in this browser only.
-// The last ones are sent to the API so it avoids repeating them.
+// The exercises shown to this learner and how they did, kept in this browser
+// only. The last ones are sent to the API, so the model can vary its items and
+// test a missed point again.
 
 const STORAGE_KEY = "fr-en-translate:seen";
 const MAX_STORED = 500;
-// Items of every mode are sent: the server keeps the ones of the mode it picks.
-export const MAX_SENT = 40;
 
-// Items saved before the mode was stored have none.
-export type SeenItem = { text: string; mode?: Mode };
-
-// Without the context in parentheses, so a word given again with another context
-// (« se rattraper », then « se rattraper (le temps perdu) ») counts as seen.
-const normalize = (text: string) =>
-  text.replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+// Items saved before the mode or the result was stored have none.
+export type SeenItem = {
+  text: string;
+  mode?: Mode;
+  // The English of a word, verb or phrasal verb.
+  english?: string;
+  // Right or wrong; none if the item wasn't answered.
+  ok?: boolean;
+  tag?: string;
+  remark?: string;
+};
 
 export function readSeen(): SeenItem[] {
   try {
@@ -31,18 +34,25 @@ export function readSeen(): SeenItem[] {
   }
 }
 
-export function isSeen(text: string) {
-  const target = normalize(text);
-  return readSeen().some((item) => normalize(item.text) === target);
+function writeSeen(items: SeenItem[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items.slice(-MAX_STORED)));
+  } catch {
+    // Not saved: the model may repeat this item, which is acceptable.
+  }
 }
 
 export function rememberSeen(text: string, mode: Mode) {
-  try {
-    const items = [...readSeen(), { text: text.trim(), mode }].slice(-MAX_STORED);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  } catch {
-    // Not saved: the next exercise may repeat this item, which is acceptable.
-  }
+  writeSeen([...readSeen(), { text: text.trim(), mode }]);
+}
+
+// Adds the result to the last time this item was shown.
+export function rememberResult(text: string, result: Omit<SeenItem, "text" | "mode">) {
+  const items = readSeen();
+  const index = items.findLastIndex((item) => item.text === text.trim());
+  if (index === -1) return;
+  items[index] = { ...items[index], ...result };
+  writeSeen(items);
 }
 
 // Words, verbs and phrasal verbs the learner translated correctly, by their
