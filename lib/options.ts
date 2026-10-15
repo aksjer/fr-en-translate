@@ -16,13 +16,22 @@ export const MAX_TEXT_LENGTH = 1000;
 
 // The English each CEFR level needs, for the generation prompt. The learner is
 // French, so the level is about the English they must write, not the French.
-export const LEVEL_DESCRIPTIONS: Record<(typeof LEVELS)[number], string> = {
-  A1: "very common words; simple present, present continuous, can, there is / are",
-  A2: "common everyday words; simple past, going to, comparatives, some / any",
-  B1: "everyday and work vocabulary; present perfect vs simple past, used to, first and second conditional, common phrasal verbs",
-  B2: "varied vocabulary; passive, third conditional, reported speech, modals of deduction (must be, can't be)",
-  C1: "precise vocabulary and idioms; less common phrasal verbs, past modals (should have, might have), mixed conditionals",
-  C2: "subtle register and nuance, rare idioms, formal structures such as inversion",
+export const LEVEL_VOCABULARY: Record<(typeof LEVELS)[number], string> = {
+  A1: "very common words",
+  A2: "common everyday words",
+  B1: "everyday and work vocabulary",
+  B2: "varied vocabulary",
+  C1: "precise vocabulary and idioms",
+  C2: "subtle register and nuance, rare idioms",
+};
+
+export const LEVEL_GRAMMAR: Record<(typeof LEVELS)[number], string> = {
+  A1: "simple present, present continuous, can, there is / are",
+  A2: "simple past, going to, comparatives, some / any",
+  B1: "present perfect vs simple past, used to, first and second conditional, common phrasal verbs",
+  B2: "passive, third conditional, reported speech, modals of deduction (must be, can't be)",
+  C1: "less common phrasal verbs, past modals (should have, might have), mixed conditionals",
+  C2: "formal structures such as inversion",
 };
 
 // How many words a sentence has at each level.

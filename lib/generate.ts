@@ -8,7 +8,8 @@ import {
   temperatureFor,
 } from "@/lib/model";
 import {
-  LEVEL_DESCRIPTIONS,
+  LEVEL_GRAMMAR,
+  LEVEL_VOCABULARY,
   LEVELS,
   MAX_TEXT_LENGTH,
   MODES,
@@ -73,14 +74,21 @@ function pickOne(items: string[]) {
   return items[Math.floor(Math.random() * items.length)];
 }
 
+// A single word or verb, as opposed to a sentence or a paragraph.
+function isWordMode(mode: Mode) {
+  return mode === "mot" || mode === "verbe" || mode === "phrasal verb";
+}
+
 // The level is the learner's English level: any French is easy for them, so what
-// matters is the English the translation needs.
-function learner(level: Level) {
+// matters is the English the translation needs. Word modes only get the
+// vocabulary: with the grammar too, models wrote sentences instead of a word.
+function learner(mode: Mode, level: Level) {
+  const intro = `## Learner\nA native French speaker learning American English. Their English level is CEFR ${level}: `;
+  if (isWordMode(mode)) return `${intro}${LEVEL_VOCABULARY[level]}.`;
   return (
-    "## Learner\n" +
-    `A native French speaker learning American English. Their English level is CEFR ${level}: ` +
-    `${LEVEL_DESCRIPTIONS[level]}. The French is never the difficulty: choose French ` +
-    `whose natural American English translation needs ${level} English.`
+    `${intro}${LEVEL_VOCABULARY[level]}; ${LEVEL_GRAMMAR[level]}. ` +
+    "The French is never the difficulty: choose French whose natural American English " +
+    `translation needs ${level} English.`
   );
 }
 
@@ -88,9 +96,10 @@ function instructions({ mode, level, tense, verbType, theme }: Combination) {
   // The model invents the situation itself; this keeps it from always
   // falling back on the most typical sentence for the theme.
   const variety =
-    "\n\n## Variety\nInvent a specific, concrete situation on this theme: decide who " +
-    "is involved, where and when, and make it a little unexpected. Avoid the most " +
-    "obvious example for the theme (going to the market, today's weather…).";
+    "\n\n## Variety\nInvent a specific, concrete situation on this theme that could " +
+    "happen in real life: decide who is involved, where and when. Avoid the most " +
+    "obvious example for the theme (going to the market, today's weather…), " +
+    "but stay realistic: no science fiction or fantasy.";
   const priority =
     "\n\n## Priority\nIf two instructions conflict, the tense and the theme come first, " +
     "then the level, then the variety.";
@@ -100,21 +109,25 @@ function instructions({ mode, level, tense, verbType, theme }: Combination) {
         "Give a single French noun, adjective or adverb whose American English translation " +
         `a ${level} learner should know, related to the theme "${theme}". ` +
         "Include the article for a noun (le, la, l', un, une). " +
-        "Pick a word whose American English translation is clear."
+        "Pick a word whose American English translation is clear. " +
+        "Give only the word, never a sentence."
       );
     case "verbe":
       return (
-        "Give a single French verb in the infinitive whose American English translation " +
-        `is a ${verbType === "irrégulier" ? "irregular" : "regular"} verb that a ${level} learner ` +
-        "should know (go/went/gone is irregular, work/worked/worked is regular). " +
-        "No verb that translates as a phrasal verb."
+        "Give a single French verb in the infinitive (e.g. « conduire ») whose American English " +
+        `translation is ${verbType === "irrégulier" ? "an irregular" : "a regular"} verb that a ${level} ` +
+        "learner should know (go/went/gone is irregular, work/worked/worked is regular). " +
+        "No verb that translates as a phrasal verb. " +
+        "Give only the infinitive, never a sentence or a conjugated verb."
       );
     case "phrasal verb":
       return (
-        `Give a French verb or short expression, related to the theme "${theme}", ` +
-        `that translates naturally into American English as a phrasal verb a ${level} ` +
-        "learner should know. Add a short context in parentheses if the meaning is ambiguous, " +
-        `with ${MAX_PHRASAL_VERB_WORDS} words at most in all.`
+        "Give a French verb in the infinitive, or a short expression starting with one, " +
+        `related to the theme "${theme}", that translates naturally into American English ` +
+        `as a phrasal verb a ${level} learner should know. Add a short context in parentheses ` +
+        "if the meaning is ambiguous (e.g. « abandonner (une habitude) » for give up), " +
+        `with ${MAX_PHRASAL_VERB_WORDS} words at most in all. ` +
+        "Never a sentence or a conjugated verb."
       );
     case "phrase": {
       const imperative = tense === "impératif";
@@ -134,7 +147,7 @@ function instructions({ mode, level, tense, verbType, theme }: Combination) {
         "Write a short French paragraph of three linked sentences, " +
         `on the theme "${theme}", mainly told with the person "${pickOne(PERSONS)}". ` +
         `Each sentence has ${SENTENCE_WORDS[level]} words. ` +
-        "Use logical connectors that fit the level." +
+        "Use logical connectors that fit the level, and vary them: not always ensuite and enfin." +
         variety +
         priority
       );
@@ -208,15 +221,29 @@ export async function generateExercise(
         "that a French-speaking learner will translate into American English.",
         "",
         "## Fields, in this order",
-        "- situation: first, one short line in English: the idea or situation you chose",
-        "  (who, where, when), then the main French verb already conjugated in the required",
-        '  tense and person (e.g. "que nous partions"). For a single word or verb, its context.',
-        "- text: the item, always written in French, with no quotes, translation or explanation.",
+        // Only sentences plan a conjugated verb: for a single verb, it made
+        // models conjugate it and write a sentence.
+        ...(isWordMode(combination.mode)
+          ? ["- situation: first, one short line in English: the context the word is used in."]
+          : combination.mode === "phrase"
+            ? [
+                "- situation: first, one short line in English: the situation you chose",
+                "  (who, where, when), then the main French verb already conjugated in the",
+                '  required tense and person (e.g. "que nous partions").',
+              ]
+            : [
+                "- situation: first, one short line in English: the situation you chose",
+                "  (who, where, when), then the main French verb of each sentence,",
+                "  already conjugated.",
+              ]),
+        "- text: the item, always in correct, modern French as people speak and write it",
+        "  today (no passé simple or imparfait du subjonctif), with no quotes, translation",
+        "  or explanation.",
         "- reference: a natural, correct American English translation of text,",
         "  with the same meaning and the equivalent tense, in American spelling.",
       ].join("\n"),
       prompt:
-        learner(combination.level) +
+        learner(combination.mode, combination.level) +
         "\n\n## Task\n" +
         instructions(combination) +
         avoid +

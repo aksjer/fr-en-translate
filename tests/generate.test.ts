@@ -100,3 +100,20 @@ test("the level is the learner's English level", async () => {
   assert.match(prompt, /it has 12 to 20 words/);
   assert.match(prompt, /About this tense: action now/);
 });
+
+test("word modes ask for a single item, with no grammar or conjugated verb", async () => {
+  for (const mode of ["mot", "verbe", "phrasal verb"] as const) {
+    const model = mockModel(answer);
+    await generateExercise({ modes: [mode], levels: ["B1"] }, model);
+    const prompt = promptText(model);
+    assert.match(prompt, /never a sentence/i, mode);
+    assert.doesNotMatch(prompt, /already conjugated/, mode);
+    assert.doesNotMatch(prompt, /present perfect vs simple past/, mode);
+  }
+
+  const model = mockModel(answer);
+  await generateExercise({ modes: ["phrase"], levels: ["B1"] }, model);
+  const prompt = promptText(model);
+  assert.match(prompt, /already conjugated/);
+  assert.match(prompt, /present perfect vs simple past/);
+});

@@ -172,6 +172,8 @@ async function evalGenerate(
               "repeated",
             looksEnglish(exercise.text) && "English?",
             limit && words > limit && `${words} words (${limit} at most)`,
+            // A word, verb or phrasal verb should never be a whole sentence.
+            !limit && /[.!?]$/.test(exercise.text) && "a sentence?",
           ].filter(Boolean);
           if (flags.length) flagged++;
           seen.push(exercise.text);
