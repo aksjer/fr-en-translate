@@ -120,12 +120,14 @@ export function historySection(items: HistoryItem[], mode: Mode) {
     // A missed word comes back only after a few others: the code counts them,
     // since small models count lines badly.
     const back = isWordMode(mode) && items.length - 1 - index >= 5 ? " (may come back)" : "";
+    // The last 5 sentences can give the next one its extra learning point.
+    const recent = !isWordMode(mode) && items.length - index <= 5 ? " (recent)" : "";
     const result =
       item.ok === undefined
         ? `skipped${back}`
         : item.ok
           ? "right"
-          : `wrong${back}${item.remark ? `: ${item.remark}` : " (no detail)"}`;
+          : `wrong${back}${recent}${item.remark ? `: ${item.remark}` : " (no detail)"}`;
     return `- « ${item.text} »${english}: ${result}`;
   });
   return (
@@ -135,13 +137,10 @@ export function historySection(items: HistoryItem[], mode: Mode) {
     "\nUse it to choose the next item. " +
     (isWordMode(mode)
       ? "Never give again an English word answered right, even with another French word " +
-        "or context. The same French word with another meaning is a new item (tirer: pull, " +
-        "then shoot). Only an item marked (may come back) may be given again as is; give " +
+        "or context. The same French word with another meaning is a new item. Only an item marked (may come back) may be given again as is; give " +
         "no other item of the history again."
-      : "A wrong item among the 5 most recent ones (the last 5 lines), when its remark " +
-        "names the difficulty, can give the extra learning point (see Learning point). Vary " +
-        "the person, the sentence type, the situation and the characters from one item to " +
-        "the next.")
+      : "Vary the person, the sentence type, the situation and the characters from one " +
+        "item to the next.")
   );
 }
 

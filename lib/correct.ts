@@ -197,7 +197,9 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
               "  praise may add that American English often says I ate. A tense that changes",
               '  the meaning or is ungrammatical ("I live here since 2010", "when he will',
               '  arrive") is wrong.',
-              "- At A1 or A2, accept a simple but correct phrasing.",
+              ...(input.level === "A1" || input.level === "A2"
+                ? ["- At this level, accept a simple but correct phrasing."]
+                : []),
             ]),
         "- Be fair: never leave out a real mistake to be nice. Keep the remarks short, and",
         "  put the encouragement in the praise.",
@@ -245,8 +247,9 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
               "  time + que → for + present perfect;",
               "- déjà in a question: ever for an experience (Have you ever seen…?), yet for",
               "  something expected (Have you eaten yet?), already for surprise (You're done",
-              "  already?); pas encore → not … yet, yet usually at the end; already never goes",
-              "  between the verb and its object (not I ate already my lunch);",
+              "  already?); pas encore → not … yet, yet usually at the end;",
+              "- an adverb never goes between the verb and its object (not I ate already my",
+              "  lunch, I speak well English, I like very much coffee);",
               '- uncountable nouns: information, advice, news, furniture (no plural, no "an");',
               "- make / do, say / tell, and questions and negations with do, does or did;",
               "- British spelling: color, favorite, center, realize (not colour, favourite…).",

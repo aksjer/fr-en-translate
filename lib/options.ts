@@ -68,8 +68,9 @@ export const TENSE_GUIDES: Record<
       "depuis 2010 → I have lived here since 2010; ça fait une heure que j'attends → I've " +
       "been waiting for an hour), or a passé composé with jamais, plusieurs fois, pas " +
       "encore, or déjà meaning once in one's life (j'ai déjà été à New York → I've been " +
-      "to New York; as-tu déjà vu… ? → have you ever seen…?). Not déjà meaning already: " +
-      "j'ai déjà mangé is I already ate in American English. Without such a word, a passé " +
+      "to New York; as-tu déjà vu… ? → have you ever seen…?), with no finished time (hier, " +
+      "la semaine dernière, en 2020), which makes it a simple past. Not déjà meaning " +
+      "already: j'ai déjà mangé is often I already ate in American English. Without such a word, a passé " +
       "composé is a simple past (j'ai mangé une pomme → I ate an apple), so never use one alone",
   },
   "past perfect": {

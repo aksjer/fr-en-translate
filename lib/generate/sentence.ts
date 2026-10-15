@@ -30,8 +30,8 @@ function learningPoint(level: Level) {
   return (
     "\n\n## Learning point\nThe tense is the main point of the sentence. Add at most " +
     "one other point, the first of these that fits the tense, without pointing it out:\n" +
-    "1. the difficulty of a wrong item among the 5 most recent ones (the last 5 lines of " +
-    "the history), when its remark names it;\n" +
+    "1. the difficulty of a wrong item marked (recent) in the history, when its remark " +
+    "names it;\n" +
     "2. else one of the weak points below, if any;\n" +
     `3. else one word or phrase that learners usually learn at CEFR ${level}.\n` +
     "Never more than one: a sentence with several difficulties is hard to learn from."

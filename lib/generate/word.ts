@@ -2,8 +2,14 @@
 import { commonAt, generateItem, type GenerateInput } from "@/lib/generate/shared";
 import type { Combination } from "@/lib/settings";
 
+// The code picks the kind of word: asked to vary it from the history, a small
+// model has to classify and count 30 items, and gives nouns again and again.
+// Nouns come up twice as often, as they do in the language.
+const KINDS = ["noun", "noun", "adjective", "adverb"] as const;
+
 export function generateWord(input: GenerateInput, combination: Combination) {
   const { level, theme } = combination;
+  const kind = KINDS[Math.floor(Math.random() * KINDS.length)];
   return generateItem(input, combination, {
     // The English comes first, since the level is about English: starting from
     // the French gave loose translations (un périple → an ordeal).
@@ -20,10 +26,9 @@ export function generateWord(input: GenerateInput, combination: Combination) {
       "  of context, in American words and spelling (apartment, color, not flat, colour).",
     ],
     task:
-      "Give a single French noun, adjective or adverb whose American English " +
-      `translation is ${commonAt(level, "word")}, related to the theme "${theme}". ` +
-      "Choose the kind of word the recent history has had the fewest of: not always a noun. " +
-      "Give a noun with its article (le, la, l', un, une). " +
+      `Give a single French ${kind} whose American English translation is ` +
+      `${commonAt(level, kind)}, related to the theme "${theme}". ` +
+      (kind === "noun" ? "Give it with its article (le, la, l', un, une). " : "") +
       "Pick a word whose American English translation looks different from the French " +
       "(not « généreux » → generous). The French must be the word a French speaker would " +
       "really use for this English, never a look-alike with another meaning. " +
