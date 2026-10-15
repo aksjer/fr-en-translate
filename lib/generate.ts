@@ -175,8 +175,9 @@ function situationField(mode: Mode) {
       return [`${start} the English word you chose, then the context it is used in.`];
     case "verbe":
       return [
-        `${start} the English verb you chose with its three forms`,
-        "  (base, past simple, past participle), then the context it is used in.",
+        // With "then the context it is used in", 6/6 verbs came out as sentences.
+        `${start} only the English verb you chose and its three forms`,
+        '  (e.g. "base, past simple, past participle"), with no sentence.',
       ];
     case "phrasal verb":
       return [
@@ -305,6 +306,10 @@ export async function generateExercise(
     const reference = output.reference.trim();
     if (!text || !reference) {
       throw new InvalidAnswerError("Empty item or reference");
+    }
+    // A word, verb or phrasal verb is never a sentence: ask again if it is one.
+    if (isWordMode(combination.mode) && /[.!?]$/.test(text)) {
+      throw new InvalidAnswerError(`A sentence instead of a word: ${text}`);
     }
     if (text.length > MAX_TEXT_LENGTH || reference.length > MAX_TEXT_LENGTH) {
       throw new InvalidAnswerError(`Item too long (${text.length} characters)`);

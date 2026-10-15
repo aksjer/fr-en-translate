@@ -143,3 +143,10 @@ test("adds back a missing apostrophe after l", async () => {
   const exercise = await generateExercise({ modes: ["phrase"] }, model);
   assert.equal(exercise.text, "Vérifie ton passeport avant de monter dans l'avion !");
 });
+
+test("a sentence in a word mode is asked again once", async () => {
+  const model = mockModel({ ...answer, text: "Est-ce que tu bois du café ?" }, { ...answer, text: "boire" });
+  const exercise = await generateExercise({ modes: ["verbe"] }, model);
+  assert.equal(exercise.text, "boire");
+  assert.equal(model.doGenerateCalls.length, 2);
+});
