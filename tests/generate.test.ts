@@ -159,3 +159,21 @@ test("a sentence in a word mode is asked again once", async () => {
   assert.equal(exercise.text, "boire");
   assert.equal(model.doGenerateCalls.length, 2);
 });
+
+test("only the items given in the same mode are avoided", async () => {
+  const model = mockModel(word);
+  await generateExercise(
+    {
+      modes: ["mot"],
+      avoid: [
+        { text: "la pomme", mode: "mot" },
+        { text: "Il pleut depuis ce matin.", mode: "phrase" },
+        "l'écran",
+      ],
+    },
+    model,
+  );
+  const prompt = promptText(model);
+  assert.match(prompt, /la pomme ; l'écran/);
+  assert.doesNotMatch(prompt, /Il pleut depuis ce matin/);
+});

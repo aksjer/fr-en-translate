@@ -46,8 +46,20 @@ const reviewSchema = z.object({
 type Review = z.infer<typeof reviewSchema>;
 
 export const generateInputSchema = settingsSchema.extend({
-  // Recent exercises, so the model doesn't keep giving the same words.
-  avoid: z.array(clipped(80)).max(20).optional(),
+  // Recent exercises, so the model doesn't keep giving the same words. Items
+  // have their mode, except in an older page or the eval.
+  avoid: z
+    .array(
+      z.union([
+        clipped(80),
+        z.object({
+          text: clipped(80),
+          mode: z.enum(MODES).optional().catch(undefined),
+        }),
+      ]),
+    )
+    .max(40)
+    .optional(),
   // The exercise tests this mistake again. A page from before this field
   // changed shape gets a normal exercise.
   review: reviewSchema.optional().catch(undefined),
@@ -70,6 +82,11 @@ const IMPERATIVE_TYPES = ["statement", "negation"];
 // (see SENTENCE_WORDS for sentences). The code also rejects any item over
 // MAX_TEXT_LENGTH characters.
 const MAX_PHRASAL_VERB_WORDS = 10;
+
+// Picked by the code too, so single words and phrasal verbs vary: left to
+// choose, the model gave mostly nouns, and phrasal verbs mostly with up or out.
+const WORD_KINDS = ["noun", "noun", "adjective", "adverb"];
+const PARTICLES = ["up", "out", "off", "down", "on", "over", "back", "away", "through", "into"];
 
 function pickOne(items: string[]) {
   return items[Math.floor(Math.random() * items.length)];
@@ -110,15 +127,17 @@ function instructions(
     "\n\n## Priority\nIf two instructions conflict, the tense and the theme come first, " +
     "then the level, then the variety.";
   switch (mode) {
-    case "mot":
+    case "mot": {
+      const kind = pickOne(WORD_KINDS);
       return (
-        "Give a single French noun, adjective or adverb whose American English translation " +
+        `Give a single French ${kind} whose American English translation ` +
         `is a word ${levelFit}, related to the theme "${theme}". ` +
-        "Include the article for a noun (le, la, l', un, une). " +
+        (kind === "noun" ? "Include its article (le, la, l', un, une). " : "") +
         "Pick a word whose American English translation is clear and looks different from " +
         "the French (not « un smartphone » → a smartphone, or « généreux » → generous). " +
         "Give only the word, never a sentence."
       );
+    }
     case "verbe":
       return (
         `Give the most common French infinitive for the American English verb "to ${verb}" ` +
@@ -129,12 +148,12 @@ function instructions(
       return (
         "Give a French verb in the infinitive, or a short expression starting with one, " +
         `related to the theme "${theme}", that translates naturally into American English ` +
-        `as a phrasal verb ${levelFit}. Add a short context in parentheses ` +
+        `as a phrasal verb ${levelFit}, with the particle "${pickOne(PARTICLES)}". ` +
+        "Add a short context in parentheses " +
         "if the meaning is ambiguous (e.g. « abandonner (une habitude) » for give up), " +
         `with ${MAX_PHRASAL_VERB_WORDS} words at most in all. ` +
-        "Never a sentence or a conjugated verb. The reference must be a real phrasal verb, " +
-        "a verb followed by a particle such as up, out, off or down (find out, give up), " +
-        "not a simple verb such as quit."
+        "Never a sentence or a conjugated verb. The reference must be a real phrasal verb " +
+        "(find out, give up), not a simple verb such as quit."
       );
     case "phrase": {
       const imperative = tense === "impératif";
@@ -256,9 +275,19 @@ export async function generateExercise(
       : undefined;
   // Models got around the list by changing a word's context (éteindre la
   // télévision, then la lumière) or by telling the same story again.
-  const avoid = input.avoid?.length && !verb
+  // Only the items of this mode, so a word isn't compared with sentences.
+  const given = (input.avoid ?? [])
+    .flatMap((item) =>
+      typeof item === "string"
+        ? [item]
+        : !item.mode || item.mode === combination.mode
+          ? [item.text]
+          : [],
+    )
+    .slice(-20);
+  const avoid = given.length && !verb
     ? "\n\n## Avoid\n" +
-      `These items were already given: ${input.avoid.join(" ; ")}\n` +
+      `These items were already given: ${given.join(" ; ")}\n` +
       (isWordMode(combination.mode)
         ? "Give a different word: none of these, even with another context or article, " +
           "and none with the same English translation."

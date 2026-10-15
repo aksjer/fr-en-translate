@@ -110,7 +110,7 @@ export function Trainer() {
   function requestExercise(toReview: Mistake | undefined) {
     const avoid = readSeen()
       .slice(-MAX_SENT)
-      .map((item) => item.slice(0, 80));
+      .map((item) => ({ ...item, text: item.text.slice(0, 80) }));
     const review = toReview && {
       mode: toReview.mode,
       level: toReview.level,
@@ -139,7 +139,7 @@ export function Trainer() {
       setExercise(next);
       setReviewId(toReview?.id ?? null);
       setExerciseSettings(JSON.stringify(settings));
-      rememberSeen(next.text);
+      rememberSeen(next.text, next.mode);
       setTranslation("");
       setResult(null);
     } catch (e) {
