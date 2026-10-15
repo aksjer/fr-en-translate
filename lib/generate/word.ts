@@ -1,5 +1,12 @@
 // A single French noun, adjective or adverb.
-import { commonAt, generateItem, type GenerateInput } from "@/lib/generate/shared";
+import {
+  CANDIDATES,
+  commonAt,
+  generateItem,
+  reviewFor,
+  reviewTask,
+  type GenerateInput,
+} from "@/lib/generate/shared";
 import type { Combination } from "@/lib/settings";
 
 // The code picks the kind of word: asked to vary it from the history, a small
@@ -10,7 +17,9 @@ const KINDS = ["noun", "noun", "adjective", "adverb"] as const;
 export function generateWord(input: GenerateInput, combination: Combination) {
   const { level, theme } = combination;
   const kind = KINDS[Math.floor(Math.random() * KINDS.length)];
+  const review = reviewFor(input, "word");
   return generateItem(input, combination, {
+    review,
     // The English comes first, since the level is about English: starting from
     // the French gave loose translations (un périple → an ordeal).
     fields: [
@@ -25,15 +34,17 @@ export function generateWord(input: GenerateInput, combination: Combination) {
       "- reference: the most natural American English translation of text in the meaning",
       "  of context, in American words and spelling (apartment, color, not flat, colour).",
     ],
-    task:
-      `Give a single French ${kind} whose American English translation is ` +
-      `${commonAt(level, kind)}, related to the theme "${theme}". ` +
-      (kind === "noun" ? "Give it with its article (le, la, l', un, une). " : "") +
-      "Pick a word whose American English translation looks different from the French " +
-      "(not « généreux » → generous). The French must be the word a French speaker would " +
-      "really use for this English, never a look-alike with another meaning. " +
-      "The text is only the word, never a sentence: the sentence goes in context. " +
-      "The theme is only a direction: if no word fits it and every other rule, choose " +
-      "one loosely related to it rather than one at another level.",
+    task: review
+      ? reviewTask(review, "word", theme)
+      : `Give ${CANDIDATES} items, ${CANDIDATES} different English words. Each one is a ` +
+        `single French ${kind} whose American English translation is ` +
+        `${commonAt(level, kind)}, related to the theme "${theme}". ` +
+        (kind === "noun" ? "Give it with its article (le, la, l', un, une). " : "") +
+        "Pick a word whose American English translation looks different from the French " +
+        "(not « généreux » → generous). The French must be the word a French speaker would " +
+        "really use for this English, never a look-alike with another meaning. " +
+        "The text is only the word, never a sentence: the sentence goes in context. " +
+        "The theme is only a direction: if no word fits it and every other rule, choose " +
+        "one loosely related to it rather than one at another level.",
   });
 }

@@ -4,6 +4,7 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 import {
   InvalidAnswerError,
+  isInvalidAnswer,
   modelFor,
   providerOptionsFor,
   retryIfInvalid,
@@ -11,9 +12,11 @@ import {
 } from "@/lib/model";
 import {
   englishKey,
+  HISTORY_PER_MODE,
   isWordMode,
   MAX_HISTORY,
   MAX_KNOWN,
+  MAX_REVIEW,
   MAX_TEXT_LENGTH,
   MODES,
   type Level,
@@ -39,6 +42,14 @@ const historyItemSchema = z.object({
 
 type HistoryItem = z.infer<typeof historyItemSchema>;
 
+// A missed or skipped word or verb that a review may give again.
+const reviewItemSchema = z.object({
+  text: clipped(300),
+  english: clipped(40).optional().catch(undefined),
+});
+
+export type ReviewItem = z.infer<typeof reviewItemSchema>;
+
 export const generateInputSchema = settingsSchema.extend({
   history: z.array(historyItemSchema).max(MAX_HISTORY).optional().catch(undefined),
   // The English of the items the learner got right, by mode: never given again.
@@ -47,6 +58,15 @@ export const generateInputSchema = settingsSchema.extend({
     .object({
       word: z.array(clipped(40)).max(MAX_KNOWN),
       verb: z.array(clipped(40)).max(MAX_KNOWN),
+    })
+    .partial()
+    .optional()
+    .catch(undefined),
+  // The oldest missed words and verbs, by mode, for a review.
+  review: z
+    .object({
+      word: z.array(reviewItemSchema).max(MAX_REVIEW),
+      verb: z.array(reviewItemSchema).max(MAX_REVIEW),
     })
     .partial()
     .optional()
@@ -62,6 +82,8 @@ export type Exercise = Combination & {
   forms?: [string, string, string];
   // A French sentence using a verb in the meaning to translate (tirer: pull or shoot).
   context?: string;
+  // A missed word or verb given again.
+  review?: boolean;
 };
 
 // What the app is for: with it, the model can choose well in cases no rule covers.
@@ -103,12 +125,85 @@ export function withApostrophes(text: string) {
 export function history(input: GenerateInput, mode: Mode) {
   const known = isWordMode(mode) ? (input.known?.[mode as "word" | "verb"] ?? []) : [];
   // Only the items of this mode, so a word isn't compared with sentences.
-  // The prompt only lists the last ones: a long list costs tokens and is
-  // followed no better.
   const recent = (input.history ?? [])
     .filter((item) => item.mode === mode)
-    .slice(-30);
+    .slice(-HISTORY_PER_MODE);
   return { known, recent };
+}
+
+// The code decides when a word or verb is a review of a missed one: left to
+// the model, missed items came back too often or never.
+const REVIEW_CHANCE = 0.25;
+
+export function reviewFor(input: GenerateInput, mode: "word" | "verb") {
+  const items = input.review?.[mode] ?? [];
+  return items.length && Math.random() < REVIEW_CHANCE ? items : undefined;
+}
+
+// The task of a review: one of the missed items, as is, with a new context.
+export function reviewTask(items: ReviewItem[], mode: "word" | "verb", theme?: string) {
+  const lines = items.map(
+    (item) => `- « ${item.text} »${item.english ? ` → ${item.english}` : ""}`,
+  );
+  return (
+    `This is a review. Give again one of these ${mode}s that the learner missed or ` +
+    "skipped, oldest first, as is: the same French text, in the same meaning (the " +
+    "English after the arrow, when there is one), with a new context sentence.\n" +
+    lines.join("\n") +
+    `\nPrefer one that fits the theme "${theme}"; if none does, take the first.`
+  );
+}
+
+// The number of new words or verbs asked in one call: the code keeps the first
+// one the learner neither learned nor saw recently, so a repeat rarely costs
+// another call.
+export const CANDIDATES = 3;
+
+// The same French text, whatever its case, spaces, quotes or apostrophes.
+function sameText(text: string) {
+  return text
+    .toLowerCase()
+    .replace(/[«»"]/g, "")
+    .replace(/’/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+type Choice = { text: string; english: string };
+
+// The answer to give: in a review, the first one that is a missed item;
+// otherwise the first one the learner neither learned nor saw recently.
+export function chooseAnswer<T extends Choice>(
+  answers: T[],
+  rules: { known: string[]; recent: HistoryItem[]; review?: ReviewItem[] },
+) {
+  if (rules.review) {
+    const texts = new Set(rules.review.map((item) => sameText(item.text)));
+    return answers.find((answer) => texts.has(sameText(answer.text)));
+  }
+  const english = new Set([
+    ...rules.known,
+    ...rules.recent.flatMap((item) => (item.english ? [item.english] : [])),
+  ]);
+  // The same French word in another meaning is a new item: the French alone
+  // only counts for a skipped item, whose English isn't stored.
+  const texts = new Set(
+    rules.recent.flatMap((item) => (item.english ? [] : [sameText(item.text)])),
+  );
+  return answers.find(
+    (answer) => !english.has(answer.english) && !texts.has(sameText(answer.text)),
+  );
+}
+
+// Told to the model when its first answers can't be used.
+export function tryAgainSection(answers: Choice[], review: boolean) {
+  return (
+    "\n\n## Try again\n" +
+    (review
+      ? "Your last answer wasn't one of the items to review. Give one of the listed items."
+      : "The learner already knows or just saw these English words: " +
+        `${answers.map((answer) => answer.english).join(", ")}. Choose other ones.`)
+  );
 }
 
 // The learner's recent items in this mode and how they did, so the model can
@@ -117,17 +212,14 @@ export function historySection(items: HistoryItem[], mode: Mode) {
   if (!items.length) return "";
   const lines = items.map((item, index) => {
     const english = isWordMode(mode) && item.english ? ` → ${item.english}` : "";
-    // A missed word comes back only after a few others: the code counts them,
-    // since small models count lines badly.
-    const back = isWordMode(mode) && items.length - 1 - index >= 5 ? " (may come back)" : "";
     // The last 5 sentences can give the next one its extra learning point.
     const recent = !isWordMode(mode) && items.length - index <= 5 ? " (recent)" : "";
     const result =
       item.ok === undefined
-        ? `skipped${back}`
+        ? "skipped"
         : item.ok
           ? "right"
-          : `wrong${back}${recent}${item.remark ? `: ${item.remark}` : " (no detail)"}`;
+          : `wrong${recent}${item.remark ? `: ${item.remark}` : " (no detail)"}`;
     return `- « ${item.text} »${english}: ${result}`;
   });
   return (
@@ -136,20 +228,12 @@ export function historySection(items: HistoryItem[], mode: Mode) {
     lines.join("\n") +
     "\nUse it to choose the next item. " +
     (isWordMode(mode)
-      ? "Never give again an English word answered right, even with another French word " +
-        "or context. The same French word with another meaning is a new item. Only an item marked (may come back) may be given again as is; give " +
-        "no other item of the history again."
+      ? "Give no item of the history again, and none of its English words, even with " +
+        "another French word or context. The same French word with another meaning is " +
+        "a new item."
       : "Vary the person, the sentence type, the situation and the characters from one " +
         "item to the next.")
   );
-}
-
-export function knownSection(known: string[]) {
-  return known.length
-    ? "\n\n## Already learned\n" +
-        `The learner already knows these English words: ${known.join(", ")}. ` +
-        "Choose none of them."
-    : "";
 }
 
 // Every field is required: Groq's strict JSON mode rejects optional ones.
@@ -171,19 +255,64 @@ const wordExerciseSchema = z.object({
   reference: z.string(),
 });
 
-// Asks the model for one word or sentence and its reference, plus a context
-// sentence for a word. Each mode gives its own fields, its task and its own
-// sections; an item already known is asked again once, and the second
-// answer is kept, so the page never gets an error.
+type ItemAnswer = z.infer<typeof exerciseSchema> & { context?: string };
+
+// Checks one answer in code, and cleans it up for the page.
+function checkedItem(output: ItemAnswer, mode: Mode) {
+  // The situation only helps the model think; the page doesn't need it.
+  const raw = output.text.trim();
+  const text = withApostrophes(raw);
+  if (text !== raw) console.warn("Added a missing apostrophe:", raw);
+  const reference = output.reference.trim();
+  const context =
+    output.context === undefined ? undefined : withApostrophes(output.context.trim());
+  if (!text || !reference || context === "") {
+    throw new InvalidAnswerError("Empty item, context or reference");
+  }
+  // A word is never a sentence.
+  if (isWordMode(mode) && /[.!?]$/.test(text)) {
+    throw new InvalidAnswerError(`A sentence instead of a word: ${text}`);
+  }
+  if (
+    text.length > MAX_TEXT_LENGTH ||
+    reference.length > MAX_TEXT_LENGTH ||
+    (context?.length ?? 0) > MAX_TEXT_LENGTH
+  ) {
+    throw new InvalidAnswerError(`Item too long (${text.length} characters)`);
+  }
+  return { text, reference, english: englishKey(reference), ...(context && { context }) };
+}
+
+// Keeps the answers that pass the code's checks, and drops the others.
+export function usableAnswers<T, U>(answers: T[], check: (answer: T) => U) {
+  return answers.flatMap((answer) => {
+    try {
+      return [check(answer)];
+    } catch (error) {
+      if (!isInvalidAnswer(error)) throw error;
+      console.warn("Unusable answer:", (error as Error).message);
+      return [];
+    }
+  });
+}
+
+// Asks the model for a sentence and its reference, or for a word with a
+// context sentence: CANDIDATES new words at once, or one word in a review.
+// Each mode gives its own fields, its task and its own sections. When no
+// answer fits, the model is asked again once; the second time, the first
+// usable answer is kept, so the page never gets an error.
 export async function generateItem(
   input: GenerateInput,
   combination: Combination,
-  prompt: { fields: string[]; task: string; sections?: string },
+  prompt: { fields: string[]; task: string; sections?: string; review?: ReviewItem[] },
 ): Promise<Exercise> {
   const { mode, level } = combination;
   const { known, recent } = history(input, mode);
+  const several = isWordMode(mode) && !prompt.review;
+  const schema = isWordMode(mode) ? wordExerciseSchema : exerciseSchema;
 
   let attempt = 0;
+  let tryAgain = "";
   const item = await retryIfInvalid(async () => {
     attempt++;
     const { output } = await generateText({
@@ -191,11 +320,12 @@ export async function generateItem(
       providerOptions: providerOptionsFor(input.model),
       temperature: temperatureFor(input.model, "generate"),
       maxRetries: 1,
-      // Room for the thinking and a long sentence, so the JSON isn't cut short.
-      maxOutputTokens: 1500,
+      // Room for the thinking and a long sentence or several words, so the
+      // JSON isn't cut short.
+      maxOutputTokens: several ? 2500 : 1500,
       output: Output.object({
-        schema: (isWordMode(mode) ? wordExerciseSchema : exerciseSchema) as z.ZodType<
-          z.infer<typeof exerciseSchema> & { context?: string }
+        schema: (several ? z.object({ items: z.array(schema) }) : schema) as z.ZodType<
+          ItemAnswer | { items: ItemAnswer[] }
         >,
       }),
       system: [
@@ -203,6 +333,9 @@ export async function generateItem(
         "natural, correct French that the learner will translate into American English.",
         "",
         "## Fields, in this order",
+        ...(several
+          ? [`items: ${CANDIDATES} different items, best first, each with these fields:`]
+          : []),
         ...prompt.fields,
       ].join("\n"),
       prompt:
@@ -211,37 +344,33 @@ export async function generateItem(
         learner(mode, level) +
         "\n\n## Task\n" +
         prompt.task +
-        knownSection(known) +
-        historySection(recent, mode) +
-        (prompt.sections ?? ""),
+        // A review only gives a listed item again: the history would contradict it.
+        (prompt.review ? "" : historySection(recent, mode)) +
+        (prompt.sections ?? "") +
+        tryAgain,
     });
 
-    // The situation only helps the model think; the page doesn't need it.
-    const raw = output.text.trim();
-    const text = withApostrophes(raw);
-    if (text !== raw) console.warn("Added a missing apostrophe:", raw);
-    const reference = output.reference.trim();
-    const context =
-      output.context === undefined ? undefined : withApostrophes(output.context.trim());
-    if (!text || !reference || context === "") {
-      throw new InvalidAnswerError("Empty item, context or reference");
-    }
-    // A word is never a sentence: ask again if it is one.
-    if (isWordMode(mode) && /[.!?]$/.test(text)) {
-      throw new InvalidAnswerError(`A sentence instead of a word: ${text}`);
-    }
-    if (
-      text.length > MAX_TEXT_LENGTH ||
-      reference.length > MAX_TEXT_LENGTH ||
-      (context?.length ?? 0) > MAX_TEXT_LENGTH
-    ) {
-      throw new InvalidAnswerError(`Item too long (${text.length} characters)`);
-    }
-    if (attempt === 1 && known.includes(englishKey(reference))) {
-      throw new InvalidAnswerError(`Already known: ${reference}`);
-    }
-    return { text, reference, ...(context && { context }) };
+    const answers = several
+      ? (output as { items: ItemAnswer[] }).items.slice(0, CANDIDATES)
+      : [output as ItemAnswer];
+    const usable = usableAnswers(answers, (answer) => checkedItem(answer, mode));
+    if (!usable.length) throw new InvalidAnswerError("No usable item");
+    if (!isWordMode(mode)) return { ...usable[0], fits: true };
+    const chosen = chooseAnswer(usable, { known, recent, review: prompt.review });
+    if (chosen) return { ...chosen, fits: true };
+    if (attempt > 1) return { ...usable[0], fits: false };
+    tryAgain = tryAgainSection(usable, Boolean(prompt.review));
+    throw new InvalidAnswerError(
+      `No fitting item: ${usable.map((answer) => answer.english).join(", ")}`,
+    );
   });
 
-  return { ...item, ...combination };
+  return {
+    text: item.text,
+    reference: item.reference,
+    ...(item.context && { context: item.context }),
+    ...combination,
+    // A review whose answer isn't a listed item is a new word.
+    ...(prompt.review && item.fits && { review: true }),
+  };
 }

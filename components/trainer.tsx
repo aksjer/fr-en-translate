@@ -3,14 +3,16 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { ErrorTag } from "@/lib/error-tags";
-import { englishKey, isWordMode, MAX_HISTORY, MAX_TEXT_LENGTH } from "@/lib/options";
+import { englishKey, isWordMode, MAX_TEXT_LENGTH } from "@/lib/options";
 import type { Combination } from "@/lib/settings";
 import {
   readKnown,
   readSeen,
+  recentHistory,
   rememberKnown,
   rememberResult,
   rememberSeen,
+  toReview,
 } from "@/lib/seen-items";
 import { speak } from "@/lib/speak";
 import { useSettings } from "@/lib/use-settings";
@@ -20,6 +22,8 @@ type Exercise = Combination & {
   reference?: string;
   forms?: [string, string, string];
   context?: string;
+  // A missed word or verb given again.
+  review?: boolean;
 };
 
 type Correction = {
@@ -96,15 +100,19 @@ export function Trainer() {
     setLoading("generate");
     setError(null);
     try {
-      // The recent exercises and their results, and the items already learned:
-      // the model chooses the next item from them.
-      const history = readSeen()
-        .slice(-MAX_HISTORY)
-        .map((item) => ({ ...item, text: item.text.slice(0, 300) }));
+      // The recent exercises and their results, the items already learned and
+      // the missed ones to review: the next item is chosen from them.
+      const seen = readSeen();
+      const known = readKnown();
+      const history = recentHistory(seen).map((item) => ({
+        ...item,
+        text: item.text.slice(0, 300),
+      }));
       const next = await post<Exercise>("/api/generate", {
         ...settings,
         history,
-        known: readKnown(),
+        known,
+        review: { word: toReview(seen, known, "word"), verb: toReview(seen, known, "verb") },
       });
       setExercise(next);
       setExerciseSettings(JSON.stringify(settings));
@@ -155,6 +163,7 @@ export function Trainer() {
 
   const tags = [
     exercise?.mode,
+    exercise?.review ? "review" : undefined,
     exercise?.level,
     exercise?.verbType && `${exercise.verbType} verb`,
     exercise?.tense,
