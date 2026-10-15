@@ -11,7 +11,7 @@ export const GEMINI_MODELS = [
 export const GROQ_MODELS = [
   "openai/gpt-oss-120b",
   "openai/gpt-oss-20b",
-  "qwen/qwen3.6-27b",
+  "qwen/qwen3.8-27b",
 ] as const;
 export const MODELS = [...GEMINI_MODELS, ...GROQ_MODELS] as const;
 export const DEFAULT_MODEL = "gemini-3.5-flash-lite";
