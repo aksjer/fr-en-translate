@@ -9,7 +9,11 @@ export const GROQ_MODELS = [
   "openai/gpt-oss-120b",
   "qwen/qwen3.8-27b",
 ] as const;
-export const MISTRAL_MODELS = ["mistral-small-latest", "mistral-medium-latest"] as const;
+export const MISTRAL_MODELS = [
+  "mistral-large-2512",
+  "mistral-medium-latest",
+  "mistral-small-2603",
+] as const;
 export const MODELS = [...GEMINI_MODELS, ...GROQ_MODELS, ...MISTRAL_MODELS] as const;
 export const DEFAULT_MODEL = "gemini-3.5-flash-lite";
 
