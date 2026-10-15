@@ -78,7 +78,7 @@ export function learner(mode: Mode, level: Level) {
   const intro =
     `## Learner\nA native French speaker learning American English, at CEFR ${level} in English.`;
   if (isWordMode(mode)) return intro;
-  return `${intro} The French is never the difficulty: what matters is the English its translation needs.`;
+  return `${intro} The French is never the difficulty: the English needed to translate it is.`;
 }
 
 // The learner wants the most useful English: words from the Oxford 5000, which
@@ -132,8 +132,10 @@ export function historySection(items: HistoryItem[], mode: Mode) {
     lines.join("\n") +
     "\nUse it to choose the next item. " +
     (isWordMode(mode)
-      ? "Never give an item answered right again, even with another context. An item " +
-        "answered wrong or skipped may come back as is, but only after a few other items."
+      ? "Never give again an English word answered right, even with another French word " +
+        "or context. The same French word with another meaning is a new item (tirer: pull, " +
+        "then shoot). An item answered wrong or skipped may come back as is, but only " +
+        "after a few other items."
       : "When a recent item was wrong, test the same difficulty again in a new item, " +
         "without pointing it out. Vary the person, the sentence type, the situation and " +
         "the characters from one item to the next.")

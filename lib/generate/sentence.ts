@@ -57,7 +57,7 @@ function weakPointsSection(input: GenerateInput) {
     .slice(0, 3);
   return top.length
     ? "\n\n## Weak points\n" +
-        "The kinds of mistakes the learner made most in their recent answers:\n" +
+        "The kinds of mistakes the learner made most in their recent sentences:\n" +
         top.map(([tag, count]) => `- ${ERROR_TAG_DEFINITIONS[tag]}: ${count} times`).join("\n") +
         "\nBuild the item so its translation practices one of these points, without " +
         "pointing it out."
@@ -71,8 +71,8 @@ export function generateSentence(input: GenerateInput, combination: Combination)
     // Planning the conjugated verb first keeps the tense right.
     fields: [
       "- situation: first, one short line in English: the situation you chose (who, where,",
-      "  when), then the main French verb already conjugated in the required tense and",
-      '  person (e.g. "que nous partions").',
+      `  when), then the main French verb, already conjugated in the ${tense} and in the`,
+      "  person you chose.",
       ...SENTENCE_TEXT_FIELD,
     ],
     task:
