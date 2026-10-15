@@ -107,16 +107,17 @@ function instructions({ mode, level, tense, verbType, theme }: Combination) {
     case "mot":
       return (
         "Give a single French noun, adjective or adverb whose American English translation " +
-        `a ${level} learner should know, related to the theme "${theme}". ` +
-        "Include the article for a noun (le, la, l', un, une). " +
-        "Pick a word whose American English translation is clear. " +
-        "Give only the word, never a sentence."
+        `a ${level} learner should know, typical of this level rather than an easier one, ` +
+        `related to the theme "${theme}". Include the article for a noun (le, la, l', un, une). ` +
+        "Pick a word whose American English translation is clear and different from the " +
+        "French (not « un smartphone » → a smartphone). Give only the word, never a sentence."
       );
     case "verbe":
       return (
         "Give a single French verb in the infinitive (e.g. « conduire ») whose American English " +
         `translation is ${verbType === "irrégulier" ? "an irregular" : "a regular"} verb that a ${level} ` +
-        "learner should know (go/went/gone is irregular, work/worked/worked is regular). " +
+        "learner should know, typical of this level rather than an easier one " +
+        "(go/went/gone is irregular, work/worked/worked is regular). " +
         "No verb that translates as a phrasal verb. " +
         "Give only the infinitive, never a sentence or a conjugated verb."
       );
@@ -127,7 +128,9 @@ function instructions({ mode, level, tense, verbType, theme }: Combination) {
         `as a phrasal verb a ${level} learner should know. Add a short context in parentheses ` +
         "if the meaning is ambiguous (e.g. « abandonner (une habitude) » for give up), " +
         `with ${MAX_PHRASAL_VERB_WORDS} words at most in all. ` +
-        "Never a sentence or a conjugated verb."
+        "Never a sentence or a conjugated verb. The reference must be a real phrasal verb, " +
+        "a verb followed by a particle such as up, out, off or down (find out, give up), " +
+        "not a simple verb such as quit."
       );
     case "phrase": {
       const imperative = tense === "impératif";
@@ -144,10 +147,11 @@ function instructions({ mode, level, tense, verbType, theme }: Combination) {
     }
     case "paragraphe":
       return (
-        "Write a short French paragraph of three linked sentences, " +
-        `on the theme "${theme}", mainly told with the person "${pickOne(PERSONS)}". ` +
-        `Each sentence has ${SENTENCE_WORDS[level]} words. ` +
-        "Use logical connectors that fit the level, and vary them: not always ensuite and enfin." +
+        "Write a short French paragraph of exactly three sentences that tell one coherent " +
+        `little story or moment, on the theme "${theme}", mainly told with the person ` +
+        `"${pickOne(PERSONS)}". Each sentence has ${SENTENCE_WORDS[level]} words. ` +
+        "Each sentence follows logically from the one before. Use a connector only where " +
+        "a native speaker would (mais, alors, parce que, quand…), not at the start of every sentence." +
         variety +
         priority
       );
@@ -237,8 +241,8 @@ export async function generateExercise(
                 "  already conjugated.",
               ]),
         "- text: the item, always in correct, modern French as people speak and write it",
-        "  today (no passé simple or imparfait du subjonctif), with no quotes, translation",
-        "  or explanation.",
+        "  today (no passé simple or imparfait du subjonctif), with French punctuation",
+        "  (a space before ! ? : ;) and no quotes, translation or explanation.",
         "- reference: a natural, correct American English translation of text,",
         "  with the same meaning and the equivalent tense, in American spelling.",
       ].join("\n"),

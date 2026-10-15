@@ -194,8 +194,8 @@ export async function correctTranslation(
         "- major: a wrong tense or verb form, another real grammar mistake (word order,",
         "  agreement, preposition), a wrong word a native speaker would not use",
         "  (make my homework), or a clearly unnatural phrasing.",
-        "- critical: part of the meaning is wrong, missing or added,",
-        "  including a false friend that changes the meaning.",
+        "- critical: part of the meaning is wrong, missing or added.",
+        "  A false friend is always critical.",
         "",
         "## Categories",
         ...ERROR_TAGS.map((tag) => `- ${tag}: ${TAG_DEFINITIONS[tag]}.`),
@@ -224,7 +224,14 @@ export async function correctTranslation(
   });
 
   const mistakes = output.mistakes
-    .map((mistake) => ({ ...mistake, remark: mistake.remark.trim() }))
+    .map((mistake) => ({
+      ...mistake,
+      remark: mistake.remark.trim(),
+      // A false friend always changes the meaning, but models sometimes call it
+      // major: the code makes it critical, so it always costs the same.
+      severity:
+        mistake.category === "faux ami" ? ("critical" as const) : mistake.severity,
+    }))
     .filter((mistake) => mistake.remark)
     // The most serious first; the sort keeps the model's order otherwise.
     .sort((a, b) => PENALTIES[b.severity] - PENALTIES[a.severity]);

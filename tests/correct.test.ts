@@ -140,3 +140,7 @@ test("the French tense is given as a hint, with its other English tenses", async
   assert.match(prompt, /only a hint/);
   assert.match(prompt, /present perfect with depuis/);
 });
+
+test("a false friend is always critical", async () => {
+  assert.equal(await scoreOf([{ ...critical, severity: "major" }]), 4);
+});

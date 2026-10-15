@@ -87,6 +87,24 @@ export const TENSE_GUIDES: Record<(typeof TENSES)[number], string> = {
   impératif: "an order or advice with no subject (mange !, allons-y, ne partez pas); English: base verb with no subject (Eat!, Let's go, Don't leave)",
 };
 
+// The lowest English level each tense fits, from the English it needs (the simple
+// past at A2, would and the past perfect at B1). Only used when the learner
+// selects no tense: a tense they select is always used.
+export const TENSE_LEVELS: Record<
+  (typeof TENSES)[number],
+  (typeof LEVELS)[number]
+> = {
+  présent: "A1",
+  impératif: "A1",
+  "passé composé": "A2",
+  imparfait: "A2",
+  "futur simple": "A2",
+  "futur proche": "A2",
+  "conditionnel présent": "B1",
+  "subjonctif présent": "B1",
+  "plus-que-parfait": "B1",
+};
+
 // Regular or irregular in English, since that's what the learner must produce.
 export const VERB_TYPES = ["régulier", "irrégulier"] as const;
 

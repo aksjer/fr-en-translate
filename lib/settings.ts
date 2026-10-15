@@ -4,6 +4,7 @@ import {
   LEVELS,
   MODE_USES,
   MODES,
+  TENSE_LEVELS,
   TENSES,
   THEMES,
   VERB_TYPES,
@@ -44,6 +45,13 @@ function pick<T>(selected: readonly T[] | undefined, all: readonly T[]): T {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
+// With no tense selected, only the tenses whose English fits the level.
+function tensesFor(level: Level) {
+  return TENSES.filter(
+    (tense) => LEVELS.indexOf(TENSE_LEVELS[tense]) <= LEVELS.indexOf(level),
+  );
+}
+
 // Fixed values win over the settings: a review keeps the mode, level, tense and
 // verb type of its mistake, and only the theme changes.
 export function pickCombination(
@@ -51,11 +59,14 @@ export function pickCombination(
   fixed: Omit<Partial<Combination>, "theme"> = {},
 ): Combination {
   const mode = fixed.mode ?? pick(settings.modes, MODES);
+  const level = fixed.level ?? pick(settings.levels, LEVELS);
   const uses = MODE_USES[mode];
   return {
     mode,
-    level: fixed.level ?? pick(settings.levels, LEVELS),
-    ...(uses.tense && { tense: fixed.tense ?? pick(settings.tenses, TENSES) }),
+    level,
+    ...(uses.tense && {
+      tense: fixed.tense ?? pick(settings.tenses, tensesFor(level)),
+    }),
     ...(uses.verbType && {
       verbType: fixed.verbType ?? pick(settings.verbTypes, VERB_TYPES),
     }),

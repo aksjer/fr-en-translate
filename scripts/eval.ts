@@ -62,11 +62,24 @@ function looksEnglish(text: string) {
   );
 }
 
+// The small words that make a verb a phrasal verb (give up, find out).
+const PARTICLES =
+  /\b(up|out|off|down|on|in|over|back|away|through|around|about|along|into|after|for|by|across|apart|ahead|forward)\b/i;
+
+// The item without its article, to compare a French word with its translation.
+function bareWord(text: string) {
+  return normalize(text).replace(/^(le |la |l'|les |un |une |des |the |a |an )/, "");
+}
+
 // The most words a sentence or a paragraph should have at this level.
 function maxWords(mode: Mode, level: Level) {
   const perSentence = Number(SENTENCE_WORDS[level].split(" to ")[1]);
   if (mode === "phrase") return perSentence;
   if (mode === "paragraphe") return 3 * perSentence;
+}
+
+function sentences(text: string) {
+  return text.split(/[.!?…]+(?:\s|$)/).filter((part) => part.trim()).length;
 }
 
 function listOption<T extends string>(
@@ -174,6 +187,15 @@ async function evalGenerate(
             limit && words > limit && `${words} words (${limit} at most)`,
             // A word, verb or phrasal verb should never be a whole sentence.
             !limit && /[.!?]$/.test(exercise.text) && "a sentence?",
+            mode === "paragraphe" &&
+              sentences(exercise.text) !== 3 &&
+              count(sentences(exercise.text), "sentence"),
+            mode === "phrasal verb" &&
+              !PARTICLES.test(exercise.reference) &&
+              "no phrasal verb?",
+            mode === "mot" &&
+              bareWord(exercise.text) === bareWord(exercise.reference) &&
+              "same word in English",
           ].filter(Boolean);
           if (flags.length) flagged++;
           seen.push(exercise.text);
