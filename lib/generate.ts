@@ -25,6 +25,7 @@ import {
   settingsSchema,
   type Combination,
 } from "@/lib/settings";
+import { verbsFor } from "@/lib/verbs";
 
 // Cuts a text from the page instead of rejecting it: mistakes stored in the
 // browser may be longer than today's limits.
@@ -92,7 +93,10 @@ function learner(mode: Mode, level: Level) {
   );
 }
 
-function instructions({ mode, level, tense, verbType, theme }: Combination) {
+function instructions(
+  { mode, level, tense, theme }: Combination,
+  verb: string | undefined,
+) {
   // "A C1 learner should know" gave basic words such as lose at every level.
   const levelFit = `that learners usually learn at CEFR ${level}, not at an easier level`;
   // The model invents the situation itself; this keeps it from always
@@ -115,17 +119,12 @@ function instructions({ mode, level, tense, verbType, theme }: Combination) {
         "the French (not « un smartphone » → a smartphone, or « généreux » → generous). " +
         "Give only the word, never a sentence."
       );
-    case "verbe": {
-      const kind = verbType === "irrégulier" ? "irregular" : "regular";
+    case "verbe":
       return (
-        "Give a single French verb in the infinitive (e.g. « conduire ») whose American English " +
-        `translation is ${kind === "irregular" ? "an" : "a"} ${kind} verb ${levelFit} ` +
-        "(go/went/gone is irregular, work/worked/worked is regular). " +
-        `Being ${kind} matters more than the level. The English verb must look different ` +
-        "from the French (not « décider » → decide) and not translate as a phrasal verb. " +
-        "Give only the infinitive, never a sentence or a conjugated verb."
+        `Give the most common French infinitive for the American English verb "to ${verb}" ` +
+        "(e.g. « conduire » for to drive). Give only the infinitive, never a sentence " +
+        "or a conjugated verb."
       );
-    }
     case "phrasal verb":
       return (
         "Give a French verb in the infinitive, or a short expression starting with one, " +
@@ -174,11 +173,9 @@ function situationField(mode: Mode) {
     case "mot":
       return [`${start} the English word you chose, then the context it is used in.`];
     case "verbe":
-      return [
-        // Planning its three forms or its context made 6/6 verbs come out as
-        // sentences, twice: the plan is the English verb alone.
-        `${start} only the English verb you chose, in the base form.`,
-      ];
+      // The code picks the verb: chosen by the model, verbs kept coming out as
+      // sentences, whatever the plan asked for.
+      return [`${start} a few words on what the English verb means.`];
     case "phrasal verb":
       return [
         `${start} the English phrasal verb you chose, then the context`,
@@ -252,9 +249,14 @@ export async function generateExercise(
       verbType: review.verbType,
     },
   );
+  // The code picks the English verb, so a verb has no avoid list or review to follow.
+  const verb =
+    combination.mode === "verbe"
+      ? pickOne(verbsFor(combination.verbType ?? "régulier", combination.level))
+      : undefined;
   // Models got around the list by changing a word's context (éteindre la
   // télévision, then la lumière) or by telling the same story again.
-  const avoid = input.avoid?.length
+  const avoid = input.avoid?.length && !verb
     ? "\n\n## Avoid\n" +
       `These items were already given: ${input.avoid.join(" ; ")}\n` +
       (isWordMode(combination.mode)
@@ -294,9 +296,9 @@ export async function generateExercise(
       prompt:
         learner(combination.mode, combination.level) +
         "\n\n## Task\n" +
-        instructions(combination) +
+        instructions(combination, verb) +
         avoid +
-        (review ? reviewSection(review, combination.mode) : ""),
+        (review && !verb ? reviewSection(review, combination.mode) : ""),
     });
 
     // The situation only helps the model think; the page doesn't need it.
@@ -314,7 +316,7 @@ export async function generateExercise(
     if (text.length > MAX_TEXT_LENGTH || reference.length > MAX_TEXT_LENGTH) {
       throw new InvalidAnswerError(`Item too long (${text.length} characters)`);
     }
-    return { text, reference };
+    return { text, reference: verb ? `to ${verb}` : reference };
   });
 
   return { ...item, ...combination };

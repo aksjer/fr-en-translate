@@ -6,9 +6,7 @@ import {
   addMistake,
   countExercise,
   getDueSnapshot,
-  getMistakesSnapshot,
   getServerDueSnapshot,
-  getServerMistakesSnapshot,
   getServerStatsSnapshot,
   getStatsSnapshot,
   recordAnswer,
@@ -91,11 +89,6 @@ export function Trainer() {
     subscribeMistakes,
     getStatsSnapshot,
     getServerStatsSnapshot,
-  );
-  const mistakes = useSyncExternalStore(
-    subscribeMistakes,
-    getMistakesSnapshot,
-    getServerMistakesSnapshot,
   );
   const settingsChanged =
     exercise !== null && exerciseSettings !== JSON.stringify(settings);
@@ -234,26 +227,6 @@ export function Trainer() {
           </div>
         )}
       </section>
-
-      {mistakes.length > 0 && (
-        <details className="rounded-2xl border border-zinc-200 px-5 py-4 dark:border-zinc-800">
-          <summary className="cursor-pointer font-medium">
-            Relecture · {mistakes.length} erreur{mistakes.length > 1 ? "s" : ""}
-          </summary>
-          <ul className="mt-4 flex flex-col gap-3">
-            {mistakes.slice(0, 10).map((mistake) => (
-              <li key={mistake.id} className="flex flex-col gap-0.5">
-                <span lang="fr" className="text-zinc-600 dark:text-zinc-400">
-                  {mistake.text}
-                </span>
-                <span lang="en-US">
-                  {mistake.correction.replaceAll("**", "")}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
 
       {!exercise && (
         <p className="text-zinc-600 dark:text-zinc-400">

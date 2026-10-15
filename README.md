@@ -23,7 +23,7 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 - `npm test` runs the unit tests with a fake model: no API key or network needed.
 - `npm run eval` runs the real prompts on a model: it grades the answers in
   `evals/correct.json` and prints generated items to read. It needs the keys in
-  `.env.local` and uses the free quota (about 85 calls). Run it before and after
+  `.env.local` and uses the free quota (about 70 calls). Run it before and after
   a prompt change to compare. Options: `--model openai/gpt-oss-120b`,
   `--only correct` or `--only generate`, `--case depuis`, `--modes phrase`,
   `--levels A2,B2`, `--runs 3`.

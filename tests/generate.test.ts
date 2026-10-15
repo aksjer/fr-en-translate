@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { generateExercise } from "@/lib/generate";
 import { isInvalidAnswer } from "@/lib/model";
+import { verbsFor } from "@/lib/verbs";
 import { mockModel, promptText } from "./helpers";
 
 const answer = {
@@ -130,12 +131,17 @@ test("asks for a neutral register and American words", async () => {
   assert.match(prompt, /in American words and spelling/);
 });
 
-test("word modes plan the English first", async () => {
+test("a verb is picked by the code from its type and level, and only translated", async () => {
   const model = mockModel(word);
-  await generateExercise({ modes: ["verbe"], verbTypes: ["irrégulier"] }, model);
+  const exercise = await generateExercise(
+    { modes: ["verbe"], levels: ["C1"], verbTypes: ["irrégulier"], avoid: ["boire"] },
+    model,
+  );
   const prompt = promptText(model);
-  assert.match(prompt, /only the English verb you chose, in the base form/);
-  assert.match(prompt, /Being irregular matters more than the level/);
+  const verb = exercise.reference.replace(/^to /, "");
+  assert.ok(verbsFor("irrégulier", "C1").includes(verb));
+  assert.match(prompt, new RegExp(`the American English verb "to ${verb}"`));
+  assert.doesNotMatch(prompt, /## Avoid/);
 });
 
 test("adds back a missing apostrophe after l", async () => {

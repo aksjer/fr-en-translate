@@ -1,6 +1,6 @@
 // Runs the real prompts on a model and prints the results, to compare a prompt or
 // model change with the version before it. It calls the provider, so it needs the
-// API key in .env.local and uses the free quota (about 85 calls).
+// API key in .env.local and uses the free quota (about 70 calls).
 //
 //   npm run eval                                   both suites, default model
 //   npm run eval -- --model openai/gpt-oss-120b    another model
@@ -306,7 +306,7 @@ async function main() {
       case: { type: "string", default: "" },
       modes: { type: "string", default: MODES.join(",") },
       levels: { type: "string", default: "A1,B1,C1" },
-      runs: { type: "string", default: "2" },
+      runs: { type: "string", default: "1" },
     },
   });
 
