@@ -48,9 +48,10 @@ export type CorrectInput = z.input<typeof correctInputSchema>;
 export type Correction = {
   points: string[];
   correction: string;
-  // Another version of a sentence, or an example sentence for a word or a verb.
+  // Another version of a sentence.
   alternative?: string;
-  example?: { english: string; french: string };
+  // The French context sentence of a word or a verb, in English.
+  inContext?: string;
   // Words close in meaning to a word or a verb, each with how it differs.
   similar?: { word: string; nuance: string }[];
   // The three forms of the verb in the correction, so they always match it.
@@ -88,11 +89,10 @@ export const correctionSchema = z.object({
   alternative: z.string(),
 });
 
-// A word or a verb has no "more natural version": an example sentence with
-// it helps the learner remember it, and similar words show the nuances.
+// A word or a verb has no "more natural version": the context sentence in
+// English shows it in use, and similar words show the nuances.
 export const wordCorrectionSchema = correctionSchema.omit({ alternative: true }).extend({
-  example: z.string(),
-  exampleFrench: z.string(),
+  inContext: z.string(),
   similar: z.array(z.object({ word: z.string(), nuance: z.string() })),
 });
 
@@ -165,8 +165,7 @@ const WORD_EXAMPLE = [
     right: false,
     praise: "C'est un piège classique, tu ne l'oublieras plus.",
     correction: "**bookstore**",
-    example: "She works at a **bookstore** near the university.",
-    exampleFrench: "Elle travaille dans une **librairie** près de l'université.",
+    inContext: "I bought this novel at a small **bookstore** in my neighborhood.",
     similar: [
       { word: "bookshop", nuance: "même sens, mais surtout britannique" },
       { word: "bookseller", nuance: "le libraire, la personne qui vend les livres" },
@@ -340,7 +339,7 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
         "- right: true if the answer is right as defined above, false otherwise (and false",
         "  if translated is false).",
         "- praise: one short remark in French on what is done well, or a short",
-        "  encouragement if nothing is.",
+        "  encouragement if nothing is. It is only shown with mistakes.",
         "- correction: if there are no mistakes, copy the learner's translation as is;",
         "  otherwise fix every mistake listed, while keeping as many of the learner's",
         "  words as possible. If translated is false, give a correct translation instead.",
@@ -348,26 +347,14 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
         '  (e.g. "I **am** going to the **café**.").',
         ...(wordMode
           ? [
-              "- example: one short, natural American English sentence at the learner's level",
-              ...(input.mode === "verb"
-                ? [
-                    "  that uses the verb of the correction in the simple past or the present",
-                    "  perfect, so it shows its past form, wrapped in ** **",
-                    '  (e.g. "I **drove** to Boston last week.").',
-                  ]
-                : [
-                    "  that uses the English word of the correction (a plural is fine if the",
-                    "  sentence needs it), wrapped in ** **",
-                    '  (e.g. "The **leaves** turn red in the fall.").',
-                  ]),
-              "  Write it on another topic than the French context sentence, so it shows",
-              "  another use.",
-              "- exampleFrench: the French translation of the example, with the French word",
-              "  wrapped in ** ** too.",
-              "- similar: 2 to 4 other English words close in meaning to the correction, or",
+              "- inContext: the French context sentence translated into natural American",
+              "  English, with the English word of the correction wrapped in ** **",
+              '  (e.g. "The **leaves** turn red in the fall."). If no context is given, write',
+              "  one short, natural sentence at the learner's level that uses it instead.",
+              "- similar: up to 4 other English words close in meaning to the correction, or",
               "  often confused with it, the most useful first (e.g. for « venir »: arrive,",
-              "  get here). Include the reference if it differs from the correction, never the",
-              "  correction itself. For each one:",
+              "  get here), or an empty list if no word is really close. Include the reference",
+              "  if it differs from the correction, never the correction itself. For each one:",
               "  - word: the English word (a verb without to);",
               "  - nuance: in French, a short phrase on how it differs (meaning, register,",
               "    American or British).",
@@ -454,13 +441,11 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
     mistakes.find((mistake) => WRONG_TAGS.includes(mistake.category)) ?? mistakes[0];
 
   return {
-    points: praise ? [...remarks, praise] : remarks,
+    // The praise only softens remarks: a perfect answer already says so.
+    points: praise && remarks.length ? [...remarks, praise] : remarks,
     correction: output.correction.trim(),
     alternative: output.alternative?.trim() || undefined,
-    example:
-      output.example?.trim() && output.exampleFrench?.trim()
-        ? { english: output.example.trim(), french: output.exampleFrench.trim() }
-        : undefined,
+    inContext: output.inContext?.trim() || undefined,
     similar: similarWords(output, output.correction),
     forms: verbForms(output),
     tag: output.translated ? main?.category : "meaning",

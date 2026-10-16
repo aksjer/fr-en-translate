@@ -33,7 +33,7 @@ type Correction = {
   correction: string;
   points: string[];
   alternative?: string;
-  example?: { english: string; french: string };
+  inContext?: string;
   similar?: { word: string; nuance: string }[];
   forms?: [string, string, string];
   tag?: ErrorTag;
@@ -311,16 +311,13 @@ export function Trainer() {
               </p>
             </div>
           )}
-          {result.example && (
+          {result.inContext && (
             <div className="flex flex-col gap-1">
               <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-                Example
+                In context
               </p>
               <p lang="en-US" className="text-lg">
-                <Marked text={result.example.english} />
-              </p>
-              <p lang="fr" className="text-zinc-600 dark:text-zinc-400">
-                <Marked text={result.example.french} />
+                <Marked text={result.inContext} />
               </p>
             </div>
           )}
@@ -347,7 +344,7 @@ export function Trainer() {
           {result.alternative && (
             <div className="flex flex-col gap-1">
               <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-                Another natural way to say it
+                Another way to say it
               </p>
               <p lang="en-US" className="text-lg">
                 {result.alternative}
