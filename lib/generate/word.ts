@@ -31,8 +31,9 @@ export function generateWord(input: GenerateInput, combination: Combination) {
       "  meaning of the English word. The learner sees it under the word, so it must leave",
       "  only this meaning possible (e.g. « Les feuilles tombent des arbres en automne. »",
       "  for leaf, since feuille is also a sheet of paper). Check its spelling and accents.",
-      "- reference: the most natural American English translation of text in the meaning",
-      "  of context, in American words and spelling (apartment, color, not flat, colour).",
+      "- reference: the most natural American English translation of text alone (the word,",
+      "  never the context sentence) in the meaning of context, in American words and",
+      "  spelling (apartment, color, not flat, colour).",
     ],
     task: review
       ? reviewTask(review, "word", theme)

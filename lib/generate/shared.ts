@@ -295,9 +295,13 @@ function checkedItem(output: ItemAnswer, mode: Mode) {
   if (!text || !reference || context === "") {
     throw new InvalidAnswerError("Empty item, context or reference");
   }
-  // A word is never a sentence.
+  // A word is never a sentence, nor is its reference (the model sometimes
+  // translates the context sentence instead).
   if (isWordMode(mode) && /[.!?]$/.test(text)) {
     throw new InvalidAnswerError(`A sentence instead of a word: ${text}`);
+  }
+  if (isWordMode(mode) && (/[.!?]$/.test(reference) || reference.split(/\s+/).length > 4)) {
+    throw new InvalidAnswerError(`A sentence instead of a reference: ${reference}`);
   }
   if (
     text.length > MAX_TEXT_LENGTH ||
