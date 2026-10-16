@@ -62,6 +62,10 @@ export function providerOptionsFor(
   if (providerOf(model) === "gemini") {
     return { google: { thinkingConfig: { thinkingLevel: "minimal" } } };
   }
+  // Without strict mode, Mistral only takes the JSON schema as a hint.
+  if (providerOf(model) === "mistral") {
+    return { mistral: { strictJsonSchema: true } };
+  }
   return providerOf(model) === "groq" && model.startsWith("openai/gpt-oss")
     ? { groq: { reasoningEffort: "low" } }
     : {};

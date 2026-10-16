@@ -14,7 +14,6 @@ import {
   reviewFor,
   reviewTask,
   tryAgainSection,
-  lenient,
   usableAnswers,
   withApostrophes,
   type Exercise,
@@ -113,9 +112,7 @@ export async function generateVerb(
       maxRetries: 1,
       maxOutputTokens: review ? 1000 : 2000,
       output: Output.object({
-        schema: lenient(
-          review ? verbSchema : z.object({ verbs: z.array(verbSchema) }),
-        ) as z.ZodType<
+        schema: (review ? verbSchema : z.object({ verbs: z.array(verbSchema) })) as z.ZodType<
           z.infer<typeof verbSchema> | { verbs: z.infer<typeof verbSchema>[] }
         >,
       }),

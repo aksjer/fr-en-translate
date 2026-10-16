@@ -208,37 +208,6 @@ export function chooseAnswer<T extends Choice>(
   );
 }
 
-// Some small models wrap each field as {"type": "string", "value": "..."} and
-// add "type"/"properties" keys: this gives back the plain values.
-function unwrapValues(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(unwrapValues);
-  if (!value || typeof value !== "object") return value;
-  const fields = value as Record<string, unknown>;
-  if (
-    typeof fields.value === "string" &&
-    Object.keys(fields).every((key) => key === "type" || key === "value")
-  )
-    return fields.value;
-  return Object.fromEntries(
-    Object.entries(fields)
-      .filter(
-        ([key, field]) =>
-          !(
-            key === "properties" &&
-            field &&
-            typeof field === "object" &&
-            !Object.keys(field).length
-          ),
-      )
-      .map(([key, field]) => [key, unwrapValues(field)]),
-  );
-}
-
-// The schema given to Output.object, accepting wrapped values too.
-export function lenient<T extends z.ZodType>(schema: T) {
-  return z.preprocess(unwrapValues, schema);
-}
-
 // Told to the model when its first answers can't be used.
 export function tryAgainSection(answers: Choice[], review: boolean) {
   return (
@@ -382,9 +351,9 @@ export async function generateItem(
       // JSON isn't cut short.
       maxOutputTokens: several ? 2500 : 1500,
       output: Output.object({
-        schema: lenient(
-          several ? z.object({ items: z.array(schema) }) : schema,
-        ) as z.ZodType<ItemAnswer | { items: ItemAnswer[] }>,
+        schema: (several ? z.object({ items: z.array(schema) }) : schema) as z.ZodType<
+          ItemAnswer | { items: ItemAnswer[] }
+        >,
       }),
       system: [
         "You are an American English teacher for a French speaker. You write an item in",
