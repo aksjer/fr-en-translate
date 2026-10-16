@@ -81,13 +81,23 @@ export function Trainer() {
   const [loading, setLoading] = useState<"generate" | "correct" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const nextRef = useRef<HTMLButtonElement>(null);
 
-  // Keep the keyboard flow going: after a correction, focus "Generate";
-  // after a new exercise, focus the answer field.
+  // Keep the keyboard flow going: after a correction, Enter generates the next
+  // exercise; after a new exercise, the answer field has the focus.
   useEffect(() => {
-    if (result) nextRef.current?.focus();
-  }, [result]);
+    if (!result || loading !== null) return;
+    // An Enter pressed twice by mistake doesn't skip the correction.
+    const shownAt = Date.now();
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Enter" || event.repeat || Date.now() - shownAt < 600) return;
+      // Enter on a focused button (Listen) does that button's job.
+      if (event.target instanceof HTMLButtonElement) return;
+      event.preventDefault();
+      generate();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [result, loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (exercise && !result) inputRef.current?.focus();
@@ -168,15 +178,10 @@ export function Trainer() {
 
   return (
     <div className="flex flex-col gap-6">
-      {!exercise && (
-        <p className="text-zinc-600 dark:text-zinc-400">
-          Pick your settings, then generate a French item to translate into
-          American English.
-        </p>
-      )}
-
-      {exercise && (
-        <section className="flex flex-col gap-6">
+      {/* Always there: before an answer, it also skips the item, which then
+          comes back in a review. */}
+      <div className="flex items-start justify-between gap-4">
+        {exercise ? (
           <ul className="flex flex-wrap gap-2 text-xs text-zinc-600 dark:text-zinc-400">
             {tags.map((tag) => (
               <li
@@ -187,6 +192,24 @@ export function Trainer() {
               </li>
             ))}
           </ul>
+        ) : (
+          <p className="text-zinc-600 dark:text-zinc-400">
+            Pick your settings, then generate a French item to translate into
+            American English.
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={() => generate()}
+          disabled={loading !== null}
+          className={`shrink-0 ${primaryButton}`}
+        >
+          {loading === "generate" ? "Loading…" : "Generate"}
+        </button>
+      </div>
+
+      {exercise && (
+        <section className="flex flex-col gap-6">
 
           <div className="flex flex-col gap-2">
             <p
@@ -216,7 +239,7 @@ export function Trainer() {
               rows={exercise.mode === "sentence" ? 3 : 1}
               maxLength={MAX_TEXT_LENGTH}
               aria-label="Your answer"
-              placeholder="Your answer · Enter to check · Shift+Enter for a new line"
+              placeholder="Your answer · Enter to check"
               value={translation}
               onChange={(event) => setTranslation(event.target.value)}
               onKeyDown={(event) => {
@@ -230,14 +253,8 @@ export function Trainer() {
               className="rounded-xl border border-zinc-300 bg-transparent p-3 text-lg outline-none focus-visible:ring-2 focus-visible:ring-blue-600 dark:border-zinc-700"
             />
 
-            {!result && (
-              <button
-                type="submit"
-                disabled={loading !== null || !translation.trim()}
-                className={`self-start ${primaryButton}`}
-              >
-                {loading === "correct" ? "Checking…" : "Check"}
-              </button>
+            {loading === "correct" && (
+              <p className="text-sm text-zinc-500">Checking…</p>
             )}
           </form>
         </section>
@@ -340,18 +357,6 @@ export function Trainer() {
         <p role="alert" className="text-red-600 dark:text-red-400">
           {error}
         </p>
-      )}
-
-      {(!exercise || result) && (
-        <button
-          type="button"
-          ref={nextRef}
-          onClick={() => generate()}
-          disabled={loading !== null}
-          className={`self-start ${primaryButton}`}
-        >
-          {loading === "generate" ? "Loading…" : "Generate"}
-        </button>
       )}
     </div>
   );
