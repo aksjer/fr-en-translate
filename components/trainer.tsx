@@ -81,10 +81,6 @@ export function Trainer() {
   const [result, setResult] = useState<Correction | null>(null);
   const [loading, setLoading] = useState<"generate" | "correct" | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Settings used for the current exercise, to know when they've changed since.
-  const [exerciseSettings, setExerciseSettings] = useState<string | null>(null);
-  const settingsChanged =
-    exercise !== null && exerciseSettings !== JSON.stringify(settings);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const nextRef = useRef<HTMLButtonElement>(null);
 
@@ -117,7 +113,6 @@ export function Trainer() {
         review: { word: toReview(seen, known, "word"), verb: toReview(seen, known, "verb") },
       });
       setExercise(next);
-      setExerciseSettings(JSON.stringify(settings));
       rememberSeen(next.text, next.mode);
       setTranslation("");
       setResult(null);
@@ -246,23 +241,13 @@ export function Trainer() {
             />
 
             {!result && (
-              <div className="flex flex-wrap gap-3">
-                <button
-                  type="submit"
-                  disabled={loading !== null || !translation.trim()}
-                  className={primaryButton}
-                >
-                  {loading === "correct" ? "Checking…" : "Check"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => generate()}
-                  disabled={loading !== null}
-                  className={secondaryButton}
-                >
-                  {settingsChanged ? "New exercise" : "Skip"}
-                </button>
-              </div>
+              <button
+                type="submit"
+                disabled={loading !== null || !translation.trim()}
+                className={`self-start ${primaryButton}`}
+              >
+                {loading === "correct" ? "Checking…" : "Check"}
+              </button>
             )}
           </form>
         </section>

@@ -41,7 +41,7 @@ const historyItemSchema = z.object({
 
 type HistoryItem = z.infer<typeof historyItemSchema>;
 
-// A missed or skipped word or verb that a review may give again.
+// A missed or unanswered word or verb that a review may give again.
 const reviewItemSchema = z.object({
   text: clipped(300),
   english: clipped(40).optional().catch(undefined),
@@ -158,7 +158,7 @@ export function reviewTask(
   );
   return (
     `This is a review. Give again one of these ${mode}s that the learner missed or ` +
-    "skipped, oldest first, as is: the same French text, in the same meaning (the " +
+    "left unanswered, oldest first, as is: the same French text, in the same meaning (the " +
     "English after the arrow, when there is one), with a new context sentence.\n" +
     lines.join("\n") +
     `\nPrefer one that fits the theme "${theme}"; if none does, take the first.`
@@ -197,7 +197,7 @@ export function chooseAnswer<T extends Choice>(
     ...rules.recent.flatMap((item) => (item.english ? [item.english] : [])),
   ]);
   // The same French word in another meaning is a new item: the French alone
-  // only counts for a skipped item, whose English isn't stored.
+  // only counts for an unanswered item, whose English isn't stored.
   const texts = new Set(
     rules.recent.flatMap((item) => (item.english ? [] : [sameText(item.text)])),
   );
@@ -240,7 +240,7 @@ export function historySection(items: HistoryItem[], mode: Mode) {
       !isWordMode(mode) && items.length - index <= 5 ? " (recent)" : "";
     const result =
       item.ok === undefined
-        ? "skipped"
+        ? "unanswered"
         : item.ok
           ? "right"
           : `wrong${recent}${item.remark ? `: ${item.remark}` : " (no detail)"}`;

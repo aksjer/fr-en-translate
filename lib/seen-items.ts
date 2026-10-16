@@ -100,7 +100,7 @@ export function pastMistakes(items: SeenItem[], mode: Mode, current: string) {
 
 export type ReviewItem = { text: string; english?: string };
 
-// The words or verbs missed or skipped and not learned since, oldest first: a
+// The words or verbs missed or left unanswered and not learned since, oldest first: a
 // review gives one of them again. Each item counts once, at the last time it
 // was shown, so one missed again becomes recent again.
 export function toReview(items: SeenItem[], known: KnownItems, mode: "word" | "verb") {

@@ -18,7 +18,7 @@ export const MAX_KNOWN = 2000;
 export const HISTORY_PER_MODE = 200;
 export const MAX_HISTORY = HISTORY_PER_MODE * MODES.length;
 
-// The oldest missed or skipped words and verbs sent for a review, per mode.
+// The oldest missed or left unanswered words and verbs sent for a review, per mode.
 export const MAX_REVIEW = 50;
 
 // The learner's last mistakes in a mode, sent to the correction so it can say
