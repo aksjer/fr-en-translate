@@ -48,7 +48,7 @@ type ProviderOptions = NonNullable<
 
 // Short thinking, a bit more for the correction: more thinking (Gemini low
 // and high) made each answer take 4 to 14 seconds, too slow for the owner. Qwen
-// gets the same: none to generate, low to correct. Its thinking is kept out of
+// thinks low for both, since it has no level under low but none. Its thinking is kept out of
 // the JSON, since a raw format fails in JSON mode.
 export function providerOptionsFor(
   id: Model | undefined,
@@ -62,7 +62,7 @@ export function providerOptionsFor(
   }
   return {
     groq: {
-      reasoningEffort: task === "correct" ? "low" : "none",
+      reasoningEffort: "low",
       reasoningFormat: "parsed",
     },
   };
