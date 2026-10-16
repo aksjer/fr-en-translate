@@ -285,9 +285,18 @@ export function Trainer() {
               : "border-amber-600/30 bg-amber-50 dark:bg-amber-950/30"
           }`}
         >
-          <p className="text-lg font-semibold">
-            {result.perfect ? "Perfect!" : result.isCorrect ? "Correct!" : "Almost!"}
-          </p>
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-lg font-semibold">
+              {result.perfect ? "Perfect!" : result.isCorrect ? "Correct!" : "Almost!"}
+            </p>
+            <button
+              type="button"
+              onClick={() => speak(result.correction.replaceAll("**", ""))}
+              className={secondaryButton}
+            >
+              Listen
+            </button>
+          </div>
           {!result.perfect && (
             <div className="flex flex-col gap-1">
               <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
@@ -357,13 +366,6 @@ export function Trainer() {
               ))}
             </ul>
           )}
-          <button
-            type="button"
-            onClick={() => speak(result.correction.replaceAll("**", ""))}
-            className={`self-start ${secondaryButton}`}
-          >
-            Listen
-          </button>
         </section>
       )}
 
