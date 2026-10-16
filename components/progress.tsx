@@ -1,18 +1,23 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { readKnown, readSeen } from "@/lib/seen-items";
+import {
+  historyVersion,
+  readKnown,
+  readSeen,
+  subscribeHistory,
+} from "@/lib/seen-items";
 
 const LEARNED_MODES = ["word", "verb"] as const;
 const LEARNED_TITLES = { word: "Words", verb: "Verbs" };
 const RECENT = 30;
 
-const noSubscribe = () => () => {};
-
 // Everything comes from this browser: nothing is sent anywhere.
 export function Progress() {
-  // The server has no browser storage: render the history once in the browser.
-  const inBrowser = useSyncExternalStore(noSubscribe, () => true, () => false);
+  // The server has no browser storage: the history is only read in the browser,
+  // again after each answer saved.
+  const inBrowser =
+    useSyncExternalStore(subscribeHistory, historyVersion, () => -1) >= 0;
   const seen = inBrowser ? readSeen() : [];
   const known = inBrowser ? readKnown() : {};
 
@@ -60,11 +65,11 @@ export function Progress() {
                 </span>
                 <span>
                   {item.text}
-                  {item.english && <span className="text-zinc-500"> → {item.english}</span>}
+                  {item.english && (
+                    <span className="text-zinc-500"> → {item.english}</span>
+                  )}
                   {!item.ok && item.remark && (
-                    <span className="block text-zinc-500">
-                      {item.remark}
-                    </span>
+                    <span className="block text-zinc-500">{item.remark}</span>
                   )}
                 </span>
               </li>

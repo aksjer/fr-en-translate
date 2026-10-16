@@ -56,12 +56,34 @@ function lastByMode(items: SeenItem[], max: number) {
   return kept.reverse();
 }
 
+// Lets the progress panel show each answer as soon as it is saved.
+const listeners = new Set<() => void>();
+let version = 0;
+
+function changed() {
+  version += 1;
+  listeners.forEach((listener) => listener());
+}
+
+export function subscribeHistory(listener: () => void) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+// A number that changes with every write, as a snapshot for useSyncExternalStore.
+export function historyVersion() {
+  return version;
+}
+
 function writeSeen(items: SeenItem[]) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(lastByMode(items, MAX_PER_MODE)));
   } catch {
     // Not saved: the model may repeat this item, which is acceptable.
   }
+  changed();
 }
 
 export function rememberSeen(text: string, mode: Mode) {
@@ -151,4 +173,5 @@ export function rememberKnown(mode: Mode, english: string) {
   } catch {
     // Not saved: this item may come back, which is acceptable.
   }
+  changed();
 }

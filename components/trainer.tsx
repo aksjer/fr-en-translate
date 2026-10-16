@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { ErrorTag } from "@/lib/error-tags";
 import { englishKey, isWordMode, MAX_TEXT_LENGTH } from "@/lib/options";
@@ -169,15 +168,6 @@ export function Trainer() {
 
   return (
     <div className="flex flex-col gap-6">
-      <nav className="flex gap-4 text-sm font-medium">
-        <Link href="/settings" className="text-blue-700 hover:underline dark:text-blue-300">
-          Settings
-        </Link>
-        <Link href="/progress" className="text-blue-700 hover:underline dark:text-blue-300">
-          My progress
-        </Link>
-      </nav>
-
       {!exercise && (
         <p className="text-zinc-600 dark:text-zinc-400">
           Pick your settings, then start. You&apos;ll get a French item to
