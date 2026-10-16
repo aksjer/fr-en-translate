@@ -34,6 +34,7 @@ type Correction = {
   points: string[];
   alternative?: string;
   example?: { english: string; french: string };
+  similar?: { word: string; nuance: string }[];
   forms?: [string, string, string];
   tag?: ErrorTag;
   remark?: string;
@@ -321,6 +322,26 @@ export function Trainer() {
               <p lang="fr" className="text-zinc-600 dark:text-zinc-400">
                 <Marked text={result.example.french} />
               </p>
+            </div>
+          )}
+          {result.similar && (
+            <div className="flex flex-col gap-1">
+              <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+                Similar words
+              </p>
+              <ul className="flex flex-col gap-1">
+                {result.similar.map((item) => (
+                  <li key={item.word}>
+                    <span lang="en-US" className="font-medium">
+                      {item.word}
+                    </span>
+                    <span lang="fr" className="text-zinc-600 dark:text-zinc-400">
+                      {" "}
+                      · {item.nuance}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
           {result.alternative && (

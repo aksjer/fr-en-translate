@@ -51,6 +51,8 @@ export type Correction = {
   // Another version of a sentence, or an example sentence for a word or a verb.
   alternative?: string;
   example?: { english: string; french: string };
+  // Words close in meaning to a word or a verb, each with how it differs.
+  similar?: { word: string; nuance: string }[];
   // The three forms of the verb in the correction, so they always match it.
   forms?: [string, string, string];
   tag?: ErrorTag;
@@ -66,6 +68,7 @@ export type Correction = {
 const WRONG_TAGS: ErrorTag[] = ["meaning", "false friend"];
 
 const MAX_REMARKS = 6;
+const MAX_SIMILAR = 4;
 
 // Field order matters: the model writes them in order, so it lists the mistakes
 // before it decides whether the answer is right, then corrects them.
@@ -86,10 +89,11 @@ export const correctionSchema = z.object({
 });
 
 // A word or a verb has no "more natural version": an example sentence with
-// it helps the learner remember it.
+// it helps the learner remember it, and similar words show the nuances.
 export const wordCorrectionSchema = correctionSchema.omit({ alternative: true }).extend({
   example: z.string(),
   exampleFrench: z.string(),
+  similar: z.array(z.object({ word: z.string(), nuance: z.string() })),
 });
 
 // A verb also gets the forms of the verb in the correction: the ones from
@@ -111,13 +115,8 @@ const WORD_RULE =
   'equivalent that keeps the whole meaning, with or without "to" or an article. ';
 
 const MODE_RULES: Record<Mode, string> = {
-  word:
-    WORD_RULE +
-    "In the praise, you may add one other equivalent with exactly this meaning in the context.",
-  verb:
-    WORD_RULE +
-    "In the praise, you may add one other equivalent with exactly this meaning in the " +
-    "context. The page already shows the verb's three forms, so don't list them.",
+  word: WORD_RULE,
+  verb: WORD_RULE + "The page already shows the verb's three forms, so don't list them.",
   sentence:
     "Accept any translation that is faithful to the meaning, grammatically correct and " +
     "natural in American English, even if it differs from the reference.",
@@ -168,6 +167,11 @@ const WORD_EXAMPLE = [
     correction: "**bookstore**",
     example: "She works at a **bookstore** near the university.",
     exampleFrench: "Elle travaille dans une **librairie** près de l'université.",
+    similar: [
+      { word: "bookshop", nuance: "même sens, mais surtout britannique" },
+      { word: "bookseller", nuance: "le libraire, la personne qui vend les livres" },
+      { word: "library", nuance: "la bibliothèque, où l'on emprunte les livres" },
+    ],
   }),
 ].join("\n");
 
@@ -185,6 +189,19 @@ function verbForms(output: CorrectionOutput): Correction["forms"] {
   return forms.every((form) => /^[a-z]+$/.test(form))
     ? (forms as [string, string, string])
     : undefined;
+}
+
+// The similar words with a nuance, without the correction itself.
+function similarWords(
+  output: CorrectionOutput,
+  correction: string,
+): Correction["similar"] {
+  const words = (output.similar ?? [])
+    .map((item) => ({ word: item.word.trim(), nuance: item.nuance.trim() }))
+    .filter((item) => item.word && item.nuance)
+    .filter((item) => answerKey(item.word) !== answerKey(correction))
+    .slice(0, MAX_SIMILAR);
+  return words.length ? words : undefined;
 }
 
 // A word-mode answer without what the rules let the learner leave out.
@@ -347,6 +364,13 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
               "  another use.",
               "- exampleFrench: the French translation of the example, with the French word",
               "  wrapped in ** ** too.",
+              "- similar: 2 to 4 other English words close in meaning to the correction, or",
+              "  often confused with it, the most useful first (e.g. for « venir »: arrive,",
+              "  get here). Include the reference if it differs from the correction, never the",
+              "  correction itself. For each one:",
+              "  - word: the English word (a verb without to);",
+              "  - nuance: in French, a short phrase on how it differs (meaning, register,",
+              "    American or British).",
               ...(input.mode === "verb"
                 ? [
                     "- base, past, participle: the base form, simple past and past participle,",
@@ -437,6 +461,7 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
       output.example?.trim() && output.exampleFrench?.trim()
         ? { english: output.example.trim(), french: output.exampleFrench.trim() }
         : undefined,
+    similar: similarWords(output, output.correction),
     forms: verbForms(output),
     tag: output.translated ? main?.category : "meaning",
     perfect: isCorrect && mistakes.length === 0,
