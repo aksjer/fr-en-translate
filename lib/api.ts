@@ -14,7 +14,7 @@ const RATE_LIMIT = 15;
 const RATE_WINDOW_MS = 60_000;
 // Room for a long sentence, its reference and the answer, or the history, the
 // items to review and the items already known (up to 2,000 per mode).
-const MAX_BODY_BYTES = 256_000;
+const MAX_BODY_BYTES = 1_000_000;
 
 type Guarded<T> =
   | { data: T; error?: never }

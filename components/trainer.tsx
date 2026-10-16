@@ -7,6 +7,7 @@ import { englishKey, isWordMode, MAX_TEXT_LENGTH } from "@/lib/options";
 import type { Combination } from "@/lib/settings";
 import {
   readKnown,
+  pastMistakes,
   readSeen,
   recentHistory,
   rememberKnown,
@@ -139,6 +140,7 @@ export function Trainer() {
         tense: exercise.tense,
         reference: exercise.reference,
         context: exercise.context,
+        pastMistakes: pastMistakes(readSeen(), exercise.mode, exercise.text),
         model: settings.model,
       });
       setResult(correction);

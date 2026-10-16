@@ -53,21 +53,25 @@ type ProviderOptions = NonNullable<
   Parameters<typeof generateText>[0]["providerOptions"]
 >;
 
-// Keeps thinking short, so the JSON isn't cut short. Qwen keeps Groq's default,
-// since it accepts other reasoning values.
+// Keeps thinking short when generating, so the JSON isn't cut short; the
+// correction thinks more, since tokens are cheap and requests per day are the
+// limit. Qwen keeps Groq's default, since it accepts other reasoning values.
 export function providerOptionsFor(
   id: Model | undefined,
+  task: "generate" | "correct" = "generate",
 ): ProviderOptions {
   const model = safeModel(id);
   if (providerOf(model) === "gemini") {
-    return { google: { thinkingConfig: { thinkingLevel: "minimal" } } };
+    return {
+      google: { thinkingConfig: { thinkingLevel: task === "correct" ? "low" : "minimal" } },
+    };
   }
   // Without strict mode, Mistral only takes the JSON schema as a hint.
   if (providerOf(model) === "mistral") {
     return { mistral: { strictJsonSchema: true } };
   }
   return providerOf(model) === "groq" && model.startsWith("openai/gpt-oss")
-    ? { groq: { reasoningEffort: "low" } }
+    ? { groq: { reasoningEffort: task === "correct" ? "medium" : "low" } }
     : {};
 }
 

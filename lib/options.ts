@@ -9,17 +9,21 @@ export const LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
 export const MAX_TEXT_LENGTH = 1000;
 
 // Items the learner got right are sent back so they never come again: at most
-// this many per mode, the most recent ones. The code checks them; the prompt
-// doesn't list them, since a long list is followed badly.
+// this many per mode, the most recent ones. The prompt lists them, and the code
+// still checks them, since a long list isn't always followed.
 export const MAX_KNOWN = 2000;
 
 // The recent exercises sent with their results: the last ones of each mode,
 // since the server picks the mode. The prompt gets those of its mode.
-export const HISTORY_PER_MODE = 50;
+export const HISTORY_PER_MODE = 200;
 export const MAX_HISTORY = HISTORY_PER_MODE * MODES.length;
 
 // The oldest missed or skipped words and verbs sent for a review, per mode.
 export const MAX_REVIEW = 50;
+
+// The learner's last mistakes in a mode, sent to the correction so it can say
+// when one comes back.
+export const MAX_PAST_MISTAKES = 50;
 
 // The English an item is known by: "to wear" → wear, "the couch" → couch,
 // without the context in parentheses.

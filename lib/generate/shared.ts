@@ -208,6 +208,16 @@ export function chooseAnswer<T extends Choice>(
   );
 }
 
+// The English words or verbs the learner got right: the model avoids them, and
+// the code still checks its answer.
+export function knownSection(known: string[], mode: "word" | "verb") {
+  if (!known.length) return "";
+  return (
+    `\n\n## Already learned\nThe learner already knows these English ${mode}s. ` +
+    `Never give one of them again:\n${known.join(", ")}`
+  );
+}
+
 // Told to the model when its first answers can't be used.
 export function tryAgainSection(answers: Choice[], review: boolean) {
   return (
@@ -375,6 +385,7 @@ export async function generateItem(
         prompt.task +
         // A review only gives a listed item again: the history would contradict it.
         (prompt.review ? "" : historySection(recent, mode)) +
+        (several ? knownSection(known, mode as "word" | "verb") : "") +
         (prompt.sections ?? "") +
         tryAgain,
     });

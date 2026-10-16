@@ -14,6 +14,7 @@ import {
   reviewFor,
   reviewTask,
   tryAgainSection,
+  knownSection,
   usableAnswers,
   withApostrophes,
   type Exercise,
@@ -158,7 +159,7 @@ export async function generateVerb(
             "would rather answer another English verb (« confondre » is confuse or mix up, " +
             "not mistake), choose another verb.") +
         // A review only gives a listed verb again: the history would contradict it.
-        (review ? "" : historySection(recent, "verb")) +
+        (review ? "" : historySection(recent, "verb") + knownSection(known, "verb")) +
         tryAgain,
     });
     const answers = review

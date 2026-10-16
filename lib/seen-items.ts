@@ -1,4 +1,10 @@
-import { HISTORY_PER_MODE, MAX_KNOWN, MAX_REVIEW, type Mode } from "@/lib/options";
+import {
+  HISTORY_PER_MODE,
+  MAX_KNOWN,
+  MAX_PAST_MISTAKES,
+  MAX_REVIEW,
+  type Mode,
+} from "@/lib/options";
 
 // The exercises shown to this learner and how they did, kept in this browser
 // only. The last ones are sent to the API, so the model can vary its items, and
@@ -78,6 +84,18 @@ export function recentHistory(items: SeenItem[]) {
     items.filter((item) => item.mode),
     HISTORY_PER_MODE,
   );
+}
+
+// The learner's last wrong answers in a mode, with their remark, for the
+// correction. The item being corrected is left out.
+export function pastMistakes(items: SeenItem[], mode: Mode, current: string) {
+  return items
+    .filter(
+      (item): item is SeenItem & { remark: string } =>
+        item.mode === mode && item.ok === false && Boolean(item.remark) && item.text !== current,
+    )
+    .slice(-MAX_PAST_MISTAKES)
+    .map(({ text, remark }) => ({ text, remark }));
 }
 
 export type ReviewItem = { text: string; english?: string };
