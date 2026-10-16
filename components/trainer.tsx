@@ -224,19 +224,14 @@ export function Trainer() {
             }}
             className="flex flex-col gap-4"
           >
-            <label
-              htmlFor="translation"
-              className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
-            >
-              Your answer
-            </label>
             <textarea
               ref={inputRef}
               id="translation"
               lang="en-US"
               rows={exercise.mode === "sentence" ? 3 : 1}
               maxLength={MAX_TEXT_LENGTH}
-              placeholder="Type your translation…"
+              aria-label="Your answer"
+              placeholder="Your answer · Enter to check · Shift+Enter for a new line"
               value={translation}
               onChange={(event) => setTranslation(event.target.value)}
               onKeyDown={(event) => {
@@ -249,9 +244,6 @@ export function Trainer() {
               disabled={loading !== null || result !== null}
               className="rounded-xl border border-zinc-300 bg-transparent p-3 text-lg outline-none focus-visible:ring-2 focus-visible:ring-blue-600 dark:border-zinc-700"
             />
-            <p className="text-xs text-zinc-500">
-              Enter to check · Shift+Enter for a new line
-            </p>
 
             {!result && (
               <div className="flex flex-wrap gap-3">
