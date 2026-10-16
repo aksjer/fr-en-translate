@@ -46,8 +46,8 @@ type ProviderOptions = NonNullable<
   Parameters<typeof generateText>[0]["providerOptions"]
 >;
 
-// Short thinking when generating, long thinking for the correction, where
-// quality matters most: tokens are cheap, requests per day are the limit. Groq's default gives no reasoning for Qwen (Intelligence Index 20
+// Short thinking, a bit more for the correction: more thinking on Gemini
+// (low and high) made each answer take 4 to 14 seconds, too slow for the owner. Groq's default gives no reasoning for Qwen (Intelligence Index 20
 // instead of 26 at low): it is asked to think, and its thinking is kept out of
 // the JSON, since a raw format fails in JSON mode.
 export function providerOptionsFor(
@@ -57,7 +57,7 @@ export function providerOptionsFor(
   const model = safeModel(id);
   if (providerOf(model) === "gemini") {
     return {
-      google: { thinkingConfig: { thinkingLevel: task === "correct" ? "high" : "low" } },
+      google: { thinkingConfig: { thinkingLevel: task === "correct" ? "low" : "minimal" } },
     };
   }
   return {
