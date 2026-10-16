@@ -204,7 +204,11 @@ export function Trainer() {
           disabled={loading !== null}
           className={`shrink-0 ${primaryButton}`}
         >
-          {loading === "generate" ? "Loading…" : "Generate"}
+          {loading === "generate"
+            ? "Loading…"
+            : loading === "correct"
+              ? "Checking…"
+              : "Generate"}
         </button>
       </div>
 
@@ -253,9 +257,6 @@ export function Trainer() {
               className="rounded-xl border border-zinc-300 bg-transparent p-3 text-lg outline-none focus-visible:ring-2 focus-visible:ring-blue-600 dark:border-zinc-700"
             />
 
-            {loading === "correct" && (
-              <p className="text-sm text-zinc-500">Checking…</p>
-            )}
           </form>
         </section>
       )}
