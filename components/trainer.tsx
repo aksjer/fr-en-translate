@@ -167,6 +167,15 @@ export function Trainer() {
     }
   }
 
+  // The forms from generation belong to the reference: shown only when the
+  // correction uses that same verb.
+  const forms =
+    result &&
+    (result.forms ??
+      (exercise?.forms?.[0] === englishKey(result.correction.replaceAll("**", ""))
+        ? exercise.forms
+        : undefined));
+
   const tags = [
     exercise?.mode,
     exercise?.review ? "review" : undefined,
@@ -292,13 +301,13 @@ export function Trainer() {
               </p>
             </div>
           )}
-          {(result.forms ?? exercise?.forms) && (
+          {forms && (
             <div className="flex flex-col gap-1">
               <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
                 Base · past · past participle
               </p>
               <p lang="en-US" className="text-lg font-medium">
-                {(result.forms ?? exercise?.forms)?.join(" · ")}
+                {forms.join(" · ")}
               </p>
             </div>
           )}

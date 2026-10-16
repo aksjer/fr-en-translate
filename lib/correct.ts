@@ -180,12 +180,14 @@ function untagged(text: string) {
 }
 
 // The three forms as one lowercase word each, or none if the model gave
-// something else: the page then shows the forms from generation.
+// something else or the forms of another verb (the reference's, when the
+// learner used another right verb).
 function verbForms(output: CorrectionOutput): Correction["forms"] {
   const forms = [output.base, output.past, output.participle].map((form) =>
     (form ?? "").trim().toLowerCase().replace(/^to\s+/, ""),
   );
-  return forms.every((form) => /^[a-z]+$/.test(form))
+  return forms.every((form) => /^[a-z]+$/.test(form)) &&
+    forms[0] === answerKey(output.correction)
     ? (forms as [string, string, string])
     : undefined;
 }
