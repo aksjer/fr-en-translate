@@ -14,8 +14,8 @@ import {
   rememberSeen,
   toReview,
 } from "@/lib/seen-items";
-import { speak } from "@/lib/speak";
 import { useSettings } from "@/lib/use-settings";
+import { SpeakButton } from "@/components/speak-button";
 
 type Exercise = Combination & {
   text: string;
@@ -57,8 +57,6 @@ function Marked({ text }: { text: string }) {
 
 const primaryButton =
   "rounded-full bg-blue-600 px-5 py-2.5 font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50";
-const secondaryButton =
-  "rounded-full border border-blue-600 px-5 py-2.5 font-medium text-blue-600 transition-colors hover:bg-blue-50 disabled:opacity-50 dark:hover:bg-blue-950/40";
 
 async function post<T>(url: string, body: unknown): Promise<T> {
   const response = await fetch(url, {
@@ -279,17 +277,12 @@ export function Trainer() {
               : "border-amber-600/30 bg-amber-50 dark:bg-amber-950/30"
           }`}
         >
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
             <p className="text-lg font-semibold">
               {result.perfect ? "Perfect!" : result.isCorrect ? "Correct!" : "Almost!"}
             </p>
-            <button
-              type="button"
-              onClick={() => speak(result.correction.replaceAll("**", ""))}
-              className={secondaryButton}
-            >
-              Listen
-            </button>
+            {/* A perfect answer has no correction shown: the icon reads it here. */}
+            {result.perfect && <SpeakButton text={result.correction} />}
           </div>
           {!result.perfect && (
             <div className="flex flex-col gap-1">
@@ -297,7 +290,7 @@ export function Trainer() {
                 Correction{result.tag && ` · mistake: ${result.tag}`}
               </p>
               <p lang="en-US" className="text-lg">
-                <Marked text={result.correction} />
+                <Marked text={result.correction} /> <SpeakButton text={result.correction} />
               </p>
             </div>
           )}
@@ -307,7 +300,7 @@ export function Trainer() {
                 Base · past · past participle
               </p>
               <p lang="en-US" className="text-lg font-medium">
-                {forms.join(" · ")}
+                {forms.join(" · ")} <SpeakButton text={forms.join(", ")} />
               </p>
             </div>
           )}
@@ -317,7 +310,7 @@ export function Trainer() {
                 In context
               </p>
               <p lang="en-US" className="text-lg">
-                <Marked text={result.inContext} />
+                <Marked text={result.inContext} /> <SpeakButton text={result.inContext} />
               </p>
             </div>
           )}
@@ -331,7 +324,8 @@ export function Trainer() {
                   <li key={item.word}>
                     <span lang="en-US" className="font-medium">
                       {item.word}
-                    </span>
+                    </span>{" "}
+                    <SpeakButton text={item.word} />
                     <span lang="fr" className="text-zinc-600 dark:text-zinc-400">
                       {" "}
                       · {item.nuance}
@@ -347,7 +341,7 @@ export function Trainer() {
                 Alternative sentence
               </p>
               <p lang="en-US" className="text-lg">
-                {result.alternative}
+                {result.alternative} <SpeakButton text={result.alternative} />
               </p>
             </div>
           )}
