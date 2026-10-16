@@ -46,9 +46,9 @@ type ProviderOptions = NonNullable<
   Parameters<typeof generateText>[0]["providerOptions"]
 >;
 
-// Short thinking, a bit more for the correction: more thinking on Gemini
-// (low and high) made each answer take 4 to 14 seconds, too slow for the owner. Groq's default gives no reasoning for Qwen (Intelligence Index 20
-// instead of 26 at low): it is asked to think, and its thinking is kept out of
+// Short thinking, a bit more for the correction: more thinking (Gemini low
+// and high) made each answer take 4 to 14 seconds, too slow for the owner. Qwen
+// gets the same: none to generate, low to correct. Its thinking is kept out of
 // the JSON, since a raw format fails in JSON mode.
 export function providerOptionsFor(
   id: Model | undefined,
@@ -62,7 +62,7 @@ export function providerOptionsFor(
   }
   return {
     groq: {
-      reasoningEffort: task === "correct" ? "high" : "low",
+      reasoningEffort: task === "correct" ? "low" : "none",
       reasoningFormat: "parsed",
     },
   };
