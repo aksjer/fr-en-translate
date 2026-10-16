@@ -1,30 +1,28 @@
 // Shared by the page and the server, so it holds no API keys (those are in lib/model.ts).
 
 // Models the learner can pick, by provider. The server only accepts ids from these lists.
-export const GEMINI_MODELS = [
-  "gemini-3.5-flash-lite",
-  "gemini-3.1-flash-lite",
-] as const;
-export const GROQ_MODELS = [
-  "openai/gpt-oss-120b",
-  "qwen/qwen3.8-27b",
-] as const;
-// The only chat model the free tier really serves (others list a quota but are refused).
-export const MISTRAL_MODELS = ["ministral-14b-2512"] as const;
-export const MODELS = [...GEMINI_MODELS, ...GROQ_MODELS, ...MISTRAL_MODELS] as const;
-export const DEFAULT_MODEL = "gemini-3.5-flash-lite";
-
+export const GEMINI_MODELS = ["gemini-3.5-flash-lite"] as const;
+export const GROQ_MODELS = ["qwen/qwen3.8-27b"] as const;
+export const MODELS = [...GEMINI_MODELS, ...GROQ_MODELS] as const;
 
 export type Model = (typeof MODELS)[number];
-export type Provider = "gemini" | "groq" | "mistral";
+export type Provider = "gemini" | "groq";
 
-// The settings page shows the models by provider.
-export const MODEL_GROUPS: { provider: Provider; name: string; models: readonly Model[] }[] = [
-  { provider: "gemini", name: "Gemini", models: GEMINI_MODELS },
-  { provider: "groq", name: "Groq", models: GROQ_MODELS },
-  { provider: "mistral", name: "Mistral", models: MISTRAL_MODELS },
+// Smartest first, by the Artificial Analysis Intelligence Index (October 2026):
+// Qwen 26 to 34 depending on its reasoning, Gemini 3.5 Flash-Lite 22. The
+// settings list them in this order, and the smartest is the default.
+export const MODELS_BY_INTELLIGENCE: readonly Model[] = [
+  "qwen/qwen3.8-27b",
+  "gemini-3.5-flash-lite",
 ];
+export const DEFAULT_MODEL: Model = MODELS_BY_INTELLIGENCE[0];
+
+// The company serving each provider's models, shown next to them.
+export const PROVIDER_LABELS: Record<Provider, string> = {
+  gemini: "Google",
+  groq: "Groq",
+};
 
 export function providerOf(model: Model): Provider {
-  return MODEL_GROUPS.find((group) => group.models.includes(model))?.provider ?? "gemini";
+  return (GROQ_MODELS as readonly string[]).includes(model) ? "groq" : "gemini";
 }
