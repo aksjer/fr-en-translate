@@ -5,17 +5,19 @@ import { speak } from "@/lib/speak";
 type Props = {
   // English text, maybe with ** ** marks, which aren't read.
   text: string;
+  // In a line of text or a title: takes no extra height.
+  compact?: boolean;
 };
 
 // A small speaker icon that reads the text next to it aloud.
-export function SpeakButton({ text }: Props) {
+export function SpeakButton({ text, compact = false }: Props) {
   return (
     <button
       type="button"
       onClick={() => speak(text.replaceAll("**", ""))}
       aria-label="Listen"
       title="Listen"
-      className="inline-flex shrink-0 rounded-full p-1.5 align-middle text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:outline-none dark:text-blue-400 dark:hover:bg-blue-950/40 dark:hover:text-blue-300"
+      className={`inline-flex shrink-0 ${compact ? "-my-1.5" : ""} rounded-full p-1.5 align-middle text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:outline-none dark:text-blue-400 dark:hover:bg-blue-950/40 dark:hover:text-blue-300`}
     >
       <svg
         viewBox="0 0 24 24"

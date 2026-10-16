@@ -286,11 +286,12 @@ export function Trainer() {
           </div>
           {!result.perfect && (
             <div className="flex flex-col gap-1">
-              <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+              <p className="flex items-center gap-1 text-xs font-medium tracking-wide text-zinc-500 uppercase">
                 Correction{result.tag && ` · mistake: ${result.tag}`}
+                <SpeakButton text={result.correction} compact />
               </p>
               <p lang="en-US" className="text-lg">
-                <Marked text={result.correction} /> <SpeakButton text={result.correction} />
+                <Marked text={result.correction} />
               </p>
             </div>
           )}
@@ -298,7 +299,7 @@ export function Trainer() {
             <div className="flex flex-col gap-1">
               <p className="flex items-center gap-1 text-xs font-medium tracking-wide text-zinc-500 uppercase">
                 Base · past · past participle
-                <SpeakButton text={forms.join(", ")} />
+                <SpeakButton text={forms.join(", ")} compact />
               </p>
               <p lang="en-US" className="text-lg font-medium">
                 {forms.join(" · ")}
@@ -309,7 +310,7 @@ export function Trainer() {
             <div className="flex flex-col gap-1">
               <p className="flex items-center gap-1 text-xs font-medium tracking-wide text-zinc-500 uppercase">
                 In context
-                <SpeakButton text={result.inContext} />
+                <SpeakButton text={result.inContext} compact />
               </p>
               <p lang="en-US" className="text-lg">
                 <Marked text={result.inContext} />
@@ -327,7 +328,7 @@ export function Trainer() {
                     <span lang="en-US" className="font-medium">
                       {item.word}
                     </span>{" "}
-                    <SpeakButton text={item.word} />
+                    <SpeakButton text={item.word} compact />
                     <span lang="fr" className="text-zinc-600 dark:text-zinc-400">
                       {" "}
                       · {item.nuance}
@@ -339,11 +340,12 @@ export function Trainer() {
           )}
           {result.alternative && (
             <div className="flex flex-col gap-1">
-              <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+              <p className="flex items-center gap-1 text-xs font-medium tracking-wide text-zinc-500 uppercase">
                 Alternative sentence
+                <SpeakButton text={result.alternative} compact />
               </p>
               <p lang="en-US" className="text-lg">
-                {result.alternative} <SpeakButton text={result.alternative} />
+                {result.alternative}
               </p>
             </div>
           )}
