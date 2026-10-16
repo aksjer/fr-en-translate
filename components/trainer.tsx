@@ -204,9 +204,6 @@ export function Trainer() {
           </ul>
 
           <div className="flex flex-col gap-2">
-            <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-              Translate into American English
-            </p>
             <p
               lang="fr"
               className="text-3xl leading-tight font-semibold tracking-tight"
