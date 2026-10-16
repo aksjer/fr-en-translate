@@ -207,7 +207,7 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
       temperature: temperatureFor(input.model, "correct"),
       maxRetries: 1,
       // Room for the thinking and the remarks on a long sentence.
-      maxOutputTokens: 4000,
+      maxOutputTokens: 8000,
       output: Output.object({
         schema: (input.mode === "verb"
           ? verbCorrectionSchema

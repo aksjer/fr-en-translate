@@ -359,7 +359,7 @@ export async function generateItem(
       maxRetries: 1,
       // Room for the thinking and a long sentence or several words, so the
       // JSON isn't cut short.
-      maxOutputTokens: several ? 2500 : 1500,
+      maxOutputTokens: several ? 4000 : 3000,
       output: Output.object({
         schema: (several ? z.object({ items: z.array(schema) }) : schema) as z.ZodType<
           ItemAnswer | { items: ItemAnswer[] }

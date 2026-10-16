@@ -111,7 +111,7 @@ export async function generateVerb(
       providerOptions: providerOptionsFor(input.model),
       temperature: temperatureFor(input.model, "generate"),
       maxRetries: 1,
-      maxOutputTokens: review ? 1000 : 2000,
+      maxOutputTokens: review ? 3000 : 4000,
       output: Output.object({
         schema: (review ? verbSchema : z.object({ verbs: z.array(verbSchema) })) as z.ZodType<
           z.infer<typeof verbSchema> | { verbs: z.infer<typeof verbSchema>[] }
