@@ -44,7 +44,10 @@ const VARIETY =
   "\n\n## Variety\nInvent a specific, concrete situation on this theme that could " +
   "happen in real life: decide who is involved, where and when. Avoid the most " +
   "obvious example for the theme (going to the market, today's weather…), " +
-  "but stay realistic: no science fiction or fantasy.";
+  "but stay realistic: no science fiction or fantasy. Write what a French speaker " +
+  "would really say in that situation. Use another structure, person and sentence type " +
+  "than the last sentences of the history (not « Tu ne … pas … en ce moment » again " +
+  "and again).";
 
 const PRIORITY =
   "\n\n## Priority\nIf two instructions conflict, the tense and the theme come first, " +

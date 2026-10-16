@@ -112,7 +112,10 @@ type CorrectionOutput = Omit<z.infer<typeof correctionSchema>, "alternative"> &
 // Words and verbs share one rule; each adds what is its own.
 const WORD_RULE =
   "The learner translates a single French item. Accept any correct American English " +
-  'equivalent that keeps the whole meaning, with or without "to" or an article. ';
+  'equivalent that keeps the whole meaning, with or without "to" or an article. ' +
+  "Another common word with the same meaning in this context is right, even if the " +
+  "reference is more precise (begin or start for « commencer », taste for « goûter »): " +
+  "the learner gives one word, so never ask for an object or extra words. ";
 
 const MODE_RULES: Record<Mode, string> = {
   word: WORD_RULE,
@@ -214,7 +217,9 @@ function answerKey(text: string) {
 export async function correctTranslation(rawInput: CorrectInput): Promise<Correction> {
   const input = correctInputSchema.parse(rawInput);
   const wordMode = isWordMode(input.mode);
+  let attempt = 0;
   const output = await retryIfInvalid(async () => {
+    attempt += 1;
     const { output } = await generateText({
       model,
       providerOptions: thinkingFor("correct"),
@@ -417,13 +422,19 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
     if (!output.correction.trim()) {
       throw new InvalidAnswerError("Empty correction");
     }
+    // A wrong answer must say why: ask once more, then the code adds a remark.
+    if (attempt === 1 && output.translated && !output.right && !output.mistakes.length) {
+      throw new InvalidAnswerError("Wrong answer without any mistake");
+    }
     return output;
   });
 
   // Models sometimes count a missing "to" or article as a mistake although the
   // rules accept it: an answer equal to its correction but for these is right.
+  // So is any answer equal to its correction with no mistake listed.
   const sameAsCorrection =
-    wordMode && answerKey(input.translation) === answerKey(output.correction);
+    answerKey(input.translation) === answerKey(output.correction) &&
+    (wordMode || output.mistakes.length === 0);
   const mistakes = (sameAsCorrection ? [] : output.mistakes)
     .map((mistake) => ({ ...mistake, remark: mistake.remark.trim() }))
     .filter((mistake) => mistake.remark);
@@ -432,6 +443,12 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
     .map((mistake) => mistake.remark);
   if (!output.translated && remarks.length === 0) {
     remarks.push("Ta réponse n'est pas une traduction en anglais du texte.");
+  }
+  // Still wrong without a mistake after a second try: at least show the fix.
+  if (output.translated && !output.right && remarks.length === 0 && !sameAsCorrection) {
+    remarks.push(
+      `« ${input.translation.trim()} » → « ${output.correction.replace(/\*\*/g, "").trim()} »`,
+    );
   }
   const praise = output.praise.trim();
   const isCorrect =
