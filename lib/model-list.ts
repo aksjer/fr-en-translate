@@ -10,12 +10,14 @@ export type Provider = "gemini" | "groq";
 
 // Smartest first, by the Artificial Analysis Intelligence Index (October 2026):
 // Qwen 26 to 34 depending on its reasoning, Gemini 3.5 Flash-Lite 22. The
-// settings list them in this order, and the smartest is the default.
+// settings list them in this order.
 export const MODELS_BY_INTELLIGENCE: readonly Model[] = [
   "qwen/qwen3.8-27b",
   "gemini-3.5-flash-lite",
 ];
-export const DEFAULT_MODEL: Model = MODELS_BY_INTELLIGENCE[0];
+// Gemini is the default: Groq's free plan allows Qwen only 8,000 tokens a
+// minute and 200,000 a day, too few for the prompts with the full history.
+export const DEFAULT_MODEL: Model = "gemini-3.5-flash-lite";
 
 // The company serving each provider's models, shown next to them.
 export const PROVIDER_LABELS: Record<Provider, string> = {

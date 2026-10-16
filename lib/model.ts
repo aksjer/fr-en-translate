@@ -48,7 +48,9 @@ type ProviderOptions = NonNullable<
 
 // Keeps thinking short when generating, so the JSON isn't cut short; the
 // correction thinks more, since tokens are cheap and requests per day are the
-// limit. Qwen keeps Groq's default reasoning.
+// limit. Groq's default gives no reasoning for Qwen (Intelligence Index 20
+// instead of 26 at low): it is asked to think, and its thinking is kept out of
+// the JSON, since a raw format fails in JSON mode.
 export function providerOptionsFor(
   id: Model | undefined,
   task: "generate" | "correct" = "generate",
@@ -59,7 +61,12 @@ export function providerOptionsFor(
       google: { thinkingConfig: { thinkingLevel: task === "correct" ? "low" : "minimal" } },
     };
   }
-  return {};
+  return {
+    groq: {
+      reasoningEffort: task === "correct" ? "high" : "low",
+      reasoningFormat: "parsed",
+    },
+  };
 }
 
 // Google strongly recommends keeping Gemini 3 at its default temperature of 1:
