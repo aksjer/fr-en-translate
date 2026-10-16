@@ -15,7 +15,7 @@ export function SpeakButton({ text }: Props) {
       onClick={() => speak(text.replaceAll("**", ""))}
       aria-label="Listen"
       title="Listen"
-      className="inline-flex shrink-0 rounded-full p-1.5 align-middle text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-blue-600 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:outline-none dark:hover:bg-zinc-800 dark:hover:text-blue-400"
+      className="inline-flex shrink-0 rounded-full p-1.5 align-middle text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:outline-none dark:text-blue-400 dark:hover:bg-blue-950/40 dark:hover:text-blue-300"
     >
       <svg
         viewBox="0 0 24 24"

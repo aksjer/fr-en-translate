@@ -296,21 +296,23 @@ export function Trainer() {
           )}
           {forms && (
             <div className="flex flex-col gap-1">
-              <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+              <p className="flex items-center gap-1 text-xs font-medium tracking-wide text-zinc-500 uppercase">
                 Base · past · past participle
+                <SpeakButton text={forms.join(", ")} />
               </p>
               <p lang="en-US" className="text-lg font-medium">
-                {forms.join(" · ")} <SpeakButton text={forms.join(", ")} />
+                {forms.join(" · ")}
               </p>
             </div>
           )}
           {result.inContext && (
             <div className="flex flex-col gap-1">
-              <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+              <p className="flex items-center gap-1 text-xs font-medium tracking-wide text-zinc-500 uppercase">
                 In context
+                <SpeakButton text={result.inContext} />
               </p>
               <p lang="en-US" className="text-lg">
-                <Marked text={result.inContext} /> <SpeakButton text={result.inContext} />
+                <Marked text={result.inContext} />
               </p>
             </div>
           )}
