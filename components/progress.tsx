@@ -30,20 +30,17 @@ export function Progress() {
 
   const recent = answered.slice(-RECENT).reverse();
 
-  const card =
-    "flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950";
-
   return (
-    <div className="flex flex-col gap-6">
-      <section className={card}>
-        <h2 className="font-medium">Learned</h2>
+    <div className="flex flex-col gap-8">
+      <section className="flex flex-col gap-3">
+        <h3 className="font-medium">Learned</h3>
         {LEARNED_MODES.map((mode) => {
           const items = known[mode] ?? [];
           return (
             <div key={mode} className="flex flex-col gap-1">
-              <h3 className="text-sm text-zinc-500">
+              <h4 className="text-sm text-zinc-500">
                 {LEARNED_TITLES[mode]} ({items.length})
-              </h3>
+              </h4>
               {items.length > 0 ? (
                 <p className="text-sm">{[...items].reverse().join(", ")}</p>
               ) : (
@@ -55,8 +52,8 @@ export function Progress() {
       </section>
 
       {recent.length > 0 && (
-        <section className={card}>
-          <h2 className="font-medium">Recent answers</h2>
+        <section className="flex flex-col gap-3">
+          <h3 className="font-medium">Recent answers</h3>
           <ul className="flex flex-col gap-2 text-sm">
             {recent.map((item, index) => (
               <li key={index} className="flex gap-2">

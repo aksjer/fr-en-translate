@@ -83,7 +83,7 @@ export function Trainer() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const nextRef = useRef<HTMLButtonElement>(null);
 
-  // Keep the keyboard flow going: after a correction, focus "Next";
+  // Keep the keyboard flow going: after a correction, focus "Generate";
   // after a new exercise, focus the answer field.
   useEffect(() => {
     if (result) nextRef.current?.focus();
@@ -167,11 +167,11 @@ export function Trainer() {
   ].filter(Boolean);
 
   return (
-    <div className="flex flex-col gap-6 rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+    <div className="flex flex-col gap-6">
       {!exercise && (
         <p className="text-zinc-600 dark:text-zinc-400">
-          Pick your settings, then start. You&apos;ll get a French item to
-          translate into American English.
+          Pick your settings, then generate a French item to translate into
+          American English.
         </p>
       )}
 
@@ -297,7 +297,7 @@ export function Trainer() {
           {result.similar && (
             <div className="flex flex-col gap-1">
               <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-                Similar words
+                {exercise?.mode === "verb" ? "Similar verbs" : "Similar words"}
               </p>
               <ul className="flex flex-col gap-1">
                 {result.similar.map((item) => (
@@ -317,7 +317,7 @@ export function Trainer() {
           {result.alternative && (
             <div className="flex flex-col gap-1">
               <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-                Another way to say it
+                Alternative sentence
               </p>
               <p lang="en-US" className="text-lg">
                 {result.alternative}
@@ -350,11 +350,7 @@ export function Trainer() {
           disabled={loading !== null}
           className={`self-start ${primaryButton}`}
         >
-          {loading === "generate"
-            ? "Generating…"
-            : exercise
-              ? "Next"
-              : "Start"}
+          {loading === "generate" ? "Loading…" : "Generate"}
         </button>
       )}
     </div>
