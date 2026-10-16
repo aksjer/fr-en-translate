@@ -167,7 +167,7 @@ export function Trainer() {
   ].filter(Boolean);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
       {!exercise && (
         <p className="text-zinc-600 dark:text-zinc-400">
           Pick your settings, then start. You&apos;ll get a French item to
@@ -176,7 +176,7 @@ export function Trainer() {
       )}
 
       {exercise && (
-        <section className="flex flex-col gap-6 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+        <section className="flex flex-col gap-6">
           <ul className="flex flex-wrap gap-2 text-xs text-zinc-600 dark:text-zinc-400">
             {tags.map((tag) => (
               <li

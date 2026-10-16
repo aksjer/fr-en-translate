@@ -10,9 +10,10 @@ export default function Home() {
     "flex flex-col gap-6 lg:sticky lg:top-12 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto";
   return (
     <main className="mx-auto grid w-full max-w-7xl flex-1 content-start items-start gap-8 px-4 py-12 lg:grid-cols-[18rem_minmax(0,1fr)_20rem]">
-      <div className="flex flex-col gap-8 lg:order-2">
+      <section className="flex flex-col gap-3 lg:order-2">
+        <h2 className="text-lg font-semibold">Exercise</h2>
         <Trainer />
-      </div>
+      </section>
       <aside className={`lg:order-1 ${side}`}>
         <SidePanel title="Settings">
           <Settings />
