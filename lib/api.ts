@@ -1,13 +1,7 @@
 import { APICallError, RetryError } from "ai";
 import { z } from "zod";
-import {
-  apiKeyName,
-  isInvalidAnswer,
-  PROVIDER_NAMES,
-  safeModel,
-} from "@/lib/model";
+import { isInvalidAnswer } from "@/lib/model";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
-import { providerOf, type Model } from "@/lib/model-list";
 
 // The free tier is rate limited too, so keep this conservative.
 const RATE_LIMIT = 15;
@@ -21,8 +15,8 @@ type Guarded<T> =
   | { data?: never; error: Response };
 
 // Shared checks for the AI routes: per-IP rate limit, body size cap, JSON parsing,
-// schema validation, then the API key of the chosen model's provider.
-export async function guardRequest<T extends { model?: Model }>(
+// schema validation, then the Gemini API key.
+export async function guardRequest<T>(
   request: Request,
   route: string,
   schema: z.ZodType<T>,
@@ -78,12 +72,11 @@ export async function guardRequest<T extends { model?: Model }>(
     };
   }
 
-  const keyName = apiKeyName(parsed.data.model);
-  if (!process.env[keyName]) {
-    console.error(`${keyName} is missing`);
+  if (!process.env.GEMINI_API_KEY) {
+    console.error("GEMINI_API_KEY is missing");
     return {
       error: Response.json(
-        { error: `${keyName} is missing on the server. Choose another model.` },
+        { error: "GEMINI_API_KEY is missing on the server." },
         { status: 500 },
       ),
     };
@@ -94,17 +87,11 @@ export async function guardRequest<T extends { model?: Model }>(
 
 // Turns a failed model call into a response. Each failure gets its own
 // message, and a 429 its own status, so the page can say what to do.
-export function providerErrorResponse(
-  error: unknown,
-  fallback: string,
-  model: Model | undefined,
-) {
-  const name = PROVIDER_NAMES[providerOf(safeModel(model))];
-  const keyName = apiKeyName(model);
+export function providerErrorResponse(error: unknown, fallback: string) {
   if (isInvalidAnswer(error)) {
     return Response.json(
       {
-        error: `${name} sent back an invalid answer. Try again, or choose another model.`,
+        error: "Gemini sent back an invalid answer. Try again.",
       },
       { status: 502 },
     );
@@ -116,7 +103,7 @@ export function providerErrorResponse(
         return Response.json(
           {
             error:
-              `${name} rejected the request (error 400). Report it if it happens again.`,
+              "Gemini rejected the request (error 400). Report it if it happens again.",
           },
           { status: 502 },
         );
@@ -125,7 +112,7 @@ export function providerErrorResponse(
         return Response.json(
           {
             error:
-              `The ${name} API key was rejected. Check ${keyName} on the server.`,
+              "The Gemini API key was rejected. Check GEMINI_API_KEY on the server.",
           },
           { status: 502 },
         );
@@ -133,7 +120,7 @@ export function providerErrorResponse(
         return Response.json(
           {
             error:
-              `This ${name} model is no longer available. It must be changed in the code.`,
+              "This Gemini model is no longer available. It must be changed in the code.",
           },
           { status: 502 },
         );
@@ -141,7 +128,7 @@ export function providerErrorResponse(
         return Response.json(
           {
             error:
-              `${name} reached its requests-per-minute limit. Try again in a minute.`,
+              "Gemini reached its requests-per-minute limit. Try again in a minute.",
           },
           { status: 429, headers: { "Retry-After": "60" } },
         );
@@ -149,7 +136,7 @@ export function providerErrorResponse(
         return Response.json(
           {
             error:
-              `${name} is very busy right now. Try again in a minute.`,
+              "Gemini is very busy right now. Try again in a minute.",
           },
           { status: 503, headers: { "Retry-After": "60" } },
         );

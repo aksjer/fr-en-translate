@@ -13,10 +13,6 @@ export async function POST(request: Request) {
     return Response.json(await correctTranslation(data));
   } catch (error) {
     console.error("Model correction failed", error);
-    return providerErrorResponse(
-      error,
-      "The correction failed. Try again.",
-      data.model,
-    );
+    return providerErrorResponse(error, "The correction failed. Try again.");
   }
 }

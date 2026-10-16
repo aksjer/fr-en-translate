@@ -10,8 +10,7 @@ Your history, settings and progress stay in your browser.
 
 ## Run it
 
-1. Copy `.env.example` to `.env.local` and add your keys: `GEMINI_API_KEY`
-   (Gemini) and `GROQ_API_KEY` (Groq). One is enough for the models of its provider.
+1. Copy `.env.example` to `.env.local` and add your free Gemini key: `GEMINI_API_KEY`.
 2. `npm install`, then `npm run dev`, and open http://localhost:3000.
 
 The prompts are in `lib/generate/` (one file per mode) and `lib/correct.ts`.

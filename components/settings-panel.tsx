@@ -1,12 +1,5 @@
 "use client";
 
-import {
-  DEFAULT_MODEL,
-  MODELS_BY_INTELLIGENCE,
-  PROVIDER_LABELS,
-  providerOf,
-  type Model,
-} from "@/lib/model-list";
 import { LEVELS, MODES, TENSES, THEMES, VERB_TYPES } from "@/lib/options";
 import { settingApplies, type Settings } from "@/lib/settings";
 
@@ -18,20 +11,6 @@ type Props = {
 export function SettingsPanel({ settings, onChange }: Props) {
   return (
     <div className="flex flex-col gap-5">
-      <label className="flex flex-col gap-2">
-        <span className="text-sm font-medium">Model (smartest first)</span>
-        <select
-          value={settings.model ?? DEFAULT_MODEL}
-          onChange={(event) => onChange({ ...settings, model: event.target.value as Model })}
-          className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-        >
-          {MODELS_BY_INTELLIGENCE.map((model) => (
-            <option key={model} value={model}>
-              {model} · {PROVIDER_LABELS[providerOf(model)]}
-            </option>
-          ))}
-        </select>
-      </label>
       <ChipGroup
         label="Modes"
         options={MODES}

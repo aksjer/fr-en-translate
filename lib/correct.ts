@@ -3,12 +3,10 @@ import { z } from "zod";
 import { ERROR_TAG_DEFINITIONS, ERROR_TAGS, type ErrorTag } from "@/lib/error-tags";
 import {
   InvalidAnswerError,
-  modelFor,
-  providerOptionsFor,
+  model,
   retryIfInvalid,
-  temperatureFor,
+  thinkingFor,
 } from "@/lib/model";
-import { MODELS } from "@/lib/model-list";
 import {
   englishKey,
   isWordMode,
@@ -43,8 +41,6 @@ export const correctInputSchema = z.object({
     .max(MAX_PAST_MISTAKES)
     .optional()
     .catch(undefined),
-  // A removed model saved in the browser falls back to the default instead of failing.
-  model: z.enum(MODELS).optional().catch(undefined),
 });
 
 export type CorrectInput = z.input<typeof correctInputSchema>;
@@ -202,9 +198,8 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
   const wordMode = isWordMode(input.mode);
   const output = await retryIfInvalid(async () => {
     const { output } = await generateText({
-      model: modelFor(input.model),
-      providerOptions: providerOptionsFor(input.model, "correct"),
-      temperature: temperatureFor(input.model, "correct"),
+      model,
+      providerOptions: thinkingFor("correct"),
       maxRetries: 1,
       // Room for the thinking and the remarks on a long sentence.
       maxOutputTokens: 8000,

@@ -141,7 +141,6 @@ export function Trainer() {
         reference: exercise.reference,
         context: exercise.context,
         pastMistakes: pastMistakes(readSeen(), exercise.mode, exercise.text),
-        model: settings.model,
       });
       setResult(correction);
       const english =

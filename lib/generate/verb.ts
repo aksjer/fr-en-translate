@@ -22,10 +22,9 @@ import {
 } from "@/lib/generate/shared";
 import {
   InvalidAnswerError,
-  modelFor,
-  providerOptionsFor,
+  model,
   retryIfInvalid,
-  temperatureFor,
+  thinkingFor,
 } from "@/lib/model";
 import { MAX_TEXT_LENGTH, type VerbType } from "@/lib/options";
 import type { Combination } from "@/lib/settings";
@@ -107,9 +106,8 @@ export async function generateVerb(
   const verb = await retryIfInvalid(async () => {
     attempt++;
     const { output } = await generateText({
-      model: modelFor(input.model),
-      providerOptions: providerOptionsFor(input.model),
-      temperature: temperatureFor(input.model, "generate"),
+      model,
+      providerOptions: thinkingFor("generate"),
       maxRetries: 1,
       maxOutputTokens: review ? 3000 : 4000,
       output: Output.object({

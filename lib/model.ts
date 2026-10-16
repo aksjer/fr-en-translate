@@ -1,84 +1,26 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { createGroq } from "@ai-sdk/groq";
 import {
   NoObjectGeneratedError,
   NoOutputGeneratedError,
   type generateText,
 } from "ai";
-import {
-  DEFAULT_MODEL,
-  MODELS,
-  providerOf,
-  type Model,
-  type Provider,
-} from "@/lib/model-list";
 
-// Gemini and Groq, through the Vercel AI SDK. Each provider has its own key.
+// The only model: Gemini 3.5 Flash-Lite, through the Vercel AI SDK. Its free
+// tier gives 250,000 tokens a minute, enough for prompts with the full history.
+// Gemini 3 keeps its default temperature of 1, as Google recommends.
 const google = createGoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY });
-const groq = createGroq({ apiKey: process.env.GROQ_API_KEY });
-
-export const PROVIDER_NAMES: Record<Provider, string> = {
-  gemini: "Gemini",
-  groq: "Groq",
-};
-
-const API_KEYS: Record<Provider, string> = {
-  gemini: "GEMINI_API_KEY",
-  groq: "GROQ_API_KEY",
-};
-
-// Only ids from the fixed list are accepted, so the client can't pick any model.
-export function safeModel(id: Model | undefined): Model {
-  return id && (MODELS as readonly string[]).includes(id) ? id : DEFAULT_MODEL;
-}
-
-// The env variable that holds the key for this model's provider.
-export function apiKeyName(id: Model | undefined) {
-  return API_KEYS[providerOf(safeModel(id))];
-}
-
-export function modelFor(id: Model | undefined) {
-  const model = safeModel(id);
-  return providerOf(model) === "groq" ? groq(model) : google(model);
-}
+export const model = google("gemini-3.5-flash-lite");
 
 type ProviderOptions = NonNullable<
   Parameters<typeof generateText>[0]["providerOptions"]
 >;
 
-// Short thinking, a bit more for the correction: more thinking (Gemini low
-// and high) made each answer take 4 to 14 seconds, too slow for the owner. Qwen
-// thinks low for both, since it has no level under low but none. Its thinking is kept out of
-// the JSON, since a raw format fails in JSON mode.
-export function providerOptionsFor(
-  id: Model | undefined,
-  task: "generate" | "correct" = "generate",
-): ProviderOptions {
-  const model = safeModel(id);
-  if (providerOf(model) === "gemini") {
-    return {
-      google: { thinkingConfig: { thinkingLevel: task === "correct" ? "low" : "minimal" } },
-    };
-  }
+// Short thinking, a bit more for the correction: more (low and high) made each
+// answer take 4 to 14 seconds, too slow.
+export function thinkingFor(task: "generate" | "correct"): ProviderOptions {
   return {
-    groq: {
-      reasoningEffort: "low",
-      reasoningFormat: "parsed",
-    },
+    google: { thinkingConfig: { thinkingLevel: task === "correct" ? "low" : "minimal" } },
   };
-}
-
-// Google strongly recommends keeping Gemini 3 at its default temperature of 1:
-// lower values can make it loop or get worse. Qwen recommends 0.6 when it thinks,
-// and warns that values near 0 cause endless repetitions. Generation stays at 1
-// for variety.
-export function temperatureFor(
-  id: Model | undefined,
-  task: "generate" | "correct",
-) {
-  const model = safeModel(id);
-  if (task === "generate" || providerOf(model) === "gemini") return 1;
-  return 0.6;
 }
 
 // The answer matched the schema, but its content can't be used (empty, too long).

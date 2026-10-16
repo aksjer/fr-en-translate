@@ -5,10 +5,9 @@ import { z } from "zod";
 import {
   InvalidAnswerError,
   isInvalidAnswer,
-  modelFor,
-  providerOptionsFor,
+  model,
   retryIfInvalid,
-  temperatureFor,
+  thinkingFor,
 } from "@/lib/model";
 import {
   englishKey,
@@ -261,7 +260,7 @@ export function historySection(items: HistoryItem[], mode: Mode) {
   );
 }
 
-// Every field is required: Groq's strict JSON mode rejects optional ones.
+// Every field is required, so the model always writes each one.
 // No length limits: one answer over a limit would fail the whole call, so the
 // code checks the lengths instead.
 // The situation comes first, so the model settles its idea before writing the item.
@@ -353,9 +352,8 @@ export async function generateItem(
   const item = await retryIfInvalid(async () => {
     attempt++;
     const { output } = await generateText({
-      model: modelFor(input.model),
-      providerOptions: providerOptionsFor(input.model),
-      temperature: temperatureFor(input.model, "generate"),
+      model,
+      providerOptions: thinkingFor("generate"),
       maxRetries: 1,
       // Room for the thinking and a long sentence or several words, so the
       // JSON isn't cut short.
