@@ -213,7 +213,7 @@ export function Trainer() {
             </p>
             {exercise.context && (
               <p lang="fr" className="text-zinc-500 italic">
-                {exercise.context}
+                <Marked text={exercise.context} />
               </p>
             )}
           </div>
