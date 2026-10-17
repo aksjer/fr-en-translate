@@ -194,7 +194,7 @@ export function Trainer() {
     <div className="flex flex-col gap-6">
       {/* Always there: before an answer, it also skips the item, which then
           comes back in a review. */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-center justify-between gap-4">
         {exercise ? (
           <ul className="flex flex-wrap gap-2 text-xs text-zinc-600 dark:text-zinc-400">
             {tags.map((tag) => (
