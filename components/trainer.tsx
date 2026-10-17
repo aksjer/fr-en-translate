@@ -150,14 +150,21 @@ export function Trainer() {
         isWordMode(exercise.mode) && exercise.reference
           ? englishKey(exercise.reference)
           : undefined;
+      const answer = translation.trim().slice(0, 300);
       rememberResult(exercise.text, {
         english,
+        answer,
         ok: correction.isCorrect,
         tag: correction.isCorrect ? undefined : correction.tag,
         remark: correction.isCorrect ? undefined : correction.remark,
       });
       // A word or verb answered right never comes back.
-      if (english && correction.isCorrect) rememberKnown(exercise.mode, english);
+      if (english && correction.isCorrect) {
+        rememberKnown(exercise.mode, english);
+        // A right answer other than the expected one is learned too.
+        const own = englishKey(answer);
+        if (own && own !== english) rememberKnown(exercise.mode, own);
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {

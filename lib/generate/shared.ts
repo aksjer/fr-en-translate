@@ -34,6 +34,7 @@ const historyItemSchema = z.object({
   text: clipped(300),
   mode: z.enum(MODES).optional().catch(undefined),
   english: clipped(40).optional().catch(undefined),
+  answer: clipped(300).optional().catch(undefined),
   ok: z.boolean().optional().catch(undefined),
   tag: clipped(40).optional().catch(undefined),
   remark: clipped(300).optional().catch(undefined),
@@ -235,6 +236,11 @@ export function historySection(items: HistoryItem[], mode: Mode) {
   const lines = items.map((item, index) => {
     const english =
       isWordMode(mode) && item.english ? ` → ${item.english}` : "";
+    // Only when it says more than the expected English.
+    const wrote =
+      item.answer && !(isWordMode(mode) && englishKey(item.answer) === item.english)
+        ? ` (learner wrote: « ${item.answer} »)`
+        : "";
     // The last 5 sentences can give the next one its extra learning point.
     const recent =
       !isWordMode(mode) && items.length - index <= 5 ? " (recent)" : "";
@@ -244,13 +250,15 @@ export function historySection(items: HistoryItem[], mode: Mode) {
         : item.ok
           ? "right"
           : `wrong${recent}${item.remark ? `: ${item.remark}` : " (no detail)"}`;
-    return `- « ${item.text} »${english}: ${result}`;
+    return `- « ${item.text} »${english}${wrote}: ${result}`;
   });
   return (
     "\n\n## History\n" +
     "The learner's last items in this mode, oldest first:\n" +
     lines.join("\n") +
-    "\nUse it to choose the next item. " +
+    "\nUse it to choose the next item. What the learner wrote shows the English they " +
+    "already use: a word they wrote right is a word they know, and their wording " +
+    "shows what to practice next. " +
     (isWordMode(mode)
       ? "Give no item of the history again, and none of its English words, even with " +
         "another French word or context. The same French word with another meaning is " +

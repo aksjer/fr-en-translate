@@ -7,6 +7,7 @@ import {
   readSeen,
   subscribeHistory,
 } from "@/lib/seen-items";
+import { englishKey } from "@/lib/options";
 
 const LEARNED_MODES = ["word", "verb"] as const;
 const LEARNED_TITLES = { word: "Words", verb: "Verbs" };
@@ -62,9 +63,14 @@ export function Progress() {
                 </span>
                 <span>
                   {item.text}
-                  {item.english && (
-                    <span className="text-zinc-500"> → {item.english}</span>
-                  )}
+                  {item.english &&
+                    (item.answer && englishKey(item.answer) !== item.english ? (
+                      <span className="text-zinc-500">
+                        {" "}→ {item.answer} ({item.english})
+                      </span>
+                    ) : (
+                      <span className="text-zinc-500"> → {item.english}</span>
+                    ))}
                   {!item.ok && item.remark && (
                     <span className="block text-zinc-500">{item.remark}</span>
                   )}

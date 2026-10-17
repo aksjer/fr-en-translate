@@ -20,8 +20,10 @@ const RECENTLY_SEEN = 5;
 export type SeenItem = {
   text: string;
   mode?: Mode;
-  // The English of a word or verb.
+  // The English of a word or verb: the expected answer.
   english?: string;
+  // What the learner wrote.
+  answer?: string;
   // Right or wrong; none if the item wasn't answered.
   ok?: boolean;
   tag?: string;
