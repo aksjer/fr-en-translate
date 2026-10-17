@@ -17,7 +17,7 @@ export default function Home() {
         </Panel>
       </div>
       <SideColumn>
-        <Panel title="Settings" collapsible action={<SideColumnToggle />}>
+        <Panel title="Settings" collapsible pinned action={<SideColumnToggle />}>
           <Settings />
         </Panel>
         <Panel title="My progress" collapsible>

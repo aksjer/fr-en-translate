@@ -10,12 +10,22 @@ type Props = {
   collapsible?: boolean;
   // Shown at the end of the title row on a wide screen.
   action?: ReactNode;
+  // On a wide screen, the title row stays at the top of the side column while
+  // it scrolls. The section then lays its parts straight into the column, so
+  // its own spacing is rebuilt with padding and margins.
+  pinned?: boolean;
   children: ReactNode;
 };
 
 // One block of the page: a title over a frame. On a wide screen the exercise's
 // frame scrolls on its own; side panels scroll with their column.
-export function Panel({ title, collapsible = false, action, children }: Props) {
+export function Panel({
+  title,
+  collapsible = false,
+  action,
+  pinned = false,
+  children,
+}: Props) {
   // Phone: whether the section is open. Wide screen: whether it is folded.
   const [open, setOpen] = useState(false);
   const [storedFolded, setFolded] = useFolded(title);
@@ -24,9 +34,17 @@ export function Panel({ title, collapsible = false, action, children }: Props) {
   const contentId = useId();
 
   return (
-    <section className={`flex flex-col gap-3 ${collapsible ? "" : "lg:min-h-0"}`}>
+    <section
+      className={`flex flex-col gap-3 ${
+        !collapsible ? "lg:min-h-0" : pinned ? "lg:contents" : "lg:mt-3"
+      }`}
+    >
       {collapsible ? (
-        <div className="hidden items-center gap-2 lg:flex">
+        <div
+          className={`hidden items-center gap-2 lg:flex ${
+            pinned ? "lg:sticky lg:top-0 lg:z-10 lg:bg-background lg:pb-3" : ""
+          }`}
+        >
           <button
             type="button"
             aria-expanded={!folded}
@@ -70,7 +88,7 @@ export function Panel({ title, collapsible = false, action, children }: Props) {
       <div
         id={contentId}
         className={`rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950 ${
-          collapsible ? "" : "lg:min-h-0 lg:overflow-y-auto"
+          !collapsible ? "lg:min-h-0 lg:overflow-y-auto" : pinned ? "lg:mb-3" : ""
         } ${hiddenOnPhone ? "hidden" : ""} ${
           folded ? "lg:hidden" : hiddenOnPhone ? "lg:block" : ""
         }`}

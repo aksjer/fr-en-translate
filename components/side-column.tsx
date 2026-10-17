@@ -49,7 +49,7 @@ export function SideColumn({ children }: { children: ReactNode }) {
   return (
     <ToggleContext.Provider value={() => setHidden(!hidden)}>
       <div
-        className={`flex flex-col gap-8 lg:order-1 lg:min-h-0 lg:gap-6 ${
+        className={`flex flex-col gap-8 lg:order-1 lg:min-h-0 lg:gap-0 ${
           hidden ? "lg:hidden" : "lg:w-80 lg:overflow-y-auto"
         }`}
       >
