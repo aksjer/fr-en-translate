@@ -17,12 +17,17 @@ type Props = {
 
 // On a wide screen, a side panel's title row sticks to the top of the column
 // as it scrolls, under the titles of the panels above it, so every title stays
-// in reach. Side panels have no frame there; a line beside the column is
-// enough. The section lays its parts straight into the column for that, and
-// its spacing is rebuilt with padding and margins. Each title row is 2.5rem.
+// in reach. Side panels have no frame there: a line beside the column and a
+// line over every title but the first are enough. The section lays its parts
+// straight into the column for that, and its spacing is rebuilt with padding
+// and margins. The first title row is 40px tall, the second 53px.
 const STACK = [
   { title: "lg:top-0", frame: "" },
-  { title: "lg:top-10 lg:mt-3", frame: "lg:scroll-mt-20" },
+  {
+    title:
+      "lg:top-10 lg:mt-3 lg:border-t lg:border-zinc-200 lg:pt-3 lg:dark:border-zinc-800",
+    frame: "lg:scroll-mt-[93px]",
+  },
 ];
 
 // One block of the page: a title over a frame. On a wide screen the exercise's
