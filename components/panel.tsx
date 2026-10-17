@@ -10,12 +10,19 @@ type Props = {
   collapsible?: boolean;
   // Shown at the end of the title row on a wide screen.
   action?: ReactNode;
-  // On a wide screen, the title row stays at the top of the side column while
-  // it scrolls. The section then lays its parts straight into the column, so
-  // its own spacing is rebuilt with padding and margins.
-  pinned?: boolean;
+  // Where the panel sits in the side column: 0 for the first, 1 for the second.
+  stack?: 0 | 1;
   children: ReactNode;
 };
+
+// On a wide screen, a side panel's title row sticks to the top of the column
+// as it scrolls, under the titles of the panels above it, so every title stays
+// in reach. The section lays its parts straight into the column for that, and
+// its spacing is rebuilt with padding and margins. Each title row is 2.5rem.
+const STACK = [
+  { title: "lg:top-0", frame: "" },
+  { title: "lg:top-10 lg:mt-3", frame: "lg:scroll-mt-20" },
+];
 
 // One block of the page: a title over a frame. On a wide screen the exercise's
 // frame scrolls on its own; side panels scroll with their column.
@@ -23,7 +30,7 @@ export function Panel({
   title,
   collapsible = false,
   action,
-  pinned = false,
+  stack = 0,
   children,
 }: Props) {
   // Phone: whether the section is open. Wide screen: whether it is folded.
@@ -36,28 +43,29 @@ export function Panel({
   return (
     <section
       className={`flex flex-col gap-3 ${
-        !collapsible ? "lg:min-h-0" : pinned ? "lg:contents" : "lg:mt-3"
+        collapsible ? "lg:contents" : "lg:min-h-0"
       }`}
     >
       {collapsible ? (
         <div
-          className={`hidden items-center gap-2 lg:flex ${
-            pinned ? "lg:sticky lg:top-0 lg:z-10 lg:bg-background lg:pb-3" : ""
-          }`}
+          className={`hidden items-center gap-2 lg:sticky lg:z-10 lg:flex lg:bg-background lg:pb-3 ${STACK[stack].title}`}
         >
           <button
             type="button"
             aria-expanded={!folded}
             aria-controls={contentId}
             onClick={(event) => {
+              const column = event.currentTarget.closest("[data-side-column]");
               setFolded(!folded);
               // The browser would keep the part of the column being read in
-              // place, so folding seemed to do nothing; go back to the top.
-              if (pinned) {
-                event.currentTarget
-                  .closest("[data-side-column]")
-                  ?.scrollTo({ top: 0 });
-              }
+              // place, so the change seemed to do nothing. Show the panel's
+              // start instead, once the page has redrawn.
+              requestAnimationFrame(() => {
+                if (stack === 0) column?.scrollTo({ top: 0 });
+                else if (folded) {
+                  document.getElementById(contentId)?.scrollIntoView();
+                }
+              });
             }}
             className="flex flex-1 items-center gap-1.5 text-left text-lg font-semibold"
           >
@@ -97,7 +105,9 @@ export function Panel({
       <div
         id={contentId}
         className={`rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950 ${
-          !collapsible ? "lg:min-h-0 lg:overflow-y-auto" : pinned ? "lg:mb-3" : ""
+          collapsible
+            ? `lg:mb-3 ${STACK[stack].frame}`
+            : "lg:min-h-0 lg:overflow-y-auto"
         } ${hiddenOnPhone ? "hidden" : ""} ${
           folded ? "lg:hidden" : hiddenOnPhone ? "lg:block" : ""
         }`}
