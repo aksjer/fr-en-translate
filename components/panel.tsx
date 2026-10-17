@@ -49,7 +49,16 @@ export function Panel({
             type="button"
             aria-expanded={!folded}
             aria-controls={contentId}
-            onClick={() => setFolded(!folded)}
+            onClick={(event) => {
+              setFolded(!folded);
+              // The browser would keep the part of the column being read in
+              // place, so folding seemed to do nothing; go back to the top.
+              if (pinned) {
+                event.currentTarget
+                  .closest("[data-side-column]")
+                  ?.scrollTo({ top: 0 });
+              }
+            }}
             className="flex flex-1 items-center gap-1.5 text-left text-lg font-semibold"
           >
             <svg
