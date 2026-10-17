@@ -17,7 +17,8 @@ type Props = {
 
 // On a wide screen, a side panel's title row sticks to the top of the column
 // as it scrolls, under the titles of the panels above it, so every title stays
-// in reach. The section lays its parts straight into the column for that, and
+// in reach. Side panels have no frame there; a line beside the column is
+// enough. The section lays its parts straight into the column for that, and
 // its spacing is rebuilt with padding and margins. Each title row is 2.5rem.
 const STACK = [
   { title: "lg:top-0", frame: "" },
@@ -106,7 +107,7 @@ export function Panel({
         id={contentId}
         className={`rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950 ${
           collapsible
-            ? `lg:mb-3 ${STACK[stack].frame}`
+            ? `lg:mb-3 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:dark:bg-transparent ${STACK[stack].frame}`
             : "lg:min-h-0 lg:overflow-y-auto"
         } ${hiddenOnPhone ? "hidden" : ""} ${
           folded ? "lg:hidden" : hiddenOnPhone ? "lg:block" : ""

@@ -48,11 +48,12 @@ export function SideColumn({ children }: { children: ReactNode }) {
   const [hidden, setHidden] = useFolded("side-column");
   return (
     <ToggleContext.Provider value={() => setHidden(!hidden)}>
-      {/* The right padding keeps the scrollbar off the panels and buttons. */}
+      {/* A line separates the column from the exercise; the right padding
+          keeps the scrollbar off the panels and buttons. */}
       <div
         data-side-column
         className={`flex flex-col gap-8 lg:order-1 lg:min-h-0 lg:gap-0 ${
-          hidden ? "lg:hidden" : "lg:w-[21rem] lg:overflow-y-auto lg:pr-3"
+          hidden ? "lg:hidden" : "lg:w-[21rem] lg:overflow-y-auto lg:border-r lg:border-zinc-200 lg:pr-6 lg:dark:border-zinc-800"
         }`}
       >
         {children}
