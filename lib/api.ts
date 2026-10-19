@@ -125,13 +125,7 @@ export function providerErrorResponse(error: unknown, fallback: string) {
           { status: 502 },
         );
       case 429:
-        return Response.json(
-          {
-            error:
-              "Gemini reached its requests-per-minute limit. Try again in a minute.",
-          },
-          { status: 429, headers: { "Retry-After": "60" } },
-        );
+        return quotaResponse(`${apiError.responseBody ?? ""} ${apiError.message}`);
       case 503:
         return Response.json(
           {
@@ -143,4 +137,45 @@ export function providerErrorResponse(error: unknown, fallback: string) {
     }
   }
   return Response.json({ error: fallback }, { status: 502 });
+}
+
+// Hours until the free tier's daily quota resets, at midnight Pacific time.
+function hoursUntilDailyReset() {
+  const now = new Date();
+  const pacific = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
+    hour: "numeric",
+    minute: "numeric",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const part = (type: string) => Number(pacific.find((item) => item.type === type)?.value ?? 0);
+  const minutesLeft = 24 * 60 - (part("hour") * 60 + part("minute"));
+  return Math.max(1, Math.ceil(minutesLeft / 60));
+}
+
+// Google names the quota that was hit (e.g. GenerateRequestsPerDayPerProjectPerModel):
+// the daily one needs hours, the per-minute ones only a minute.
+function quotaResponse(details: string) {
+  if (/PerDay/i.test(details)) {
+    const hours = hoursUntilDailyReset();
+    return Response.json(
+      {
+        error:
+          `Gemini reached its daily request limit. It resets at midnight Pacific time, ` +
+          `in about ${hours} hour${hours > 1 ? "s" : ""}.`,
+      },
+      { status: 429, headers: { "Retry-After": String(hours * 3600) } },
+    );
+  }
+  const delay = Number(details.match(/retryDelay\W+(\d+)/)?.[1]);
+  const seconds = delay > 0 && delay < 3600 ? delay : 60;
+  return Response.json(
+    {
+      error:
+        seconds > 60
+          ? `Gemini reached its per-minute limit. Try again in ${Math.ceil(seconds / 60)} minutes.`
+          : "Gemini reached its per-minute limit. Try again in a minute.",
+    },
+    { status: 429, headers: { "Retry-After": String(seconds) } },
+  );
 }
