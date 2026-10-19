@@ -125,7 +125,7 @@ export function providerErrorResponse(error: unknown, fallback: string) {
           { status: 502 },
         );
       case 429:
-        return quotaResponse(`${apiError.responseBody ?? ""} ${apiError.message}`);
+        return quotaResponse(apiError.responseBody);
       case 503:
         return Response.json(
           {
@@ -139,42 +139,41 @@ export function providerErrorResponse(error: unknown, fallback: string) {
   return Response.json({ error: fallback }, { status: 502 });
 }
 
-// Hours until the free tier's daily quota resets, at midnight Pacific time.
-function hoursUntilDailyReset() {
-  const now = new Date();
-  const pacific = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Los_Angeles",
-    hour: "numeric",
-    minute: "numeric",
-    hourCycle: "h23",
-  }).formatToParts(now);
-  const part = (type: string) => Number(pacific.find((item) => item.type === type)?.value ?? 0);
-  const minutesLeft = 24 * 60 - (part("hour") * 60 + part("minute"));
-  return Math.max(1, Math.ceil(minutesLeft / 60));
-}
+// Google sends the same 429 for every quota; its details name the quotas hit
+// (quotaId, e.g. GenerateRequestsPerDayPerProjectPerModel-FreeTier) and how long
+// to wait (retryDelay, e.g. "55s").
+type QuotaDetails = {
+  error?: {
+    details?: {
+      violations?: { quotaId?: string }[];
+      retryDelay?: string;
+    }[];
+  };
+};
 
-// Google names the quota that was hit (e.g. GenerateRequestsPerDayPerProjectPerModel):
-// the daily one needs hours, the per-minute ones only a minute.
-function quotaResponse(details: string) {
-  if (/PerDay/i.test(details)) {
-    const hours = hoursUntilDailyReset();
+function quotaResponse(responseBody: string | undefined) {
+  let details: NonNullable<QuotaDetails["error"]>["details"] = [];
+  try {
+    details = (JSON.parse(responseBody ?? "") as QuotaDetails).error?.details ?? [];
+  } catch {
+    // No details: treat it as the per-minute limit.
+  }
+  const quotaIds = details.flatMap((detail) =>
+    (detail.violations ?? []).map((violation) => violation.quotaId ?? ""),
+  );
+  if (quotaIds.some((id) => id.includes("PerDay"))) {
     return Response.json(
-      {
-        error:
-          `Gemini reached its daily request limit. It resets at midnight Pacific time, ` +
-          `in about ${hours} hour${hours > 1 ? "s" : ""}.`,
-      },
-      { status: 429, headers: { "Retry-After": String(hours * 3600) } },
+      { error: "Gemini reached its daily request limit. Try again tomorrow." },
+      { status: 429 },
     );
   }
-  const delay = Number(details.match(/retryDelay\W+(\d+)/)?.[1]);
-  const seconds = delay > 0 && delay < 3600 ? delay : 60;
+  const delay = details.find((detail) => detail.retryDelay)?.retryDelay;
+  const seconds = Math.ceil(parseFloat(delay ?? "")) || 60;
   return Response.json(
     {
-      error:
-        seconds > 60
-          ? `Gemini reached its per-minute limit. Try again in ${Math.ceil(seconds / 60)} minutes.`
-          : "Gemini reached its per-minute limit. Try again in a minute.",
+      error: `Gemini reached its per-minute limit. Try again in ${
+        seconds === 60 ? "a minute" : `${seconds} seconds`
+      }.`,
     },
     { status: 429, headers: { "Retry-After": String(seconds) } },
   );
