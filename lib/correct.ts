@@ -52,6 +52,8 @@ export type Correction = {
   alternative?: string;
   // The French context sentence of a word or a verb, in English.
   inContext?: string;
+  // What the English word or verb of the correction means, in French.
+  meaning?: string;
   // Words close in meaning to a word or a verb, each with how it differs.
   similar?: { word: string; nuance: string }[];
   // The three forms of the verb in the correction, so they always match it.
@@ -84,7 +86,6 @@ export const correctionSchema = z.object({
     }),
   ),
   right: z.boolean(),
-  praise: z.string(),
   correction: z.string(),
   alternative: z.string(),
 });
@@ -92,6 +93,7 @@ export const correctionSchema = z.object({
 // A word or a verb has no "more natural version": the context sentence in
 // English shows it in use, and similar words show the nuances.
 export const wordCorrectionSchema = correctionSchema.omit({ alternative: true }).extend({
+  meaning: z.string(),
   inContext: z.string(),
   similar: z.array(z.object({ word: z.string(), nuance: z.string() })),
 });
@@ -145,7 +147,6 @@ const SENTENCE_EXAMPLE = [
       },
     ],
     right: false,
-    praise: "Bon vocabulaire : homework est le mot juste pour « devoirs ».",
     correction: "I **haven't finished** my **homework** yet.",
     alternative: "I'm not done with my homework yet.",
   }),
@@ -166,8 +167,8 @@ const WORD_EXAMPLE = [
       },
     ],
     right: false,
-    praise: "C'est un piège classique, tu ne l'oublieras plus.",
     correction: "**bookstore**",
+    meaning: "le magasin où l'on achète des livres",
     inContext: "I bought this novel at a small **bookstore** in my neighborhood.",
     similar: [
       { word: "bookshop", nuance: "même sens, mais surtout britannique" },
@@ -272,16 +273,14 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
           : [
               "- The expected English tense, when given, is only a hint: the French decides. Any",
               "  tense a native speaker would naturally use for this French is right. A present",
-              "  perfect with no finished time (I have eaten) is right too, with no mistake; the",
-              "  praise may add that American English often says I ate. A tense that changes",
-              '  the meaning or is ungrammatical ("I live here since 2010", "when he will',
-              '  arrive") is wrong.',
+              "  perfect with no finished time (I have eaten) is right too, with no mistake. A",
+              '  tense that changes the meaning or is ungrammatical ("I live here since 2010",',
+              '  "when he will arrive") is wrong.',
               ...(input.level === "A1" || input.level === "A2"
                 ? ["- At this level, accept a simple but correct phrasing."]
                 : []),
             ]),
-        "- Be fair: never leave out a real mistake to be nice. Keep the remarks short, and",
-        "  put the encouragement in the praise.",
+        "- Be fair: never leave out a real mistake to be nice. Keep the remarks short.",
         "",
         "## When an answer is right",
         "Right means a native speaker would accept it as a correct translation of the French.",
@@ -345,8 +344,6 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
         "  - category: one of the categories below.",
         "- right: true if the answer is right as defined above, false otherwise (and false",
         "  if translated is false).",
-        "- praise: one short remark in French on what is done well, or a short",
-        "  encouragement if nothing is. It is only shown with mistakes.",
         "- correction: if there are no mistakes, copy the learner's translation as is;",
         "  otherwise fix every mistake listed, while keeping as many of the learner's",
         "  words as possible. If translated is false, give a correct translation instead.",
@@ -354,6 +351,9 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
         '  (e.g. "I **am** going to the **café**.").',
         ...(wordMode
           ? [
+              "- meaning: in French, a short phrase on what the English word of the correction",
+              "  means here, without repeating the French item (e.g. for bookstore: le magasin",
+              "  où l'on achète des livres).",
               "- inContext: the French context sentence translated into natural American",
               "  English, with the English word of the correction wrapped in ** **",
               '  (e.g. "The **leaves** turn red in the fall."). If no context is given, write',
@@ -450,7 +450,6 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
       `« ${input.translation.trim()} » → « ${output.correction.replace(/\*\*/g, "").trim()} »`,
     );
   }
-  const praise = output.praise.trim();
   const isCorrect =
     output.translated &&
     (sameAsCorrection ||
@@ -460,10 +459,10 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
     mistakes.find((mistake) => WRONG_TAGS.includes(mistake.category)) ?? mistakes[0];
 
   return {
-    // The praise only softens remarks: a perfect answer already says so.
-    points: praise && remarks.length ? [...remarks, praise] : remarks,
+    points: remarks,
     correction: output.correction.trim(),
     alternative: output.alternative?.trim() || undefined,
+    meaning: output.meaning?.trim() || undefined,
     inContext: output.inContext?.trim() || undefined,
     similar: similarWords(output, output.correction),
     forms: verbForms(output),

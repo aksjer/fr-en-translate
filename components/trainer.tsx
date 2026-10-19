@@ -34,6 +34,7 @@ type Correction = {
   alternative?: string;
   inContext?: string;
   similar?: { word: string; nuance: string }[];
+  meaning?: string;
   forms?: [string, string, string];
   tag?: ErrorTag;
   remark?: string;
@@ -284,24 +285,26 @@ export function Trainer() {
               : "border-amber-600/30 bg-amber-50 dark:bg-amber-950/30"
           }`}
         >
-          <div className="flex items-center gap-2">
-            <p className="text-lg font-semibold">
-              {result.perfect ? "Perfect!" : result.isCorrect ? "Correct!" : "Almost!"}
-            </p>
-            {/* A perfect answer has no correction shown: the icon reads it here. */}
-            {result.perfect && <SpeakButton text={result.correction} />}
-          </div>
-          {!result.perfect && (
-            <div className="flex flex-col gap-1">
-              <p className="flex items-center gap-1 text-xs font-medium tracking-wide text-zinc-500 uppercase">
+          {/* The frame's color says right or wrong; a title only names the mistake. */}
+          <div className="flex flex-col gap-1">
+            {!result.perfect && (
+              <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
                 Correction{result.tag && ` · mistake: ${result.tag}`}
-                <SpeakButton text={result.correction} compact />
               </p>
-              <p lang="en-US" className="text-lg">
+            )}
+            <p className="text-lg">
+              <span lang="en-US">
                 <Marked text={result.correction} />
-              </p>
-            </div>
-          )}
+              </span>{" "}
+              <SpeakButton text={result.correction} compact />
+              {result.meaning && (
+                <span lang="fr" className="text-zinc-600 dark:text-zinc-400">
+                  {" "}
+                  · {result.meaning}
+                </span>
+              )}
+            </p>
+          </div>
           {forms && (
             <div className="flex flex-col gap-1">
               <p className="flex items-center gap-1 text-xs font-medium tracking-wide text-zinc-500 uppercase">
