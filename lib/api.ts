@@ -151,6 +151,14 @@ type QuotaDetails = {
   };
 };
 
+// Google's wait, e.g. "10 h 42 min" or "41 seconds".
+function waitText(seconds: number) {
+  if (seconds < 60) return `${seconds} seconds`;
+  const minutes = Math.ceil(seconds / 60);
+  if (minutes < 60) return `${minutes} min`;
+  return `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+}
+
 function quotaResponse(responseBody: string | undefined) {
   let details: NonNullable<QuotaDetails["error"]>["details"] = [];
   try {
@@ -161,20 +169,24 @@ function quotaResponse(responseBody: string | undefined) {
   const quotaIds = details.flatMap((detail) =>
     (detail.violations ?? []).map((violation) => violation.quotaId ?? ""),
   );
+  const delay = details.find((detail) => detail.retryDelay)?.retryDelay;
+  const seconds = Math.ceil(parseFloat(delay ?? "")) || 0;
   if (quotaIds.some((id) => id.includes("PerDay"))) {
     return Response.json(
-      { error: "Gemini reached its daily request limit. Try again tomorrow." },
-      { status: 429 },
+      {
+        error: `Gemini reached its daily request limit. ${
+          seconds ? `Try again in ${waitText(seconds)}.` : "Try again tomorrow."
+        }`,
+      },
+      { status: 429, ...(seconds && { headers: { "Retry-After": String(seconds) } }) },
     );
   }
-  const delay = details.find((detail) => detail.retryDelay)?.retryDelay;
-  const seconds = Math.ceil(parseFloat(delay ?? "")) || 60;
   return Response.json(
     {
       error: `Gemini reached its per-minute limit. Try again in ${
-        seconds === 60 ? "a minute" : `${seconds} seconds`
+        seconds ? waitText(seconds) : "a minute"
       }.`,
     },
-    { status: 429, headers: { "Retry-After": String(seconds) } },
+    { status: 429, headers: { "Retry-After": String(seconds || 60) } },
   );
 }
