@@ -48,6 +48,7 @@ const historyItemSchema = z.object({
   ok: z.boolean().optional().catch(undefined),
   tag: clipped(40).optional().catch(undefined),
   remark: clipped(300).optional().catch(undefined),
+  frequency: z.enum(FREQUENCIES).optional().catch(undefined),
   mistakes: z
     .array(z.object({ remark: clipped(300), tag: clipped(40) }))
     .max(6)
@@ -64,6 +65,7 @@ const historyItemSchema = z.object({
   reference: clipped(300).optional().catch(undefined),
   correction: clipped(300).optional().catch(undefined),
   point: clipped(60).optional().catch(undefined),
+  similar: z.array(clipped(40)).max(6).optional().catch(undefined),
   pointResult: z.enum(["right", "wrong", "avoided"]).optional().catch(undefined),
 });
 
@@ -75,6 +77,7 @@ const reviewItemSchema = z.object({
   english: clipped(40).optional().catch(undefined),
   context: clipped(300).optional().catch(undefined),
   misses: z.number().int().min(0).optional().catch(undefined),
+  kind: z.enum(WORD_KINDS).optional().catch(undefined),
 });
 
 export type ReviewItem = z.infer<typeof reviewItemSchema>;
@@ -248,11 +251,11 @@ export function reviewTask(
   });
   return (
     `This is a review. Give again one of these ${mode}s that the learner missed or ` +
-    "left unanswered, oldest first, as is: the same French text, in the same meaning (the " +
-    "English after the arrow, when there is one), with a new context sentence, " +
-    "different from the last one.\n" +
+    "left unanswered, as is: the same French text, in the same meaning (the English " +
+    "after the arrow, when there is one), with a new context sentence, different from " +
+    "the last one. They come by priority: take the first one.\n" +
     lines.join("\n") +
-    `\nPrefer one that fits the theme "${theme}"; if none does, take the first.`
+    `\nSet its new context sentence on the theme "${theme}" if it fits.`
   );
 }
 
@@ -262,7 +265,7 @@ export function reviewTask(
 export const CANDIDATES = 3;
 
 // The same French text, whatever its case, spaces, quotes or apostrophes.
-function sameText(text: string) {
+export function sameText(text: string) {
   return text
     .toLowerCase()
     .replace(/[«»"]/g, "")
@@ -308,6 +311,36 @@ export function knownSection(known: string[], mode: "word" | "verb") {
   );
 }
 
+// The most similar words a learner sees in corrections and hasn't learned yet.
+const MAX_SIMILAR_TO_TEACH = 30;
+
+// Words the corrections showed as close to or often confused with the ones the
+// learner practiced: good next items, since the learner just met them.
+export function similarSection(input: GenerateInput, mode: "word" | "verb") {
+  const { known, recent } = history(input, mode);
+  const skip = new Set([
+    ...known,
+    ...recent.flatMap((item) => (item.english ? [item.english] : [])),
+  ]);
+  const words = [
+    ...new Set(
+      recent
+        .flatMap((item) => item.similar ?? [])
+        .map(englishKey)
+        .reverse(),
+    ),
+  ]
+    .filter((word) => word && !skip.has(word))
+    .slice(0, MAX_SIMILAR_TO_TEACH);
+  if (!words.length) return "";
+  return (
+    "\n\n## Seen in corrections\nThe corrections showed the learner these English " +
+    `${mode}s, close to or often confused with ones they practiced, the last first. ` +
+    `When one fits the ${mode === "word" ? "kind" : "type"} asked for and every other ` +
+    `rule, prefer it as one of your items:\n${words.join(", ")}`
+  );
+}
+
 // Told to the model when its first answers can't be used.
 export function tryAgainSection(answers: Choice[], review: boolean) {
   return (
@@ -341,6 +374,7 @@ export function historySection(items: HistoryItem[], mode: Mode) {
       item.tense,
       item.focus && `focus: ${item.focus}`,
       item.theme,
+      item.frequency && `frequency: ${item.frequency}`,
     ].filter(Boolean);
     // Only when it says more than the expected English.
     const wrote =
@@ -379,6 +413,10 @@ export function historySection(items: HistoryItem[], mode: Mode) {
     "\nEach line gives the date, the French item, what it practiced (in brackets), what " +
     "the learner wrote and how they did. A point avoided means the learner said it " +
     "another right way: they may not know it yet. " +
+    (isWordMode(mode)
+      ? "If several recent words have a frequency of sometimes or rare, choose more " +
+        "common ones. "
+      : "") +
     "Use it to choose the next item. What the learner wrote shows the English they " +
     "already use: a word they wrote right is a word they know, and their wording " +
     "shows what to practice next. " +

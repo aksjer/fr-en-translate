@@ -6,6 +6,9 @@ import {
   generateItem,
   reviewFor,
   reviewTask,
+  sameText,
+  similarSection,
+  type Exercise,
   type GenerateInput,
 } from "@/lib/generate/shared";
 import type { WordKind } from "@/lib/options";
@@ -26,14 +29,19 @@ const KIND_GUIDES: Record<WordKind, string> = {
   conjunction: "Linking expressions of several words count too (« dès que », « ainsi que »). ",
 };
 
-export function generateWord(input: GenerateInput, combination: Combination) {
+export async function generateWord(
+  input: GenerateInput,
+  combination: Combination,
+): Promise<Exercise> {
   const { theme } = combination;
   // The code picks the kind of word: left to choose, a small model gives nouns
   // again and again.
   const kind = combination.kind ?? "noun";
   const review = reviewFor(input, "word");
-  return generateItem(input, combination, {
+  // A review gives a word of any kind: it gets its own kind back below.
+  const exercise = await generateItem(input, review ? { ...combination, kind: undefined } : combination, {
     review,
+    sections: review ? undefined : similarSection(input, "word"),
     // The English comes first, since the learner works on their English: starting
     // from the French gave loose translations (un périple → an ordeal).
     fields: [
@@ -66,4 +74,7 @@ export function generateWord(input: GenerateInput, combination: Combination) {
         "words of this kind are all learned, take another common form or use of one " +
         "rather than a rare word.",
   });
+  const reviewed =
+    exercise.review && review?.find((item) => sameText(item.text) === sameText(exercise.text));
+  return reviewed ? { ...exercise, kind: reviewed.kind } : exercise;
 }

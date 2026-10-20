@@ -56,13 +56,25 @@ function typesFor<T extends string>(selected: readonly string[] | undefined, all
 // About 1 in 4 sentences practice the learner's own mistakes instead.
 const MISTAKE_SENTENCE_CHANCE = 0.25;
 
-// One random value of each setting the mode uses.
-export function pickCombination(settings: Settings): Combination {
+// One random value of each setting the mode uses. A sentence right after a
+// wrong one practices its mistake again, while it is fresh, in the same tense
+// if the settings still allow it.
+export function pickCombination(
+  settings: Settings,
+  wrongSentence?: { tense?: Tense },
+): Combination {
   const mode = pick(settings.modes, MODES);
   const uses = MODE_USES[mode];
+  const retest = mode === "sentence" && wrongSentence !== undefined;
+  const sameTense =
+    retest &&
+    wrongSentence.tense &&
+    (!settings.tenses?.length || settings.tenses.includes(wrongSentence.tense))
+      ? wrongSentence.tense
+      : undefined;
   return {
     mode,
-    ...(uses.tense && { tense: pick(settings.tenses, TENSES) }),
+    ...(uses.tense && { tense: sameTense ?? pick(settings.tenses, TENSES) }),
     ...(uses.verbType && {
       verbType: pick(settings.verbTypes, VERB_TYPES),
     }),
@@ -71,6 +83,7 @@ export function pickCombination(settings: Settings): Combination {
       kind: pick(typesFor(settings.wordTypes, WORD_KINDS), WORD_KINDS),
     }),
     ...(mode === "sentence" &&
+      !retest &&
       Math.random() >= MISTAKE_SENTENCE_CHANCE && {
         focus: pick(typesFor(settings.wordTypes, SENTENCE_FOCUSES), SENTENCE_FOCUSES),
       }),

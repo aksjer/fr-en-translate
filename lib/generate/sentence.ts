@@ -75,7 +75,7 @@ function learningPoint(focus?: SentenceFocus) {
     : "\n\n## Learning point\nThe tense is the main point of the sentence. Add at most " +
         "one other point, the first of these that fits the tense, without pointing it out:\n" +
         "1. the difficulty of a wrong item marked (recent) in the history, when its remark " +
-        "names it;\n" +
+        "names it, the last one first: test the same difficulty again in a new sentence;\n" +
         "2. else one of the weak points below, if any;\n" +
         "3. else one common word or phrase that French speakers often get wrong.\n" +
         `${OTHER_THAN_TENSE} ` +
@@ -95,7 +95,30 @@ const VARIETY =
 
 const PRIORITY =
   "\n\n## Priority\nIf two instructions conflict, the tense and the theme come first, " +
-  "then common words, then the learning point, then the variety.";
+  "then common words, then the learning point, then the words being learned, then the " +
+  "variety.";
+
+// The words and verbs met in the other modes, so sentences use them again in
+// a new context: words seen in several contexts are remembered better.
+const MAX_WORDS_TO_REUSE = 15;
+
+function wordsSection(input: GenerateInput) {
+  const words = new Map<string, string>();
+  for (const item of [...(input.history ?? [])].reverse()) {
+    if ((item.mode !== "word" && item.mode !== "verb") || !item.english) continue;
+    if (item.ok === undefined || words.size >= MAX_WORDS_TO_REUSE) continue;
+    const english = item.mode === "verb" ? `to ${item.english}` : item.english;
+    if (!words.has(english)) words.set(english, item.ok ? "learned" : "missed");
+  }
+  if (!words.size) return "";
+  return (
+    "\n\n## Words being learned\nEnglish words the learner recently learned or missed " +
+    "in other exercises, the last first. When one fits the theme, the tense and the " +
+    "learning point naturally, use it in the translation, never more than one and " +
+    "never forced in:\n" +
+    [...words].map(([english, result]) => `${english} (${result})`).join(", ")
+  );
+}
 
 // Spelling, punctuation and "anything else" can't be built into a sentence.
 const UNPRACTICED_TAGS: ErrorTag[] = ["spelling", "punctuation", "other"];
@@ -181,6 +204,7 @@ export function generateSentence(input: GenerateInput, combination: Combination)
       VARIETY +
       PRIORITY,
     // Weak points only matter when the code picked no grammar point.
-    sections: pointsSection(input) + (focus ? "" : weakPointsSection(input)),
+    sections:
+      pointsSection(input) + (focus ? "" : weakPointsSection(input)) + wordsSection(input),
   });
 }

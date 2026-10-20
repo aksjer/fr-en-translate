@@ -61,6 +61,9 @@ export type SeenItem = {
   correction?: string;
   // Every mistake of a wrong answer; tag and remark keep the main one.
   mistakes?: { remark: string; tag: string }[];
+  // The English words the correction showed as close or often confused
+  // (bookshop, library for bookstore): later items can teach them.
+  similar?: string[];
 };
 
 export type PointResult = "right" | "wrong" | "avoided";
@@ -186,11 +189,14 @@ export type ReviewItem = {
   context?: string;
   // How many times the learner missed this item.
   misses: number;
+  // The kind of word of a word item.
+  kind?: WordKind;
 };
 
-// The words or verbs missed or left unanswered and not learned since, oldest first: a
-// review gives one of them again. Each item counts once, at the last time it
-// was shown, so one missed again becomes recent again.
+// The words or verbs missed or left unanswered and not learned since: a review
+// gives one of them again. Those of today come first, the last one first, so
+// a fresh mistake comes back while it is fresh; then the older ones, oldest
+// first. Each item counts once, at the last time it was shown.
 export function toReview(items: SeenItem[], known: KnownItems, mode: "word" | "verb") {
   const ofMode = items.filter((item) => item.mode === mode);
   const learned = new Set(known[mode] ?? []);
@@ -199,20 +205,23 @@ export function toReview(items: SeenItem[], known: KnownItems, mode: "word" | "v
   for (const item of ofMode) {
     if (item.ok === false) misses.set(item.text, (misses.get(item.text) ?? 0) + 1);
   }
-  return ofMode
-    .filter(
-      (item, index) =>
-        lastIndex.get(item.text) === index &&
-        index < ofMode.length - RECENTLY_SEEN &&
-        item.ok !== true &&
-        !(item.english && learned.has(item.english)),
-    )
+  const due = ofMode.filter(
+    (item, index) =>
+      lastIndex.get(item.text) === index &&
+      index < ofMode.length - RECENTLY_SEEN &&
+      item.ok !== true &&
+      !(item.english && learned.has(item.english)),
+  );
+  const isToday = (item: SeenItem) =>
+    item.at !== undefined && new Date(item.at).toLocaleDateString("en-CA") === today();
+  return [...due.filter(isToday).reverse(), ...due.filter((item) => !isToday(item))]
     .slice(0, MAX_REVIEW)
     .map(
-      ({ text, english, context }): ReviewItem => ({
+      ({ text, english, context, kind }): ReviewItem => ({
         text,
         ...(english && { english }),
         ...(context && { context }),
+        ...(kind && { kind }),
         misses: misses.get(text) ?? 0,
       }),
     );

@@ -15,6 +15,12 @@ const GENERATORS = {
 };
 
 export function generateExercise(input: GenerateInput): Promise<Exercise> {
-  const combination = pickCombination(input);
+  const lastSentence = (input.history ?? [])
+    .filter((item) => item.mode === "sentence" && item.ok !== undefined)
+    .at(-1);
+  const combination = pickCombination(
+    input,
+    lastSentence?.ok === false ? { tense: lastSentence.tense } : undefined,
+  );
   return GENERATORS[combination.mode](input, combination);
 }

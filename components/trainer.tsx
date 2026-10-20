@@ -191,6 +191,7 @@ export function Trainer() {
             correction: correction.correction,
           }),
         ...(correction.pointResult && { pointResult: correction.pointResult }),
+        ...(correction.similar && { similar: correction.similar.map((item) => item.word) }),
       });
       if (exercise.point && correction.pointResult) {
         rememberPoint(exercise.point, correction.pointResult);
