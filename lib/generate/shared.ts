@@ -131,6 +131,13 @@ export const FREQUENCY_FIELD = [
   "  every week), sometimes, or rare.",
 ];
 
+// Gemini sometimes drops accented letters, leaving a space in their place
+// (« je suis tr s occup . »). French never puts a space before a period or a
+// comma, so that space shows a broken text; the item is asked again.
+export function hasDroppedLetters(text: string) {
+  return /\s[.,]/.test(text);
+}
+
 // Gemini sometimes drops the apostrophe of l' (« dans l avion »): the code adds
 // it back. Only l', since a lone d or j can be a letter (la vitamine D, le jour J).
 export function withApostrophes(text: string) {
@@ -320,6 +327,9 @@ function checkedItem(output: ItemAnswer, mode: Mode) {
       : withApostrophes(output.context.trim());
   if (!text || !reference || context === "") {
     throw new InvalidAnswerError("Empty item, context or reference");
+  }
+  if (hasDroppedLetters(text) || (context && hasDroppedLetters(context))) {
+    throw new InvalidAnswerError(`Letters missing: ${context ?? text}`);
   }
   // A word is never a sentence, nor is its reference (the model sometimes
   // translates the context sentence instead).

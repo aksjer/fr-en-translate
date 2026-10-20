@@ -9,6 +9,7 @@ import {
   commonAt,
   FREQUENCY_FIELD,
   GOAL,
+  hasDroppedLetters,
   history,
   historySection,
   learner,
@@ -65,6 +66,9 @@ function checkedVerb(output: z.infer<typeof verbSchema>, verbType?: VerbType) {
   const context = output.context.trim();
   if (!/^[a-z]+$/.test(base) || !past || !participle || !text || !context) {
     throw new InvalidAnswerError(`Not a verb: ${base}`);
+  }
+  if (hasDroppedLetters(context)) {
+    throw new InvalidAnswerError(`Letters missing: ${context}`);
   }
   if (context.length > MAX_TEXT_LENGTH) {
     throw new InvalidAnswerError(`Context too long: ${context}`);
