@@ -19,10 +19,12 @@ function recognitionClass() {
 
 const noSubscribe = () => () => {};
 
+// About a minute of silence (Chrome ends a silent session after some seconds).
+const MAX_EMPTY_ENDS = 8;
+
 // A microphone icon: the learner says the answer in English, and the words
 // are written in the answer field until they click again, to check before
-// sending. Hidden where the
-// browser can't recognize speech.
+// sending. Hidden where the browser can't recognize speech.
 export function MicButton({
   value,
   onChange,
@@ -41,6 +43,9 @@ export function MicButton({
   // The learner wants to listen: the browser ends a session after a silence,
   // and a new one starts until they click again.
   const wanted = useRef(false);
+  // Sessions in a row that ended with nothing heard: a browser that ends them
+  // at once would otherwise restart them forever.
+  const emptyEnds = useRef(0);
   // The answer as it is now, for a session that starts after a silence.
   const latest = useRef(value);
   useEffect(() => {
@@ -69,7 +74,7 @@ export function MicButton({
   if (!supported) return null;
 
   // One session of the browser's recognition; false if it couldn't start.
-  function startSession() {
+  function startSession(restart = false) {
     const Recognition = recognitionClass();
     if (!Recognition) return false;
     const listener = new Recognition();
@@ -77,7 +82,9 @@ export function MicButton({
     listener.interimResults = true;
     listener.continuous = true;
     const before = latest.current.trimEnd();
+    let heard = false;
     listener.onresult = (event) => {
+      heard = true;
       const said = Array.from(event.results, (result) => result[0].transcript)
         .join("")
         .trim();
@@ -95,15 +102,17 @@ export function MicButton({
     };
     listener.onend = () => {
       recognition.current = null;
-      if (wanted.current && startSession()) return;
+      emptyEnds.current = heard ? 0 : emptyEnds.current + 1;
+      if (wanted.current && emptyEnds.current < MAX_EMPTY_ENDS && startSession(true)) return;
       wanted.current = false;
       setListening(false);
     };
     try {
       listener.start();
     } catch {
-      // Some browsers throw at once when the microphone is blocked.
-      setFailed("blocked");
+      // Some browsers throw at once when the microphone is blocked; a restart
+      // that fails is something else.
+      setFailed(restart ? "error" : "blocked");
       return false;
     }
     recognition.current = listener;
@@ -117,6 +126,7 @@ export function MicButton({
       return;
     }
     wanted.current = true;
+    emptyEnds.current = 0;
     setFailed(null);
     if (startSession()) setListening(true);
     else wanted.current = false;
@@ -137,7 +147,7 @@ export function MicButton({
       aria-label={label}
       aria-pressed={listening}
       title={label}
-      className={`inline-flex shrink-0 rounded-full p-2 transition-colors focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:outline-none disabled:opacity-40 ${
+      className={`absolute right-2 bottom-2 inline-flex rounded-full p-2 transition-colors focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:outline-none disabled:opacity-40 ${
         listening
           ? "animate-pulse bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400"
           : failed

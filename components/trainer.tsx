@@ -341,7 +341,7 @@ export function Trainer() {
             }}
             className="flex flex-col gap-4"
           >
-            <div className="flex items-start gap-2">
+            <div className="relative">
               <textarea
                 ref={inputRef}
                 id="translation"
@@ -361,7 +361,7 @@ export function Trainer() {
                 }}
                 disabled={loading !== null || result !== null}
                 readOnly={listening}
-                className="min-w-0 flex-1 rounded-xl border border-zinc-300 bg-transparent p-3 text-lg outline-none focus-visible:ring-2 focus-visible:ring-blue-600 dark:border-zinc-700"
+                className="block w-full resize-none rounded-xl border border-zinc-300 bg-transparent p-3 pr-12 text-lg outline-none focus-visible:ring-2 focus-visible:ring-blue-600 dark:border-zinc-700"
               />
               <MicButton
                 value={translation}
