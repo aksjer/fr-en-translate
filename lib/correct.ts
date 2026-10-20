@@ -70,7 +70,8 @@ export type Correction = {
   isCorrect: boolean;
   // The first remark of a wrong answer, kept in the history.
   remark?: string;
-  // Whether the learner got the sentence's grammar point right.
+  // Whether the learner got the sentence's grammar point right; none when they
+  // said it another correct way, so it counts neither way.
   pointRight?: boolean;
 };
 
@@ -97,9 +98,11 @@ export const correctionSchema = z.object({
   alternative: z.string(),
 });
 
-// A sentence with a grammar point also says whether the learner got it right,
-// whatever the rest of the answer.
-export const pointCorrectionSchema = correctionSchema.extend({ pointRight: z.boolean() });
+// A sentence with a grammar point also says how the learner did on it, whatever
+// the rest of the answer.
+export const pointCorrectionSchema = correctionSchema.extend({
+  pointResult: z.enum(["right", "wrong", "avoided"]),
+});
 
 // A word or a verb has no "more natural version": the context sentence in
 // English shows it in use, and similar words show the nuances.
@@ -121,7 +124,7 @@ export const verbCorrectionSchema = wordCorrectionSchema.extend({
 type CorrectionOutput = Omit<z.infer<typeof correctionSchema>, "alternative"> &
   Partial<Pick<z.infer<typeof correctionSchema>, "alternative">> &
   Partial<z.infer<typeof verbCorrectionSchema>> &
-  Partial<Pick<z.infer<typeof pointCorrectionSchema>, "pointRight">>;
+  Partial<Pick<z.infer<typeof pointCorrectionSchema>, "pointResult">>;
 
 // Words and verbs share one rule; each adds what is its own.
 const WORD_RULE =
@@ -326,6 +329,10 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
         "- false friends: actuellement = currently (not actually), éventuellement = possibly",
         "  (not eventually), librairie = bookstore (not library), sensible = sensitive",
         "  (not sensible), assister à = to attend (not to assist);",
+        "- pendant → during + a noun, while + a clause, for + a duration; dès que → as soon",
+        "  as; ainsi que → as well as; même si → even if, but bien que → even though;",
+        "- devoir: tu devrais → should (advice), tu dois → must or have to; tu n'es pas",
+        "  obligé de → don't have to, but tu ne dois pas → mustn't (or can't);",
         // A single word or verb can't have these mistakes: listed anyway, they
         // only invite the model to look for them.
         ...(wordMode
@@ -333,7 +340,9 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
           : [
               "- idioms: translate the meaning, not the words (« ça coûte les yeux de la tête »",
               "  → it costs an arm and a leg, or it's very expensive);",
-              "- depuis → for or since + present perfect (after a negative, in works too: I",
+              "- quand, dès que or tant que + futur → when, as soon as or as long as + simple",
+        "  present (not when he will arrive);",
+        "- depuis → for or since + present perfect (after a negative, in works too: I",
               "  haven't seen her in years); il y a + a time → ago, but il y a or ça fait + a",
               "  time + que → for + present perfect;",
               "- déjà in a question: ever for an experience (Have you ever seen…?), yet for",
@@ -391,9 +400,10 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
               "  both it and the learner's translation.",
               ...(input.point
                 ? [
-                    `- pointRight: true if the translation expresses « ${input.point} » correctly`,
-                    "  (it or another correct way to say the same thing), false if this point has",
-                    "  a mistake or is missing.",
+                    `- pointResult: right if the translation uses « ${untagged(input.point)} » correctly (in`,
+                    "  any of its forms); wrong if it tries it with a mistake, or gets its meaning",
+                    "  wrong or leaves it out; avoided if it says the same thing correctly in",
+                    "  another way.",
                   ]
                 : []),
             ]),
@@ -428,8 +438,11 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
       ].join("\n"),
       prompt: [
         input.kind && `Kind of word practiced: ${input.kind}`,
-        input.focus &&
-          `Grammar point practiced besides the tense: ${input.focus}. Check it first, and file a mistake on it under the right category.`,
+        (input.point || input.focus) &&
+          "Grammar point practiced besides the tense: " +
+            (input.point ? `« ${untagged(input.point)} »` : "") +
+            (input.point && input.focus ? ` (${input.focus})` : (input.focus ?? "")) +
+            ". Check it first, and file a mistake on it under the right category.",
         input.tense &&
           `Expected English tense: the ${input.tense} (${TENSE_GUIDES[input.tense].english})`,
         `<french>${untagged(input.text)}</french>`,
@@ -493,6 +506,9 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
     isCorrect,
     remark: output.translated ? main?.remark : undefined,
     ...(input.point &&
-      output.pointRight !== undefined && { pointRight: output.translated && output.pointRight }),
+      output.pointResult &&
+      (output.pointResult !== "avoided" || !output.translated) && {
+        pointRight: output.translated && output.pointResult === "right",
+      }),
   };
 }

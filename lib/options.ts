@@ -29,6 +29,19 @@ export const POINT_MASTERY = 2;
 export const MAX_POINTS = 500;
 export const MAX_POINTS_TO_PRACTICE = 30;
 
+// A grammar point's name, the same whatever the model adds: "Should (advice)"
+// and "should." are both should.
+export function pointName(point: string) {
+  return point
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/["«»“”]/g, "")
+    .replace(/[.,;:!?]+\s*$/, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 60);
+}
+
 // The English an item is known by: "to wear" → wear, "the couch" → couch,
 // without the context in parentheses.
 export function englishKey(reference: string) {

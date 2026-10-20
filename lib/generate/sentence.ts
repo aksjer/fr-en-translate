@@ -21,7 +21,7 @@ const SENTENCE_VOCABULARY = `\nIts American English translation uses only words 
 const FOCUS_GUIDES: Record<SentenceFocus, string> = {
   auxiliary:
     "an English auxiliary the French doesn't show word for word: do, does or did in a " +
-    "question or a negation, have in a perfect tense, be in a continuous tense, or will",
+    "question or a negation, a short answer (Yes, I have) or a question tag (didn't you?)",
   modal: "an English modal (can, could, should, must, might, would, have to)",
   preposition:
     "an English preposition that French speakers often get wrong (on Monday, at night, " +
@@ -52,6 +52,15 @@ const THEME_STYLES: Partial<Record<Theme, string>> = {
     "about one: short and natural.",
 };
 
+// The point is never the word the tense already needs: with the future, will
+// gave no other point.
+const OTHER_THAN_TENSE =
+  "The point is another word than the one the tense itself needs (will for the " +
+  "future, would for the conditional, have or had for a perfect tense, be in a " +
+  "continuous tense). Combine it with the tense in its natural form (will have to, " +
+  "could have, had to); if a point doesn't fit the tense, choose another one of the " +
+  "same kind.";
+
 // One learning point besides the tense: a sentence with several difficulties
 // is hard to learn from, and the correction mixes them up. The code picks a
 // grammar point for most sentences; the others practice a recent mistake
@@ -60,6 +69,7 @@ function learningPoint(focus?: SentenceFocus) {
   return focus
     ? "\n\n## Learning point\nThe tense is the main point of the sentence. Its natural " +
         `translation must also need ${FOCUS_GUIDES[focus]}, without pointing it out. ` +
+        `${OTHER_THAN_TENSE} ` +
         "Never more than this one other point: a sentence with several difficulties is " +
         "hard to learn from."
     : "\n\n## Learning point\nThe tense is the main point of the sentence. Add at most " +
@@ -68,6 +78,7 @@ function learningPoint(focus?: SentenceFocus) {
         "names it;\n" +
         "2. else one of the weak points below, if any;\n" +
         "3. else one common word or phrase that French speakers often get wrong.\n" +
+        `${OTHER_THAN_TENSE} ` +
         "Never more than one: a sentence with several difficulties is hard to learn from.";
 }
 
@@ -121,7 +132,9 @@ function pointsSection(input: GenerateInput) {
   return (
     (mastered.length
       ? "\n\n## Points mastered\nThe learner got these right twice: never make one of " +
-        `them the learning point again:\n${mastered.join(", ")}`
+        "them the learning point again. If every common point of the kind asked for is " +
+        "here, use one in another form that isn't (should have, couldn't, don't have " +
+        `to):\n${mastered.join(", ")}`
       : "") +
     (practice.length
       ? "\n\n## Points to practice again\nThe learner missed these or got them right " +
@@ -144,9 +157,9 @@ export function generateSentence(input: GenerateInput, combination: Combination)
       `  native speaker would use for this French. It must be the ${tense}: if it isn't`,
       "  natural, change the French, not the tense. Use American words and spelling",
       "  (apartment, color, not flat, colour).",
-      "- point: the English word or structure of the learning point in the reference, in",
-      "  a few words (as soon as, should, did in a question, for + present perfect), or",
-      "  empty if the sentence has no other point than the tense.",
+      "- point: only the English word or words of the learning point, lowercase, with no",
+      "  explanation, parentheses or + (as soon as, should, should have, couldn't, during,",
+      "  already, did), or empty if the sentence has no other point than the tense.",
     ],
     task:
       `Write one original French sentence on the theme "${theme}", as long as a line in ` +

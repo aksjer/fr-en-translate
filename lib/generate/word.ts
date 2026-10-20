@@ -11,19 +11,19 @@ import {
 import type { WordKind } from "@/lib/options";
 import type { Combination } from "@/lib/settings";
 
-// What a word of each kind looks like. Only examples: the history keeps the
-// model from giving the same ones again.
+// What a word of each kind looks like, besides the examples of commonAt. Only
+// examples: the history keeps the model from giving the same ones again.
 const KIND_GUIDES: Record<WordKind, string> = {
   noun: "Give it with its article (le, la, l', un, une). ",
   adjective: "",
-  adverb: "For example « déjà » → already, « presque » → almost. ",
+  adverb: "",
+  // Few modals exist: their other forms keep the kind from running out.
   modal:
-    "The text is the French verb form as it appears in the context sentence (« tu " +
-    "devrais » → should, « on pourrait » → could, « il faut » → have to). ",
-  preposition: "For example « pendant » → during, « au lieu de » → instead of. ",
-  conjunction:
-    "Linking expressions of several words count too (« dès que » → as soon as, « ainsi " +
-    "que » → as well as, « tant que » → as long as). ",
+    "The text is the French verb form as it appears in the context sentence, and other " +
+    "forms of a modal count as other words (« tu aurais dû » → should have, « je n'ai " +
+    "pas pu » → couldn't, « tu n'es pas obligé » → don't have to). ",
+  preposition: "Expressions of several words count too (« au lieu de », « grâce à »). ",
+  conjunction: "Linking expressions of several words count too (« dès que », « ainsi que »). ",
 };
 
 export function generateWord(input: GenerateInput, combination: Combination) {
@@ -62,6 +62,8 @@ export function generateWord(input: GenerateInput, combination: Combination) {
         "really use for this English, never a look-alike with another meaning. " +
         "The text is only the word, never a sentence: the sentence goes in context. " +
         "The theme is only a direction: if no word fits it and every other rule, choose " +
-        "one loosely related to it rather than a less common word.",
+        "one loosely related to it rather than a less common word. If the most common " +
+        "words of this kind are all learned, take another common form or use of one " +
+        "rather than a rare word.",
   });
 }

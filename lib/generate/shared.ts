@@ -21,6 +21,7 @@ import {
   MAX_TEXT_LENGTH,
   FREQUENCIES,
   MODES,
+  pointName,
   type Frequency,
   type Mode,
 } from "@/lib/options";
@@ -389,7 +390,7 @@ function checkedItem(output: ItemAnswer, mode: Mode) {
     english: englishKey(reference),
     ...(context && { context }),
     ...(output.frequency && { frequency: output.frequency }),
-    ...(output.point?.trim() && { point: output.point.trim().slice(0, 60) }),
+    ...(output.point && pointName(output.point) && { point: pointName(output.point) }),
   };
 }
 

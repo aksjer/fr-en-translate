@@ -6,6 +6,7 @@ import {
   MAX_POINTS_TO_PRACTICE,
   MAX_REVIEW,
   POINT_MASTERY,
+  pointName,
   type Frequency,
   type Mode,
 } from "@/lib/options";
@@ -209,10 +210,6 @@ function today() {
   return new Date().toLocaleDateString("en-CA");
 }
 
-export function pointKey(point: string) {
-  return point.trim().toLowerCase();
-}
-
 export function readPoints(): Record<string, PointProgress> {
   try {
     const parsed: unknown = JSON.parse(localStorage.getItem(POINTS_KEY) ?? "{}");
@@ -229,7 +226,7 @@ export function readPoints(): Record<string, PointProgress> {
 }
 
 export function rememberPoint(point: string, right: boolean) {
-  const key = pointKey(point);
+  const key = pointName(point);
   if (!key) return;
   try {
     const points = readPoints();
