@@ -176,6 +176,7 @@ export function Trainer() {
         points: { mastered: masteredPoints(points), practice: pointsToPractice(points) },
       });
       setExercise(next);
+      // The whole exercise is kept as shown: the expected answer never changes after.
       rememberSeen(next.text, next.mode, {
         frequency: next.frequency,
         point: next.point,
@@ -187,8 +188,10 @@ export function Trainer() {
         review: next.review,
         retest: next.retest,
         context: next.context,
-        // A word's or verb's English is kept as english, after the answer.
-        reference: isWordMode(next.mode) ? undefined : next.reference,
+        reference: next.reference,
+        english:
+          isWordMode(next.mode) && next.reference ? englishKey(next.reference) : undefined,
+        forms: next.forms,
       });
       setTranslation("");
       setResult(null);
@@ -225,16 +228,15 @@ export function Trainer() {
         isWordMode(exercise.mode) && exercise.reference
           ? englishKey(exercise.reference)
           : undefined;
-      // A right synonym (sofa for couch) is the word learned, and the one the
-      // history keeps: the expected word, shown among the similar words, can
-      // then come back as an item. Its correction fixes a slip (colour).
+      // A right synonym (sofa for couch) is the word learned, kept apart: the
+      // expected word, shown among the similar words, can then come back as an
+      // item. Its correction fixes a slip (colour).
       const own = englishKey(correction.correction.replaceAll("**", "").replace(/[.!?]+$/, ""));
-      const english = expected && correction.isCorrect && own ? own : expected;
+      const accepted =
+        expected && correction.isCorrect && own && own !== expected ? own : undefined;
       const answer = translation.trim().slice(0, 300);
       rememberResult(exercise.text, {
-        english,
-        // The expected word, when the learner's right word is another one.
-        ...(expected && english !== expected && { reference: expected }),
+        ...(accepted && { accepted }),
         answer,
         ok: correction.isCorrect,
         tag: correction.isCorrect ? undefined : correction.tag,
@@ -252,7 +254,8 @@ export function Trainer() {
         rememberPoint(exercise.point, correction.pointResult);
       }
       // A word or verb answered right never comes back.
-      if (english && correction.isCorrect) rememberKnown(exercise.mode, english);
+      const learned = accepted ?? expected;
+      if (learned && correction.isCorrect) rememberKnown(exercise.mode, learned);
     } catch (e) {
       setError((e as Error).message);
     } finally {

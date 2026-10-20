@@ -44,6 +44,7 @@ const historyItemSchema = z.object({
   text: clipped(300),
   mode: z.enum(MODES).optional().catch(undefined),
   english: clipped(40).optional().catch(undefined),
+  accepted: clipped(40).optional().catch(undefined),
   answer: clipped(300).optional().catch(undefined),
   ok: z.boolean().optional().catch(undefined),
   tag: clipped(40).optional().catch(undefined),
@@ -282,6 +283,13 @@ export function sameText(text: string) {
 
 type Choice = { text: string; english: string };
 
+// The English the learner practiced with an item: their own right word when
+// it differs from the expected one, which can then come back.
+export function learnedEnglish(item: HistoryItem) {
+  const english = item.ok && item.accepted ? item.accepted : item.english;
+  return english ? [english] : [];
+}
+
 // The answer to give: in a review, the first one that is a missed item;
 // otherwise the first one the learner neither learned nor saw recently.
 export function chooseAnswer<T extends Choice>(
@@ -292,20 +300,19 @@ export function chooseAnswer<T extends Choice>(
     const texts = new Set(rules.review.map((item) => sameText(item.text)));
     return answers.find((answer) => texts.has(sameText(answer.text)));
   }
-  const english = new Set([
-    ...rules.known,
-    ...rules.recent.flatMap((item) => (item.english ? [item.english] : [])),
-  ]);
+  const english = new Set([...rules.known, ...rules.recent.flatMap(learnedEnglish)]);
   // The same French word in another meaning is a new item: the French alone
-  // only counts for an unanswered item, whose English isn't stored.
+  // only counts for an unanswered item, or an old one whose English isn't stored.
   const texts = new Set(
-    rules.recent.flatMap((item) => (item.english ? [] : [sameText(item.text)])),
+    rules.recent.flatMap((item) =>
+      item.english && item.ok !== undefined ? [] : [sameText(item.text)],
+    ),
   );
   // An item answered right with another word (sofa for « le canapé » → couch)
   // doesn't come back as is: its expected word may, with another French word.
   const answered = new Set(
     rules.recent.flatMap((item) =>
-      item.reference && item.ok ? [`${sameText(item.text)} → ${item.reference}`] : [],
+      item.accepted && item.english && item.ok ? [`${sameText(item.text)} → ${item.english}`] : [],
     ),
   );
   return answers.find(
@@ -333,10 +340,7 @@ const MAX_SIMILAR_TO_TEACH = 30;
 // learner practiced: good next items, since the learner just met them.
 export function similarSection(input: GenerateInput, mode: "word" | "verb") {
   const { known, recent } = history(input, mode);
-  const skip = new Set([
-    ...known,
-    ...recent.flatMap((item) => (item.english ? [item.english] : [])),
-  ]);
+  const skip = new Set([...known, ...recent.flatMap(learnedEnglish)]);
   const words = [
     ...new Set(
       recent
@@ -379,7 +383,7 @@ export function historySection(items: HistoryItem[], mode: Mode) {
     // A sentence's expected English, only when the learner didn't answer it.
     const english = isWordMode(mode)
       ? item.english
-        ? ` → ${item.english}${item.reference ? ` (expected: ${item.reference})` : ""}`
+        ? ` → ${item.english}${item.accepted ? ` (learner's right word: ${item.accepted})` : ""}`
         : ""
       : item.reference && item.ok === undefined
         ? ` → « ${item.reference} »`

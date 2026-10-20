@@ -156,7 +156,8 @@ function wordsSection(input: GenerateInput) {
   for (const item of [...(input.history ?? [])].reverse()) {
     if ((item.mode !== "word" && item.mode !== "verb") || !item.english) continue;
     if (item.ok === undefined || words.size >= MAX_WORDS_TO_REUSE) continue;
-    const english = item.mode === "verb" ? `to ${item.english}` : item.english;
+    const learned = item.accepted ?? item.english;
+    const english = item.mode === "verb" ? `to ${learned}` : learned;
     if (!words.has(english)) words.set(english, item.ok ? "learned" : "missed");
   }
   if (!words.size) return "";

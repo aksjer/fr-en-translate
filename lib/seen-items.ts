@@ -15,6 +15,8 @@ import {
   type Theme,
   type VerbType,
   type WordKind,
+  englishKey,
+  isWordMode,
 } from "@/lib/options";
 
 // The exercises shown to this learner and how they did, kept in this browser
@@ -31,8 +33,13 @@ const RECENTLY_SEEN = 5;
 export type SeenItem = {
   text: string;
   mode: Mode;
-  // The English of a word or verb: the expected answer.
+  // The English of a word or verb: the expected answer, stored when the item
+  // is shown and never changed after.
   english?: string;
+  // Another right word the learner answered with (sofa for couch).
+  accepted?: string;
+  // A verb's base form, past simple and past participle, as shown.
+  forms?: [string, string, string];
   // What the learner wrote.
   answer?: string;
   // Right or wrong; none if the item wasn't answered.
@@ -59,8 +66,8 @@ export type SeenItem = {
   retest?: boolean;
   // The French sentence that showed the meaning of a word or verb.
   context?: string;
-  // The expected English of a sentence, or of a word or verb answered right
-  // with another word; and the learner's sentence corrected.
+  // The expected English of the item, as generated (to drive, the couch, or a
+  // sentence); and the learner's sentence corrected.
   reference?: string;
   correction?: string;
   // Every mistake of a wrong answer; tag and remark keep the main one.
@@ -86,16 +93,35 @@ export type ShownItem = Pick<
   | "retest"
   | "context"
   | "reference"
+  | "english"
+  | "forms"
 >;
+
+// Items stored before accepted existed kept the learner's right synonym as
+// english and the expected word as reference: they are read in today's shape.
+function current(item: SeenItem): SeenItem {
+  if (
+    !isWordMode(item.mode) ||
+    item.accepted ||
+    !item.english ||
+    !item.reference ||
+    englishKey(item.reference) === item.english
+  ) {
+    return item;
+  }
+  return { ...item, english: englishKey(item.reference), accepted: item.english };
+}
 
 export function readSeen(): SeenItem[] {
   try {
     const parsed: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (item): item is SeenItem =>
-        Boolean(item) && typeof item.text === "string" && MODES.includes(item.mode),
-    );
+    return parsed
+      .filter(
+        (item): item is SeenItem =>
+          Boolean(item) && typeof item.text === "string" && MODES.includes(item.mode),
+      )
+      .map(current);
   } catch {
     // Storage blocked or corrupted: start from an empty history.
     return [];
