@@ -199,7 +199,7 @@ const WORD_EXAMPLE = [
 ].join("\n");
 
 // Tags typed in a text are removed, so it can't close its block early.
-function untagged(text: string) {
+export function untagged(text: string) {
   return text.replace(/<\/?(french|context|reference|translation|past)>/gi, "");
 }
 

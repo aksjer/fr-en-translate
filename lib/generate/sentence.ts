@@ -2,6 +2,7 @@
 import { ERROR_TAG_DEFINITIONS, ERROR_TAGS, type ErrorTag } from "@/lib/error-tags";
 import { COMMON_ENGLISH, generateItem, type GenerateInput } from "@/lib/generate/shared";
 import { TENSE_GUIDES, type SentenceFocus, type Theme } from "@/lib/options";
+import { untagged } from "@/lib/correct";
 import type { Combination } from "@/lib/settings";
 
 // The text field. "As people speak it today" gave slang and negations
@@ -84,10 +85,11 @@ function learningPoint(
   if (retest && retestMistake) {
     return (
       "\n\n## Learning point\nThe tense is the main point of the sentence. This " +
-      `sentence retests the learner's last mistake: ${retestMistake} Its natural ` +
-      "translation must need the same difficulty again (the same word, structure or " +
-      "word order), in a new situation, without pointing it out, and point must name " +
-      "it. Never more than this one other point."
+      `sentence retests the learner's last mistake: « ${untagged(retestMistake).trim()} ». ` +
+      "Its natural translation must need the same difficulty again (the same word, " +
+      "structure or word order), in a new situation, without pointing it out, and point " +
+      "must name it. If that mistake was the tense itself, the tense is the retest and " +
+      "point is empty. Never more than this one other point."
     );
   }
   if (retest) {
