@@ -234,6 +234,18 @@ function answerKey(text: string) {
   return englishKey(text.replace(/\*\*/g, "").replace(/[.!?]+\s*$/, ""));
 }
 
+// The subject pronoun an answer starts with, if any.
+function subjectOf(text: string) {
+  return text.replace(/\*\*/g, "").trim().toLowerCase().match(/^(i|you|he|she|it|we|they)\b/)?.[1];
+}
+
+// answerKey drops a modal's subject, so "you should" and "he should" are both
+// should: two different subjects still make two different answers.
+function sameSubject(answer: string, correction: string) {
+  const [one, other] = [subjectOf(answer), subjectOf(correction)];
+  return !one || !other || one === other;
+}
+
 // Asks the model to grade one translation.
 export async function correctTranslation(rawInput: CorrectInput): Promise<Correction> {
   const input = correctInputSchema.parse(rawInput);
@@ -473,6 +485,7 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
   // So is any answer equal to its correction with no mistake listed.
   const sameAsCorrection =
     answerKey(input.translation) === answerKey(output.correction) &&
+    sameSubject(input.translation, output.correction) &&
     (wordMode || output.mistakes.length === 0);
   const mistakes = (sameAsCorrection ? [] : output.mistakes)
     .map((mistake) => ({ ...mistake, remark: mistake.remark.trim() }))
