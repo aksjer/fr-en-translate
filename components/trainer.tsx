@@ -346,6 +346,8 @@ export function Trainer() {
                 ref={inputRef}
                 id="translation"
                 lang="en-US"
+                // The field grows with the answer, so it never scrolls under the
+                // microphone; rows are for browsers that can't grow it.
                 rows={exercise.mode === "sentence" ? 3 : 1}
                 maxLength={MAX_TEXT_LENGTH}
                 aria-label="Your answer"
@@ -361,7 +363,7 @@ export function Trainer() {
                 }}
                 disabled={loading !== null || result !== null}
                 readOnly={listening}
-                className="block w-full resize-none rounded-xl border border-zinc-300 bg-transparent p-3 pr-12 text-lg outline-none focus-visible:ring-2 focus-visible:ring-blue-600 dark:border-zinc-700"
+                className={`block w-full resize-none rounded-xl border border-zinc-300 bg-transparent p-3 pr-12 text-lg outline-none focus-visible:ring-2 focus-visible:ring-blue-600 dark:border-zinc-700 field-sizing-content ${exercise.mode === "sentence" ? "min-h-[6.5rem]" : ""}`}
               />
               <MicButton
                 value={translation}
