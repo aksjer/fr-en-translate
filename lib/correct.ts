@@ -32,7 +32,7 @@ export const correctInputSchema = z.object({
   focus: z.enum(SENTENCE_FOCUSES).optional().catch(undefined),
   // The exact point of a sentence (as soon as), to tell whether the learner got it.
   point: z.string().trim().max(60).optional().catch(undefined),
-  // A good translation from generation, used as one correct answer among others.
+  // The expected English of the exercise: with the context, it sets the meaning.
   reference: z.string().trim().max(MAX_TEXT_LENGTH).optional(),
   // A French sentence the learner sees under a verb, showing its meaning.
   context: z.string().trim().max(MAX_TEXT_LENGTH).optional(),
@@ -63,8 +63,6 @@ export type Correction = {
   meaning?: string;
   // Words close in meaning to a word or a verb, each with how it differs.
   similar?: { word: string; nuance: string }[];
-  // The three forms of the verb in the correction, so they always match it.
-  forms?: [string, string, string];
   tag?: ErrorTag;
   // Right, with no remark at all.
   perfect: boolean;
@@ -116,18 +114,9 @@ const wordCorrectionSchema = correctionSchema.omit({ alternative: true }).extend
   similar: z.array(z.object({ word: z.string(), nuance: z.string() })),
 });
 
-// A verb also gets the forms of the verb in the correction: the ones from
-// generation belong to the reference, which the correction may not use
-// (mistake shown under "to confuse").
-const verbCorrectionSchema = wordCorrectionSchema.extend({
-  base: z.string(),
-  past: z.string(),
-  participle: z.string(),
-});
-
 type CorrectionOutput = Omit<z.infer<typeof correctionSchema>, "alternative"> &
   Partial<Pick<z.infer<typeof correctionSchema>, "alternative">> &
-  Partial<z.infer<typeof verbCorrectionSchema>> &
+  Partial<z.infer<typeof wordCorrectionSchema>> &
   Partial<Pick<z.infer<typeof pointCorrectionSchema>, "pointResult">>;
 
 // Words and verbs share one rule; each adds what is its own.
@@ -209,19 +198,6 @@ export function untagged(text: string) {
   return text.replace(/<\/?(french|context|reference|translation|past)>/gi, "");
 }
 
-// The three forms as one lowercase word each, or none if the model gave
-// something else or the forms of another verb (the reference's, when the
-// learner used another right verb).
-function verbForms(output: CorrectionOutput): Correction["forms"] {
-  const forms = [output.base, output.past, output.participle].map((form) =>
-    (form ?? "").trim().toLowerCase().replace(/^to\s+/, ""),
-  );
-  return forms.every((form) => /^[a-z]+$/.test(form)) &&
-    forms[0] === answerKey(output.correction)
-    ? (forms as [string, string, string])
-    : undefined;
-}
-
 // The similar words with a nuance, without the correction itself.
 function similarWords(
   output: CorrectionOutput,
@@ -297,9 +273,7 @@ export async function correctTranslation(
       // Room for the thinking and the remarks on a long sentence.
       maxOutputTokens: 8000,
       output: Output.object({
-        schema: (input.mode === "verb"
-          ? verbCorrectionSchema
-          : wordMode
+        schema: (wordMode
             ? wordCorrectionSchema
             : input.point
               ? pointCorrectionSchema
@@ -324,31 +298,22 @@ export async function correctTranslation(
         "an answer that shows they don't know the English yet.",
         "",
         "## Rules",
-        "- The French item is between <french> tags. Grade against its meaning, as the",
-        "  learner sees it. Several translations can be correct: the reference between",
-        "  <reference> tags, when given, is only one of them, and it can be wrong. The learner",
-        "  can't see it, so a difference from it is never a mistake by itself. Judge the",
-        "  English itself: never correct toward a reference that isn't natural English (buy",
-        "  tickets into the machine); then the correction is a natural version.",
+        "- The French item is between <french> tags and the expected translation between",
+        "  <reference> tags: they set the meaning to translate. The learner can't see the",
+        "  reference, so another wording with this meaning is right; another meaning is wrong.",
         ...(wordMode
           ? [
               "- A French sentence between <context> tags, when given, shows the learner which",
               "  meaning of the item to translate: grade against that meaning only. The learner",
               "  translates the item, not the sentence.",
-              "- If the French item can mean several things and nothing in it or its context says",
-              "  which (« louer » alone is to rent or to praise), accept a correct translation of",
-              "  any of them, and never mention a context the learner wasn't given.",
             ]
           : []),
         `- ${MODE_RULES[input.mode]}`,
         ...(wordMode
           ? []
           : [
-              "- The expected English tense, when given, is only a hint: the French decides. Any",
-              "  tense a native speaker would naturally use for this French is right. A present",
-              "  perfect with no finished time (I have eaten) is right too, with no mistake. A",
-              '  tense that changes the meaning or is ungrammatical ("I live here since 2010",',
-              '  "when he will arrive") is wrong.',
+              "- The exercise practices the tense given, and the reference uses it. Another tense",
+              "  is a mistake (tense), except the simple past accepted above.",
             ]),
         "- Be fair: never leave out a real mistake to be nice. Keep the remarks short.",
         "",
@@ -447,12 +412,6 @@ export async function correctTranslation(
               "  - word: the English word (a verb without to);",
               "  - nuance: in French, a short phrase on how it differs (meaning, register,",
               "    American or British).",
-              ...(input.mode === "verb"
-                ? [
-                    "- base, past, participle: the base form, simple past and past participle,",
-                    "  in American English, of the verb in the correction (e.g. go, went, gone).",
-                  ]
-                : []),
             ]
           : [
               "- alternative: another correct and natural American English version in common,",
@@ -505,7 +464,7 @@ export async function correctTranslation(
             (input.point && input.focus ? ` (${input.focus})` : (input.focus ?? "")) +
             ". Check it first; if it has a mistake, file it under the right category.",
         input.tense &&
-          `Expected English tense: the ${input.tense} (${TENSE_GUIDES[input.tense].english})`,
+          `Tense of the exercise: the ${input.tense} (${TENSE_GUIDES[input.tense].english})`,
         `<french>${untagged(input.text)}</french>`,
         input.context && `<context>${untagged(input.context)}</context>`,
         input.reference &&
@@ -576,7 +535,6 @@ export async function correctTranslation(
     meaning: output.meaning?.trim() || undefined,
     inContext: output.inContext?.trim() || undefined,
     similar: similarWords(output, output.correction),
-    forms: verbForms(output),
     tag: output.translated ? main?.category : "meaning",
     perfect: isCorrect && mistakes.length === 0,
     isCorrect,

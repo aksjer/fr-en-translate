@@ -45,7 +45,6 @@ type Correction = {
   inContext?: string;
   similar?: { word: string; nuance: string }[];
   meaning?: string;
-  forms?: [string, string, string];
   tag?: ErrorTag;
   remark?: string;
   mistakes: { remark: string; tag: ErrorTag }[];
@@ -264,14 +263,8 @@ export function Trainer() {
     }
   }
 
-  // The forms from generation belong to the reference: shown only when the
-  // correction uses that same verb.
-  const forms =
-    result &&
-    (result.forms ??
-      (exercise?.forms?.[0] === englishKey(result.correction.replaceAll("**", ""))
-        ? exercise.forms
-        : undefined));
+  // The forms of the exercise's verb, as stored with it.
+  const forms = result && exercise?.forms;
 
   const tags = [
     exercise?.mode,
