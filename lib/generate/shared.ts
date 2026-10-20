@@ -688,6 +688,9 @@ export async function generateItem(
     review?: ReviewItem[];
     // The context sentence of the prompt's example, never shown as is.
     contextExample?: string;
+    // A sentence's point picked by the code (a retest, a habit), whatever the
+    // model names.
+    point?: string;
   },
 ): Promise<Exercise> {
   const { mode } = combination;
@@ -750,7 +753,7 @@ export async function generateItem(
     );
     if (!usable.length) throw new InvalidAnswerError("No usable item");
     if (!isWordMode(mode)) {
-      const answer = usable[0];
+      const answer = prompt.point ? { ...usable[0], point: pointName(prompt.point) } : usable[0];
       const point = answer.point;
       // The point must be in the reference, or the sentence doesn't practice
       // it: asked once more, then the sentence is kept without its point.
