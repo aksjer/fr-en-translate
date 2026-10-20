@@ -5,11 +5,11 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 import {
   CANDIDATES,
+  checkedContext,
   chooseAnswer,
   commonAt,
   FREQUENCY_FIELD,
   GOAL,
-  hasDroppedLetters,
   history,
   historySection,
   learner,
@@ -33,7 +33,7 @@ import {
   thinkingFor,
   withoutEntities,
 } from "@/lib/model";
-import { FREQUENCIES, MAX_TEXT_LENGTH, type VerbType } from "@/lib/options";
+import { FREQUENCIES, type VerbType } from "@/lib/options";
 import type { Combination } from "@/lib/settings";
 
 // A verb gets its own fields: the English verb first, then its forms, then
@@ -46,6 +46,9 @@ const verbSchema = z.object({
   context: z.string(),
   frequency: z.enum(FREQUENCIES),
 });
+
+// The example of the prompt: a context copied from it is asked again.
+const CONTEXT_EXAMPLE = "Nous louons un appartement près de la plage.";
 
 // A regular verb's past and participle are the same -ed form built on it
 // (worked, tried, stopped); fled or bled are shorter than their verb.
@@ -68,16 +71,10 @@ function checkedVerb(output: z.infer<typeof verbSchema>, verbType?: VerbType) {
   const past = output.past.trim().toLowerCase();
   const participle = output.participle.trim().toLowerCase();
   const text = output.text.trim();
-  const context = output.context.trim();
-  if (!/^[a-z]+$/.test(base) || !past || !participle || !text || !context) {
+  if (!/^[a-z]+$/.test(base) || !past || !participle || !text) {
     throw new InvalidAnswerError(`Not a verb: ${base}`);
   }
-  if (hasDroppedLetters(context)) {
-    throw new InvalidAnswerError(`Letters missing: ${context}`);
-  }
-  if (context.length > MAX_TEXT_LENGTH) {
-    throw new InvalidAnswerError(`Context too long: ${context}`);
-  }
+  const context = checkedContext(output.context, text, "verb", [CONTEXT_EXAMPLE]);
   if (
     /[.!?]$/.test(text) ||
     text.replace(/\([^)]*\)/g, "").split(/\s+/).length > 6
@@ -96,7 +93,7 @@ function checkedVerb(output: z.infer<typeof verbSchema>, verbType?: VerbType) {
     participle,
     verbType: (regular ? "regular" : "irregular") as VerbType,
     text: withApostrophes(text),
-    context: withApostrophes(context),
+    context,
     frequency: output.frequency,
   };
 }
@@ -164,8 +161,8 @@ export async function generateVerb(
         "  context or quotation marks. Check its spelling and accents.",
         "- context: one short, everyday French sentence that uses this French verb,",
         "  conjugated, in the meaning of the English verb. The learner sees it under the",
-        "  infinitive, so it must leave only this meaning possible (e.g. « Nous louons un",
-        "  appartement près de la plage. » for rent, since louer can also mean to praise).",
+        `  infinitive, so it must leave only this meaning possible (e.g. « ${CONTEXT_EXAMPLE} »`,
+        "  for rent, since louer can also mean to praise).",
         "  Check its spelling and accents.",
         ...FREQUENCY_FIELD,
       ].join("\n"),

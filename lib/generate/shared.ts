@@ -255,15 +255,89 @@ export function storedReview(items: ReviewItem[] | undefined, mode: "word" | "ve
 
 const reviewContextSchema = z.object({ situation: z.string(), context: z.string() });
 
-// A context sentence, cleaned up, or an error if it can't be shown.
-export function checkedContext(raw: string) {
+// The words of a text, lowercase and without accents (« Été » is ete).
+function foldedWords(text: string) {
+  return text
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .split(/[^\p{L}]+/u)
+    .filter(Boolean);
+}
+
+const ARTICLES = new Set(["le", "la", "les", "un", "une", "des", "du"]);
+
+// Whether a context sentence uses the French item, in any of its forms: a
+// word of it counts when a word of the context starts like it (feuilles for
+// la feuille, fatiguée for fatigué). A verb counts by its stem, the
+// infinitive without its ending (lou for louer, prend for prendre), cut by two
+// letters for the forms that change it (prenons, souviens); after a reflexive
+// pronoun (se souvenir), its own verb. A stem too short to tell (va for aller,
+// vien for venir: viens, venons) isn't checked.
+function usesItem(context: string, text: string, mode: "word" | "verb") {
+  const words = foldedWords(context);
+  const appears = (start: string) => words.some((word) => word.startsWith(start));
+  const own = foldedWords(text);
+  if (mode === "verb") {
+    const [verb = ""] = own[0] === "se" || own[0] === "s" ? own.slice(1) : own;
+    const stem = verb.replace(/(oir|er|ir|re)$/, "");
+    return stem.length < 4 || appears(stem.slice(0, Math.max(3, stem.length - 2)));
+  }
+  const content = own.filter((word) => word.length >= 3 && !ARTICLES.has(word));
+  return (
+    !content.length ||
+    content.some((word) => appears(word.slice(0, Math.max(3, word.length - 2))))
+  );
+}
+
+// The same sentence, whatever its case, accents and punctuation.
+function sameSentence(one: string, other: string) {
+  return foldedWords(one).join(" ") === foldedWords(other).join(" ");
+}
+
+// A context sentence, cleaned up, or an error if it can't be shown: it must
+// use the French item, and be neither the prompt's example nor the last
+// context of a review.
+export function checkedContext(
+  raw: string,
+  text: string,
+  mode: "word" | "verb",
+  others: (string | undefined)[] = [],
+) {
   const context = withApostrophes(raw.trim());
   if (!context) throw new InvalidAnswerError("Empty context");
   if (hasDroppedLetters(context)) throw new InvalidAnswerError(`Letters missing: ${context}`);
   if (context.length > MAX_TEXT_LENGTH) {
     throw new InvalidAnswerError(`Context too long: ${context}`);
   }
+  if (!usesItem(context, text, mode)) {
+    throw new InvalidAnswerError(`Context without « ${text} »: ${context}`);
+  }
+  if (others.some((other) => other && sameSentence(context, other))) {
+    throw new InvalidAnswerError(`Context copied: ${context}`);
+  }
   return context;
+}
+
+// Whether a reference uses the point of its sentence as whole words (did,
+// as soon as; not … yet in two parts, in hasn't … yet too), whatever the
+// apostrophes.
+function inReference(point: string, reference: string) {
+  const words = (text: string) =>
+    ` ${text
+      .toLowerCase()
+      .replace(/[’‘]/g, "'")
+      .replace(/'ve\b/g, " have")
+      .replace(/n't\b/g, " not")
+      .split(/[^\p{L}\p{N}']+/u)
+      .filter(Boolean)
+      .join(" ")} `;
+  const sentence = words(reference);
+  return point
+    .split(/…|\.\.\./)
+    .map(words)
+    .filter((part) => part.trim())
+    .every((part) => sentence.includes(part));
 }
 
 // Asks for a new context sentence for a stored review item.
@@ -298,7 +372,7 @@ export async function reviewContext(
         `for it, on the theme "${theme}" if it fits` +
         (item.context ? `, different from the last one: « ${item.context} ».` : "."),
     });
-    return checkedContext(withoutEntities(output).context);
+    return checkedContext(withoutEntities(output).context, item.text, mode, [item.context]);
   });
 }
 
@@ -358,9 +432,15 @@ export function chooseAnswer<T extends Choice>(
   answers: T[],
   rules: { known: string[]; recent: HistoryItem[]; review?: ReviewItem[] },
 ) {
+  // A listed item, in its stored meaning when the English is stored.
   if (rules.review) {
-    const texts = new Set(rules.review.map((item) => sameText(item.text)));
-    return answers.find((answer) => texts.has(sameText(answer.text)));
+    return answers.find((answer) =>
+      rules.review?.some(
+        (item) =>
+          sameText(item.text) === sameText(answer.text) &&
+          (!item.english || englishKey(answer.english) === item.english),
+      ),
+    );
   }
   const english = new Set([...rules.known, ...rules.recent.flatMap(learnedEnglish)]);
   // The same French word in another meaning is a new item: the French alone
@@ -547,22 +627,18 @@ type ItemAnswer = z.infer<typeof exerciseSchema> & {
 };
 
 // Checks one answer in code, and cleans it up for the page.
-function checkedItem(output: ItemAnswer, mode: Mode) {
+function checkedItem(output: ItemAnswer, mode: Mode, contextExample?: string) {
   // The situation only helps the model think; the page doesn't need it.
   const raw = output.text.trim();
   const text = withApostrophes(raw);
   if (text !== raw) console.warn("Added a missing apostrophe:", raw);
   const reference = output.reference.trim();
+  if (!text || !reference) throw new InvalidAnswerError("Empty item or reference");
+  if (hasDroppedLetters(text)) throw new InvalidAnswerError(`Letters missing: ${text}`);
   const context =
     output.context === undefined
       ? undefined
-      : withApostrophes(output.context.trim());
-  if (!text || !reference || context === "") {
-    throw new InvalidAnswerError("Empty item, context or reference");
-  }
-  if (hasDroppedLetters(text) || (context && hasDroppedLetters(context))) {
-    throw new InvalidAnswerError(`Letters missing: ${context ?? text}`);
-  }
+      : checkedContext(output.context, text, "word", [contextExample]);
   // A word is never a sentence, nor is its reference (the model sometimes
   // translates the context sentence instead).
   if (isWordMode(mode) && /[.!?]$/.test(text)) {
@@ -571,11 +647,7 @@ function checkedItem(output: ItemAnswer, mode: Mode) {
   if (isWordMode(mode) && (/[.!?]$/.test(reference) || reference.split(/\s+/).length > 4)) {
     throw new InvalidAnswerError(`A sentence instead of a reference: ${reference}`);
   }
-  if (
-    text.length > MAX_TEXT_LENGTH ||
-    reference.length > MAX_TEXT_LENGTH ||
-    (context?.length ?? 0) > MAX_TEXT_LENGTH
-  ) {
+  if (text.length > MAX_TEXT_LENGTH || reference.length > MAX_TEXT_LENGTH) {
     throw new InvalidAnswerError(`Item too long (${text.length} characters)`);
   }
   return {
@@ -614,6 +686,8 @@ export async function generateItem(
     task: string;
     sections?: string;
     review?: ReviewItem[];
+    // The context sentence of the prompt's example, never shown as is.
+    contextExample?: string;
   },
 ): Promise<Exercise> {
   const { mode } = combination;
@@ -672,22 +746,34 @@ export async function generateItem(
         : [output as ItemAnswer],
     );
     const usable = usableAnswers(answers, (answer) =>
-      checkedItem(answer, mode),
+      checkedItem(answer, mode, prompt.contextExample),
     );
     if (!usable.length) throw new InvalidAnswerError("No usable item");
     if (!isWordMode(mode)) {
-      // A mastered point is never the target again: the model is asked once more.
-      const point = usable[0].point;
-      // A retest or a habit keeps its point: it practices a mistake, whatever
-      // was mastered.
-      if (attempt === 1 && point && mastered.has(point) && !combination.retest && !combination.target) {
-        fallback = { ...usable[0], fits: true };
+      const answer = usable[0];
+      const point = answer.point;
+      // The point must be in the reference, or the sentence doesn't practice
+      // it: asked once more, then the sentence is kept without its point.
+      const missing = Boolean(point && !inReference(point, answer.reference));
+      // A mastered point is never the target again, except in a retest or a
+      // habit, which practice a mistake whatever was mastered.
+      const mastery =
+        point && mastered.has(point) && !combination.retest && !combination.target;
+      const kept = missing ? { ...answer, point: undefined } : answer;
+      if (attempt === 1 && (missing || mastery)) {
+        fallback = { ...kept, fits: true };
         tryAgain =
-          `\n\n## Try again\nThe learner already mastered « ${point} ». Choose another ` +
-          "learning point, not in Points mastered.";
-        throw new InvalidAnswerError(`Mastered point: ${point}`);
+          "\n\n## Try again\n" +
+          (missing
+            ? `Your reference « ${answer.reference} » doesn't use your point « ${point} ». ` +
+              "Write a sentence whose reference uses it."
+            : `The learner already mastered « ${point} ». Choose another learning point, ` +
+              "not in Points mastered.");
+        throw new InvalidAnswerError(
+          missing ? `Point not in the reference: ${point}` : `Mastered point: ${point}`,
+        );
       }
-      return { ...usable[0], fits: true };
+      return { ...kept, fits: true };
     }
     const chosen = chooseAnswer(usable, {
       known,

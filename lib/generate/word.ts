@@ -32,6 +32,9 @@ const KIND_GUIDES: Record<WordKind, string> = {
   conjunction: "Linking expressions of several words count too (« dès que », « ainsi que »). ",
 };
 
+// The example of the prompt: a context copied from it is asked again.
+const CONTEXT_EXAMPLE = "Les feuilles tombent des arbres en automne.";
+
 export async function generateWord(
   input: GenerateInput,
   combination: Combination,
@@ -58,6 +61,7 @@ export async function generateWord(
   // A review gives a word of any kind: it gets its own kind back below.
   const exercise = await generateItem(input, review ? { ...combination, kind: undefined } : combination, {
     review,
+    contextExample: CONTEXT_EXAMPLE,
     sections: review ? undefined : similarSection(input, "word"),
     // The English comes first, since the learner works on their English: starting
     // from the French gave loose translations (un périple → an ordeal).
@@ -69,7 +73,7 @@ export async function generateWord(
       "  spelling and accents.",
       "- context: one short, everyday French sentence that uses this French word in the",
       "  meaning of the English word. The learner sees it under the word, so it must leave",
-      "  only this meaning possible (e.g. « Les feuilles tombent des arbres en automne. »",
+      `  only this meaning possible (e.g. « ${CONTEXT_EXAMPLE} »`,
       "  for leaf, since feuille is also a sheet of paper). Check its spelling and accents.",
       "- reference: the most natural American English translation of text alone (the word,",
       "  never the context sentence) in the meaning of context, in American words and",
