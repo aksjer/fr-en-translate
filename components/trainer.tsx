@@ -19,6 +19,7 @@ import {
   toReview,
 } from "@/lib/seen-items";
 import { useSettings } from "@/lib/use-settings";
+import { ReportButton } from "@/components/report-button";
 import { SpeakButton } from "@/components/speak-button";
 
 type Exercise = Combination & {
@@ -99,8 +100,13 @@ export function Trainer() {
     const shownAt = Date.now();
     function onKeyDown(event: KeyboardEvent) {
       if (event.key !== "Enter" || event.repeat || Date.now() - shownAt < 600) return;
-      // Enter on a focused button (Listen) does that button's job.
-      if (event.target instanceof HTMLButtonElement) return;
+      // Enter on a focused button (Listen) does that button's job, and Enter
+      // in a text field (a report) is typing.
+      if (
+        event.target instanceof HTMLButtonElement ||
+        event.target instanceof HTMLTextAreaElement
+      )
+        return;
       event.preventDefault();
       generate();
     }
@@ -417,6 +423,18 @@ export function Trainer() {
         <p role="alert" className="text-red-600 dark:text-red-400">
           {error}
         </p>
+      )}
+
+      {(exercise || error) && (
+        <ReportButton
+          context={{
+            exercise,
+            answer: translation.trim() || undefined,
+            correction: result ?? undefined,
+            error: error ?? undefined,
+            settings,
+          }}
+        />
       )}
     </div>
   );
