@@ -20,7 +20,8 @@ function recognitionClass() {
 const noSubscribe = () => () => {};
 
 // A microphone icon: the learner says the answer in English, and the words
-// are written in the answer field, to check before sending. Hidden where the
+// are written in the answer field until they click again, to check before
+// sending. Hidden where the
 // browser can't recognize speech.
 export function MicButton({
   value,
@@ -37,11 +38,27 @@ export function MicButton({
   // Why the last try failed: a blocked microphone needs the browser settings.
   const [failed, setFailed] = useState<"blocked" | "error" | null>(null);
   const recognition = useRef<SpeechRecognition | null>(null);
-
-  // Leaving the exercise stops listening.
-  useEffect(() => () => recognition.current?.abort(), []);
+  // The learner wants to listen: the browser ends a session after a silence,
+  // and a new one starts until they click again.
+  const wanted = useRef(false);
+  // The answer as it is now, for a session that starts after a silence.
+  const latest = useRef(value);
   useEffect(() => {
-    if (disabled) recognition.current?.abort();
+    latest.current = value;
+  }, [value]);
+
+  // Leaving the exercise, or checking it, stops listening.
+  useEffect(
+    () => () => {
+      wanted.current = false;
+      recognition.current?.abort();
+    },
+    [],
+  );
+  useEffect(() => {
+    if (!disabled) return;
+    wanted.current = false;
+    recognition.current?.abort();
   }, [disabled]);
   // The page hears when listening starts and stops, and when the button goes.
   useEffect(() => {
@@ -51,18 +68,15 @@ export function MicButton({
 
   if (!supported) return null;
 
-  function toggle() {
-    if (listening) {
-      recognition.current?.stop();
-      return;
-    }
+  // One session of the browser's recognition; false if it couldn't start.
+  function startSession() {
     const Recognition = recognitionClass();
-    if (!Recognition) return;
+    if (!Recognition) return false;
     const listener = new Recognition();
     listener.lang = "en-US";
     listener.interimResults = true;
-    listener.continuous = false;
-    const before = value.trimEnd();
+    listener.continuous = true;
+    const before = latest.current.trimEnd();
     listener.onresult = (event) => {
       const said = Array.from(event.results, (result) => result[0].transcript)
         .join("")
@@ -71,26 +85,41 @@ export function MicButton({
     };
     listener.onerror = (event) => {
       // Silence or a stop isn't a failure.
-      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-        setFailed("blocked");
-      } else if (event.error !== "no-speech" && event.error !== "aborted") {
-        setFailed("error");
-      }
+      if (event.error === "no-speech" || event.error === "aborted") return;
+      wanted.current = false;
+      setFailed(
+        event.error === "not-allowed" || event.error === "service-not-allowed"
+          ? "blocked"
+          : "error",
+      );
     };
     listener.onend = () => {
-      setListening(false);
       recognition.current = null;
+      if (wanted.current && startSession()) return;
+      wanted.current = false;
+      setListening(false);
     };
     try {
       listener.start();
     } catch {
       // Some browsers throw at once when the microphone is blocked.
       setFailed("blocked");
-      return;
+      return false;
     }
     recognition.current = listener;
+    return true;
+  }
+
+  function toggle() {
+    if (listening) {
+      wanted.current = false;
+      recognition.current?.stop();
+      return;
+    }
+    wanted.current = true;
     setFailed(null);
-    setListening(true);
+    if (startSession()) setListening(true);
+    else wanted.current = false;
   }
 
   const label = listening
