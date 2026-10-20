@@ -144,7 +144,10 @@ const MODE_RULES: Record<Mode, string> = {
   verb: WORD_RULE + "The page already shows the verb's three forms, so don't list them.",
   sentence:
     "Accept any translation that is faithful to the meaning, grammatically correct and " +
-    "natural in American English, even if it differs from the reference.",
+    "natural in American English, even if it differs from the reference. American English " +
+    "often uses the simple past with already, yet, just or ever (She already paid, Did you " +
+    "eat yet?): it is right, never a tense mistake, even when the reference has the present " +
+    "perfect.",
 };
 
 // Full answers that show the expected quality. They only show the format and
@@ -304,7 +307,9 @@ export async function correctTranslation(
         "- The French item is between <french> tags. Grade against its meaning, as the",
         "  learner sees it. Several translations can be correct: the reference between",
         "  <reference> tags, when given, is only one of them, and it can be wrong. The learner",
-        "  can't see it, so a difference from it is never a mistake by itself.",
+        "  can't see it, so a difference from it is never a mistake by itself. Judge the",
+        "  English itself: never correct toward a reference that isn't natural English (buy",
+        "  tickets into the machine); then the correction is a natural version.",
         ...(wordMode
           ? [
               "- A French sentence between <context> tags, when given, shows the learner which",

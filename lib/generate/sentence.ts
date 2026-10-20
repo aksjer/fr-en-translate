@@ -128,7 +128,9 @@ const VARIETY =
   "and again).";
 
 const PRIORITY =
-  "\n\n## Priority\nIf two instructions conflict, the tense and the theme come first, " +
+  "\n\n## Priority\nThe reference is always natural American English: never bend it to " +
+  "fit a learning point (not buy the tickets into the machine); choose a situation where " +
+  "the point is natural. If two instructions conflict, the tense and the theme come first, " +
   "then common words, then the learning point, then the words being learned, then the " +
   "variety.";
 
@@ -227,7 +229,9 @@ export function generateSentence(input: GenerateInput, combination: Combination)
       "  mayor didn't announce it yet, not hasn't announced).",
       "- point: only the English word or words of the learning point, lowercase, with no",
       "  explanation, parentheses or + (as soon as, should, should have, couldn't, during,",
-      "  already, did), or empty if the sentence has no other point than the tense.",
+      "  already, did), or empty if the sentence has no other point than the tense. When",
+      "  the task names a kind of point (an auxiliary, a preposition…), point is a word of",
+      "  that kind, as it appears in the reference, never another word of the sentence.",
     ],
     task:
       `Write one original French sentence on the theme "${theme}", as long as a line in ` +
