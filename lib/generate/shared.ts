@@ -77,6 +77,9 @@ type HistoryItem = z.infer<typeof historyItemSchema>;
 const reviewItemSchema = z.object({
   text: clipped(300),
   english: clipped(40).optional().catch(undefined),
+  reference: clipped(60).optional().catch(undefined),
+  forms: z.tuple([clipped(40), clipped(40), clipped(40)]).optional().catch(undefined),
+  frequency: z.enum(FREQUENCIES).optional().catch(undefined),
   context: clipped(300).optional().catch(undefined),
   misses: z.number().int().min(0).optional().catch(undefined),
   kind: z.enum(WORD_KINDS).optional().catch(undefined),
@@ -238,6 +241,65 @@ export function reviewFor(input: GenerateInput, mode: "word" | "verb") {
   const last = input.history?.filter((item) => item.mode === mode).at(-1);
   const due = items[0].today && !last?.review;
   return due || Math.random() < REVIEW_CHANCE ? items : undefined;
+}
+
+// A review built by the code: the item to give again, with its French, its
+// expected English (and a verb's forms) as stored; the model only writes a new
+// context sentence. Items stored before the English was kept at show time
+// have none: they go through the model's own choice, as before.
+export function storedReview(items: ReviewItem[] | undefined, mode: "word" | "verb") {
+  const item = items?.[0];
+  if (!item?.english || (mode === "verb" && !item.forms)) return undefined;
+  return item as ReviewItem & { english: string };
+}
+
+const reviewContextSchema = z.object({ situation: z.string(), context: z.string() });
+
+// A context sentence, cleaned up, or an error if it can't be shown.
+export function checkedContext(raw: string) {
+  const context = withApostrophes(raw.trim());
+  if (!context) throw new InvalidAnswerError("Empty context");
+  if (hasDroppedLetters(context)) throw new InvalidAnswerError(`Letters missing: ${context}`);
+  if (context.length > MAX_TEXT_LENGTH) {
+    throw new InvalidAnswerError(`Context too long: ${context}`);
+  }
+  return context;
+}
+
+// Asks for a new context sentence for a stored review item.
+export async function reviewContext(
+  item: ReviewItem & { english: string },
+  mode: "word" | "verb",
+  theme: string | undefined,
+) {
+  const english = mode === "verb" ? `to ${item.english}` : item.english;
+  return retryIfInvalid(async () => {
+    const { output } = await generateText({
+      model,
+      providerOptions: thinkingFor("generate"),
+      maxRetries: 1,
+      maxOutputTokens: 2000,
+      output: Output.object({ schema: reviewContextSchema }),
+      system: [
+        "You are an American English teacher for a French speaker. You write one French",
+        "sentence that shows the meaning of a French item the learner will translate.",
+        "",
+        "## Fields, in this order",
+        "- situation: one short line in English: who, where, and what the English means here.",
+        "- context: one short, everyday French sentence in correct, modern French that uses",
+        `  the French item${mode === "verb" ? ", conjugated," : ""} in this meaning only, so a`,
+        "  French speaker would translate the item with this English. Check its spelling",
+        "  and accents.",
+      ].join("\n"),
+      prompt:
+        GOAL +
+        "\n\n## Task\n" +
+        `The learner missed « ${item.text} » → ${english}. Write a new context sentence ` +
+        `for it, on the theme "${theme}" if it fits` +
+        (item.context ? `, different from the last one: « ${item.context} ».` : "."),
+    });
+    return checkedContext(withoutEntities(output).context);
+  });
 }
 
 // The task of a review: one of the missed items, as is, with a new context.

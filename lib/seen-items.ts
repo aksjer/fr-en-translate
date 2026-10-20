@@ -214,6 +214,11 @@ export function pastMistakes(items: SeenItem[], mode: Mode) {
 export type ReviewItem = {
   text: string;
   english?: string;
+  // The expected English as generated, and a verb's forms: a review gives
+  // them again as they were.
+  reference?: string;
+  forms?: [string, string, string];
+  frequency?: Frequency;
   // The context sentence shown last time, so the review gives a new one.
   context?: string;
   // How many times the learner missed this item.
@@ -251,6 +256,9 @@ export function toReview(items: SeenItem[], known: KnownItems, mode: "word" | "v
       (item): ReviewItem => ({
         text: item.text,
         ...(item.english && { english: item.english }),
+        ...(item.reference && { reference: item.reference }),
+        ...(item.forms && { forms: item.forms }),
+        ...(item.frequency && { frequency: item.frequency }),
         ...(item.context && { context: item.context }),
         ...(item.kind && { kind: item.kind }),
         ...(isToday(item) && { today: true }),

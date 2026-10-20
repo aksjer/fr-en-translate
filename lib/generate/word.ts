@@ -5,8 +5,10 @@ import {
   commonAt,
   generateItem,
   reviewFor,
+  reviewContext,
   reviewTask,
   sameText,
+  storedReview,
   similarSection,
   type Exercise,
   type GenerateInput,
@@ -39,6 +41,20 @@ export async function generateWord(
   // again and again.
   const kind = combination.kind ?? "noun";
   const review = reviewFor(input, "word");
+  // A review of a word stored whole: the code gives it again as it was, with a
+  // new context sentence.
+  const stored = storedReview(review, "word");
+  if (stored) {
+    return {
+      ...combination,
+      text: stored.text,
+      reference: stored.reference ?? stored.english,
+      context: await reviewContext(stored, "word", theme),
+      kind: stored.kind,
+      ...(stored.frequency && { frequency: stored.frequency }),
+      review: true,
+    };
+  }
   // A review gives a word of any kind: it gets its own kind back below.
   const exercise = await generateItem(input, review ? { ...combination, kind: undefined } : combination, {
     review,

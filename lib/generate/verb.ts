@@ -14,8 +14,10 @@ import {
   historySection,
   learner,
   reviewFor,
+  reviewContext,
   reviewTask,
   similarSection,
+  storedReview,
   tryAgainSection,
   knownSection,
   usableAnswers,
@@ -111,6 +113,22 @@ export async function generateVerb(
   const verbType = combination.verbType ?? "regular";
   const { known, recent } = history(input, "verb");
   const review = reviewFor(input, "verb");
+  // A review of a verb stored whole: the code gives it again as it was, with a
+  // new context sentence.
+  const stored = storedReview(review, "verb");
+  if (stored?.forms) {
+    const [base, past, participle] = stored.forms;
+    return {
+      ...combination,
+      text: stored.text,
+      reference: `to ${stored.english}`,
+      forms: stored.forms,
+      context: await reviewContext(stored, "verb", theme),
+      verbType: isRegular(base, past, participle) ? "regular" : "irregular",
+      ...(stored.frequency && { frequency: stored.frequency }),
+      review: true,
+    };
+  }
   let attempt = 0;
   let tryAgain = "";
   // A usable first verb, kept if the one asked again is broken.
