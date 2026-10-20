@@ -45,6 +45,8 @@ export type Combination = {
   retest?: boolean;
   // The learning point of that wrong sentence, practiced again by the retest.
   retestPoint?: string;
+  // The main mistake of that wrong sentence, when its point was right.
+  retestMistake?: string;
 };
 
 function pick<T>(selected: readonly T[] | undefined, all: readonly T[]): T {
@@ -66,7 +68,7 @@ const MISTAKE_SENTENCE_CHANCE = 0.25;
 // another one.
 export function pickCombination(
   settings: Settings,
-  wrongSentence?: { tense?: Tense; point?: string },
+  wrongSentence?: { tense?: Tense; point?: string; mistake?: string },
 ): Combination {
   const mode = pick(settings.modes, MODES);
   const uses = MODE_USES[mode];
@@ -81,6 +83,9 @@ export function pickCombination(
     mode,
     ...(retest && { retest: true }),
     ...(retest && wrongSentence.point && { retestPoint: wrongSentence.point }),
+    ...(retest &&
+      !wrongSentence.point &&
+      wrongSentence.mistake && { retestMistake: wrongSentence.mistake }),
     ...(uses.tense && { tense: sameTense ?? pick(settings.tenses, TENSES) }),
     ...(uses.verbType && {
       verbType: pick(settings.verbTypes, VERB_TYPES),

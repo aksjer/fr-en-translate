@@ -66,7 +66,12 @@ const OTHER_THAN_TENSE =
 // is hard to learn from, and the correction mixes them up. The code picks a
 // grammar point for most sentences; the others practice a recent mistake
 // (more precise than a weak point's category) or a weak point.
-function learningPoint(focus?: SentenceFocus, retest?: boolean, retestPoint?: string) {
+function learningPoint(
+  focus?: SentenceFocus,
+  retest?: boolean,
+  retestPoint?: string,
+  retestMistake?: string,
+) {
   if (retest && retestPoint) {
     return (
       "\n\n## Learning point\nThe tense is the main point of the sentence. This " +
@@ -74,6 +79,15 @@ function learningPoint(focus?: SentenceFocus, retest?: boolean, retestPoint?: st
       `whose learning point was « ${retestPoint} »: its natural translation must need ` +
       `« ${retestPoint} » again, in a new situation, without pointing it out, and point ` +
       `must be « ${retestPoint} ». Never more than this one other point.`
+    );
+  }
+  if (retest && retestMistake) {
+    return (
+      "\n\n## Learning point\nThe tense is the main point of the sentence. This " +
+      `sentence retests the learner's last mistake: ${retestMistake} Its natural ` +
+      "translation must need the same difficulty again (the same word, structure or " +
+      "word order), in a new situation, without pointing it out, and point must name " +
+      "it. Never more than this one other point."
     );
   }
   if (retest) {
@@ -203,9 +217,12 @@ export function generateSentence(input: GenerateInput, combination: Combination)
       "- reference: the most natural American English translation of text, in the tense a",
       `  native speaker would use for this French. It must be the ${tense}: if it isn't`,
       "  natural, change the French, not the tense. Use American words and spelling",
-      "  (apartment, color, not flat, colour). Put every word where a native speaker would:",
-      "  an adverb in its usual place (hadn't yet bought the house we had talked about, not",
-      "  hadn't bought the house yet that we had talked about).",
+      "  (apartment, color, not flat, colour). Put every word where a native speaker would,",
+      "  an adverb (yet, soon, already, still) in its usual place: hadn't yet bought the",
+      "  house we had talked about, not hadn't bought the house yet that we had talked",
+      "  about; we'll stop by this river soon, not we will stop soon by this river. Check",
+      "  the main verb's tense last: in the past, never have or has + participle (the",
+      "  mayor didn't announce it yet, not hasn't announced).",
       "- point: only the English word or words of the learning point, lowercase, with no",
       "  explanation, parentheses or + (as soon as, should, should have, couldn't, during,",
       "  already, did), or empty if the sentence has no other point than the tense.",
@@ -221,7 +238,12 @@ export function generateSentence(input: GenerateInput, combination: Combination)
       "when the situation calls for one)." +
       SENTENCE_VOCABULARY +
       (theme && THEME_STYLES[theme] ? ` ${THEME_STYLES[theme]}` : "") +
-      learningPoint(focus, combination.retest, combination.retestPoint) +
+      learningPoint(
+        focus,
+        combination.retest,
+        combination.retestPoint,
+        combination.retestMistake,
+      ) +
       VARIETY +
       PRIORITY,
     // Weak points only matter when the code picked no grammar point.

@@ -27,6 +27,7 @@ export function generateExercise(input: GenerateInput): Promise<Exercise> {
           tense: last.tense,
           // A point answered right needs no retest: the mistake was elsewhere.
           point: last.pointResult === "right" ? undefined : last.point,
+          mistake: last.remark,
         } : undefined,
   );
   return GENERATORS[combination.mode](input, combination);

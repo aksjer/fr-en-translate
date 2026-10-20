@@ -362,7 +362,9 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
               "  time + que → for + present perfect;",
               "- déjà in a question: ever for an experience (Have you ever seen…?), yet for",
               "  something expected (Have you eaten yet?), already for surprise (You're done",
-              "  already?); pas encore → not … yet, yet usually at the end;",
+              "  already?); pas encore → not … yet, yet usually at the end, but also right",
+              "  after the auxiliary (hasn't yet announced);",
+              "- an adverb in any natural place is right (We'll soon stop, We'll stop soon);",
               "- an adverb never goes between the verb and its object (not I ate already my",
               "  lunch, I speak well English, I like very much coffee);",
               '- uncountable nouns: information, advice, news, furniture (no plural, no "an");',
@@ -417,7 +419,8 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
                 ? [
                     `- pointResult: right if the translation uses « ${untagged(input.point)} » correctly (in`,
                     "  any of its forms); wrong if it uses it with a mistake, or if the meaning it",
-                    "  carries is wrong or lost; avoided if it doesn't use it but still says the",
+                    "  carries is wrong or lost, or if another word replaces it (as soon as for when);",
+                    "  avoided if it doesn't use it but still says the",
                     "  same thing correctly.",
                   ]
                 : []),
