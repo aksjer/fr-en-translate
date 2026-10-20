@@ -26,8 +26,9 @@ export type CommonMistake = {
 const MIN_COUNT = 2;
 // Longer right forms are one sentence's wording, not a habit.
 const MAX_WORDS = 4;
-// Spelling, punctuation and "anything else" can't be built into a sentence.
-const SKIPPED_TAGS: string[] = ["spelling", "punctuation", "other"] satisfies ErrorTag[];
+// Spelling, punctuation and "anything else" can't be built into a sentence, and
+// a tense is practiced by the tense setting: its form fits only one tense.
+const SKIPPED_TAGS: string[] = ["spelling", "punctuation", "other", "tense"] satisfies ErrorTag[];
 // The kinds of mistakes a sentence focus practices.
 const FOCUS_OF_TAG: Partial<Record<ErrorTag, SentenceFocus>> = {
   preposition: "preposition",

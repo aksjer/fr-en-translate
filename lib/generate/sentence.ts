@@ -222,9 +222,9 @@ function pointsSection(input: GenerateInput) {
   );
 }
 
-export function generateSentence(input: GenerateInput, combination: Combination) {
+export async function generateSentence(input: GenerateInput, combination: Combination) {
   const { focus, tense, theme } = combination;
-  return generateItem(input, combination, {
+  const exercise = await generateItem(input, combination, {
     // Planning the verb first keeps the tense right.
     fields: [
       "- situation: first, one short line in English: the situation you chose (who, where,",
@@ -273,4 +273,7 @@ export function generateSentence(input: GenerateInput, combination: Combination)
       ? wordsSection(input)
       : pointsSection(input) + (focus ? "" : weakPointsSection(input)) + wordsSection(input),
   });
+  // A habit is stored under its own name, whatever the model called it: its
+  // right answers then make it mastered, and it leaves the list.
+  return combination.target ? { ...exercise, point: combination.target.right } : exercise;
 }
