@@ -70,9 +70,11 @@ export type Correction = {
   isCorrect: boolean;
   // The first remark of a wrong answer, kept in the history.
   remark?: string;
-  // Whether the learner got the sentence's grammar point right; none when they
-  // said it another correct way, so it counts neither way.
-  pointRight?: boolean;
+  // Every mistake kept, with its category.
+  mistakes: { remark: string; tag: ErrorTag }[];
+  // How the learner did on the sentence's grammar point: avoided when they
+  // said it another correct way.
+  pointResult?: "right" | "wrong" | "avoided";
 };
 
 // A mistake in these always makes the answer wrong, whatever the model says.
@@ -505,10 +507,12 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
     perfect: isCorrect && mistakes.length === 0,
     isCorrect,
     remark: output.translated ? main?.remark : undefined,
+    mistakes: mistakes
+      .slice(0, MAX_REMARKS)
+      .map((mistake) => ({ remark: mistake.remark, tag: mistake.category })),
     ...(input.point &&
-      output.pointResult &&
-      (output.pointResult !== "avoided" || !output.translated) && {
-        pointRight: output.translated && output.pointResult === "right",
+      output.pointResult && {
+        pointResult: output.translated ? output.pointResult : "wrong",
       }),
   };
 }

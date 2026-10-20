@@ -107,10 +107,15 @@ const UNPRACTICED_TAGS: ErrorTag[] = ["spelling", "punctuation", "other"];
 function weakPointsSection(input: GenerateInput) {
   const counts = new Map<ErrorTag, number>();
   for (const item of input.history ?? []) {
-    if (item.mode !== "sentence") continue;
-    const tag = ERROR_TAGS.find((known) => known === item.tag);
-    if (item.ok === false && tag && !UNPRACTICED_TAGS.includes(tag)) {
-      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    if (item.mode !== "sentence" || item.ok !== false) continue;
+    // Every mistake of the answer when they are stored, each kind once.
+    const tags = new Set(
+      item.mistakes?.length ? item.mistakes.map((mistake) => mistake.tag) : [item.tag],
+    );
+    for (const tag of ERROR_TAGS) {
+      if (tags.has(tag) && !UNPRACTICED_TAGS.includes(tag)) {
+        counts.set(tag, (counts.get(tag) ?? 0) + 1);
+      }
     }
   }
   const top = [...counts]

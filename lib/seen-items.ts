@@ -9,6 +9,11 @@ import {
   pointName,
   type Frequency,
   type Mode,
+  type SentenceFocus,
+  type Tense,
+  type Theme,
+  type VerbType,
+  type WordKind,
 } from "@/lib/options";
 
 // The exercises shown to this learner and how they did, kept in this browser
@@ -35,9 +40,45 @@ export type SeenItem = {
   remark?: string;
   // How common the model said the English word or verb is.
   frequency?: Frequency;
-  // The grammar point a sentence practiced (as soon as, should).
+  // The grammar point a sentence practiced (as soon as, should), and how the
+  // learner did on it: avoided when they said it another right way.
   point?: string;
+  pointResult?: PointResult;
+  // When the item was shown, then answered (ISO date and time).
+  at?: string;
+  // What the item practiced, as picked by the code.
+  kind?: WordKind;
+  focus?: SentenceFocus;
+  tense?: Tense;
+  theme?: Theme;
+  verbType?: VerbType;
+  // A missed word or verb given again.
+  review?: boolean;
+  // The French sentence that showed the meaning of a word or verb.
+  context?: string;
+  // The expected English of a sentence, and the learner's sentence corrected.
+  reference?: string;
+  correction?: string;
+  // Every mistake of a wrong answer; tag and remark keep the main one.
+  mistakes?: { remark: string; tag: string }[];
 };
+
+export type PointResult = "right" | "wrong" | "avoided";
+
+// What the page knows of an item when it is shown.
+export type ShownItem = Pick<
+  SeenItem,
+  | "frequency"
+  | "point"
+  | "kind"
+  | "focus"
+  | "tense"
+  | "theme"
+  | "verbType"
+  | "review"
+  | "context"
+  | "reference"
+>;
 
 export function readSeen(): SeenItem[] {
   try {
@@ -97,28 +138,23 @@ function writeSeen(items: SeenItem[]) {
   changed();
 }
 
-export function rememberSeen(
-  text: string,
-  mode: Mode,
-  extra: { frequency?: Frequency; point?: string } = {},
-) {
+export function rememberSeen(text: string, mode: Mode, shown: ShownItem = {}) {
+  // Only the fields that have a value, so the storage stays small.
+  const fields = Object.fromEntries(
+    Object.entries(shown).filter(([, value]) => value !== undefined && value !== ""),
+  );
   writeSeen([
     ...readSeen(),
-    {
-      text: text.trim(),
-      mode,
-      ...(extra.frequency && { frequency: extra.frequency }),
-      ...(extra.point && { point: extra.point }),
-    },
+    { text: text.trim(), mode, ...fields, at: new Date().toISOString() },
   ]);
 }
 
-// Adds the result to the last time this item was shown.
-export function rememberResult(text: string, result: Omit<SeenItem, "text" | "mode">) {
+// Adds the result to the last time this item was shown, with the time of the answer.
+export function rememberResult(text: string, result: Omit<SeenItem, "text" | "mode" | "at">) {
   const items = readSeen();
   const index = items.findLastIndex((item) => item.text === text.trim());
   if (index === -1) return;
-  items[index] = { ...items[index], ...result };
+  items[index] = { ...items[index], ...result, at: new Date().toISOString() };
   writeSeen(items);
 }
 
@@ -143,7 +179,14 @@ export function pastMistakes(items: SeenItem[], mode: Mode, current: string) {
     .map(({ text, remark }) => ({ text, remark }));
 }
 
-export type ReviewItem = { text: string; english?: string };
+export type ReviewItem = {
+  text: string;
+  english?: string;
+  // The context sentence shown last time, so the review gives a new one.
+  context?: string;
+  // How many times the learner missed this item.
+  misses: number;
+};
 
 // The words or verbs missed or left unanswered and not learned since, oldest first: a
 // review gives one of them again. Each item counts once, at the last time it
@@ -152,6 +195,10 @@ export function toReview(items: SeenItem[], known: KnownItems, mode: "word" | "v
   const ofMode = items.filter((item) => item.mode === mode);
   const learned = new Set(known[mode] ?? []);
   const lastIndex = new Map(ofMode.map((item, index) => [item.text, index]));
+  const misses = new Map<string, number>();
+  for (const item of ofMode) {
+    if (item.ok === false) misses.set(item.text, (misses.get(item.text) ?? 0) + 1);
+  }
   return ofMode
     .filter(
       (item, index) =>
@@ -161,7 +208,14 @@ export function toReview(items: SeenItem[], known: KnownItems, mode: "word" | "v
         !(item.english && learned.has(item.english)),
     )
     .slice(0, MAX_REVIEW)
-    .map(({ text, english }): ReviewItem => ({ text, ...(english && { english }) }));
+    .map(
+      ({ text, english, context }): ReviewItem => ({
+        text,
+        ...(english && { english }),
+        ...(context && { context }),
+        misses: misses.get(text) ?? 0,
+      }),
+    );
 }
 
 // Words and verbs the learner translated correctly, by their
@@ -201,7 +255,8 @@ export function rememberKnown(mode: Mode, english: string) {
 
 // The grammar points of sentences (as soon as, should) and how the learner did:
 // one is mastered after POINT_MASTERY right answers on different days, and a
-// wrong answer starts it over. A mastered point is never the target again.
+// wrong answer starts it over. An avoided one keeps its count but becomes the
+// most recent to practice. A mastered point is never the target again.
 const POINTS_KEY = "fr-en-translate:points";
 
 export type PointProgress = { right: number; lastRight?: string };
@@ -225,18 +280,21 @@ export function readPoints(): Record<string, PointProgress> {
   }
 }
 
-export function rememberPoint(point: string, right: boolean) {
+export function rememberPoint(point: string, result: PointResult) {
   const key = pointName(point);
   if (!key) return;
   try {
     const points = readPoints();
     const current = points[key] ?? { right: 0 };
     // Two right answers the same day count once: mastery needs another day.
-    const next: PointProgress = right
-      ? current.lastRight === today()
+    const next: PointProgress =
+      result === "avoided"
         ? current
-        : { right: current.right + 1, lastRight: today() }
-      : { right: 0 };
+        : result === "wrong"
+          ? { right: 0 }
+          : current.lastRight === today()
+            ? current
+            : { right: current.right + 1, lastRight: today() };
     // The point moves to the end, so the oldest go first when the list is full.
     const entries = [
       ...Object.entries(points).filter(([other]) => other !== key),

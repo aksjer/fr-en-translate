@@ -7,8 +7,10 @@ import { clientIp, rateLimit } from "@/lib/rate-limit";
 const RATE_LIMIT = 15;
 const RATE_WINDOW_MS = 60_000;
 // Room for a long sentence, its reference and the answer, or the history, the
-// items to review and the items already known (up to 2,000 per mode).
-const MAX_BODY_BYTES = 1_000_000;
+// items to review and the items already known (up to 2,000 per mode). A
+// history item can carry its mistakes, context and correction, so a full
+// history may pass 1 MB; Vercel accepts up to 4.5 MB.
+const MAX_BODY_BYTES = 3_000_000;
 
 type Guarded<T> =
   | { data: T; error?: never }

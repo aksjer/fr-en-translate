@@ -46,7 +46,8 @@ type Correction = {
   forms?: [string, string, string];
   tag?: ErrorTag;
   remark?: string;
-  pointRight?: boolean;
+  mistakes: { remark: string; tag: ErrorTag }[];
+  pointResult?: "right" | "wrong" | "avoided";
 };
 
 // Renders **text** from the API as bold, without using innerHTML.
@@ -132,7 +133,19 @@ export function Trainer() {
         points: { mastered: masteredPoints(points), practice: pointsToPractice(points) },
       });
       setExercise(next);
-      rememberSeen(next.text, next.mode, { frequency: next.frequency, point: next.point });
+      rememberSeen(next.text, next.mode, {
+        frequency: next.frequency,
+        point: next.point,
+        kind: next.kind,
+        focus: next.focus,
+        tense: next.tense,
+        theme: next.theme,
+        verbType: next.verbType,
+        review: next.review,
+        context: next.context,
+        // A word's or verb's English is kept as english, after the answer.
+        reference: isWordMode(next.mode) ? undefined : next.reference,
+      });
       setTranslation("");
       setResult(null);
     } catch (e) {
@@ -171,9 +184,16 @@ export function Trainer() {
         ok: correction.isCorrect,
         tag: correction.isCorrect ? undefined : correction.tag,
         remark: correction.isCorrect ? undefined : correction.remark,
+        ...(correction.mistakes.length > 0 && { mistakes: correction.mistakes }),
+        // A sentence's correction, when it changed something.
+        ...(!isWordMode(exercise.mode) &&
+          (!correction.isCorrect || correction.mistakes.length > 0) && {
+            correction: correction.correction,
+          }),
+        ...(correction.pointResult && { pointResult: correction.pointResult }),
       });
-      if (exercise.point && correction.pointRight !== undefined) {
-        rememberPoint(exercise.point, correction.pointRight);
+      if (exercise.point && correction.pointResult) {
+        rememberPoint(exercise.point, correction.pointResult);
       }
       // A word or verb answered right never comes back.
       if (english && correction.isCorrect) {

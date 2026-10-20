@@ -23,6 +23,11 @@ import {
   FREQUENCIES,
   MODES,
   pointName,
+  SENTENCE_FOCUSES,
+  TENSES,
+  THEMES,
+  VERB_TYPES,
+  WORD_KINDS,
   type Frequency,
   type Mode,
 } from "@/lib/options";
@@ -43,6 +48,23 @@ const historyItemSchema = z.object({
   ok: z.boolean().optional().catch(undefined),
   tag: clipped(40).optional().catch(undefined),
   remark: clipped(300).optional().catch(undefined),
+  mistakes: z
+    .array(z.object({ remark: clipped(300), tag: clipped(40) }))
+    .max(6)
+    .optional()
+    .catch(undefined),
+  at: clipped(30).optional().catch(undefined),
+  kind: z.enum(WORD_KINDS).optional().catch(undefined),
+  focus: z.enum(SENTENCE_FOCUSES).optional().catch(undefined),
+  tense: z.enum(TENSES).optional().catch(undefined),
+  theme: z.enum(THEMES).optional().catch(undefined),
+  verbType: z.enum(VERB_TYPES).optional().catch(undefined),
+  review: z.boolean().optional().catch(undefined),
+  context: clipped(300).optional().catch(undefined),
+  reference: clipped(300).optional().catch(undefined),
+  correction: clipped(300).optional().catch(undefined),
+  point: clipped(60).optional().catch(undefined),
+  pointResult: z.enum(["right", "wrong", "avoided"]).optional().catch(undefined),
 });
 
 type HistoryItem = z.infer<typeof historyItemSchema>;
@@ -51,6 +73,8 @@ type HistoryItem = z.infer<typeof historyItemSchema>;
 const reviewItemSchema = z.object({
   text: clipped(300),
   english: clipped(40).optional().catch(undefined),
+  context: clipped(300).optional().catch(undefined),
+  misses: z.number().int().min(0).optional().catch(undefined),
 });
 
 export type ReviewItem = z.infer<typeof reviewItemSchema>;
@@ -212,13 +236,21 @@ export function reviewTask(
   mode: "word" | "verb",
   theme?: string,
 ) {
-  const lines = items.map(
-    (item) => `- « ${item.text} »${item.english ? ` → ${item.english}` : ""}`,
-  );
+  const lines = items.map((item) => {
+    const details = [
+      item.misses && `missed ${item.misses} time${item.misses > 1 ? "s" : ""}`,
+      item.context && `last context: « ${item.context} »`,
+    ].filter(Boolean);
+    return (
+      `- « ${item.text} »${item.english ? ` → ${item.english}` : ""}` +
+      (details.length ? ` (${details.join("; ")})` : "")
+    );
+  });
   return (
     `This is a review. Give again one of these ${mode}s that the learner missed or ` +
     "left unanswered, oldest first, as is: the same French text, in the same meaning (the " +
-    "English after the arrow, when there is one), with a new context sentence.\n" +
+    "English after the arrow, when there is one), with a new context sentence, " +
+    "different from the last one.\n" +
     lines.join("\n") +
     `\nPrefer one that fits the theme "${theme}"; if none does, take the first.`
   );
@@ -292,13 +324,32 @@ export function tryAgainSection(answers: Choice[], review: boolean) {
 export function historySection(items: HistoryItem[], mode: Mode) {
   if (!items.length) return "";
   const lines = items.map((item, index) => {
-    const english =
-      isWordMode(mode) && item.english ? ` → ${item.english}` : "";
+    const date = item.at ? `${item.at.slice(0, 10)} ` : "";
+    const context = item.context ? ` (context: « ${item.context} »)` : "";
+    // A sentence's expected English, only when the learner didn't answer it.
+    const english = isWordMode(mode)
+      ? item.english
+        ? ` → ${item.english}`
+        : ""
+      : item.reference && item.ok === undefined
+        ? ` → « ${item.reference} »`
+        : "";
+    const practiced = [
+      item.review && "review",
+      item.kind,
+      item.verbType && `${item.verbType} verb`,
+      item.tense,
+      item.focus && `focus: ${item.focus}`,
+      item.theme,
+    ].filter(Boolean);
     // Only when it says more than the expected English.
     const wrote =
       item.answer && !(isWordMode(mode) && englishKey(item.answer) === item.english)
         ? ` (learner wrote: « ${item.answer} »)`
         : "";
+    const remarks = item.mistakes?.length
+      ? item.mistakes.map((mistake) => mistake.remark).join(" / ")
+      : item.remark;
     // The last 5 sentences can give the next one its extra learning point.
     const recent =
       !isWordMode(mode) && items.length - index <= 5 ? " (recent)" : "";
@@ -306,15 +357,29 @@ export function historySection(items: HistoryItem[], mode: Mode) {
       item.ok === undefined
         ? "unanswered"
         : item.ok
-          ? "right"
-          : `wrong${recent}${item.remark ? `: ${item.remark}` : " (no detail)"}`;
-    return `- « ${item.text} »${english}${wrote}: ${result}`;
+          ? `right${remarks ? ` (small remarks: ${remarks})` : ""}`
+          : `wrong${recent}${remarks ? `: ${remarks}` : " (no detail)"}`;
+    const corrected =
+      item.correction && item.ok === false
+        ? ` (corrected: « ${item.correction.replace(/\*\*/g, "")} »)`
+        : "";
+    const point = item.point
+      ? ` (point « ${item.point} »${item.pointResult ? `: ${item.pointResult}` : ""})`
+      : "";
+    return (
+      `- ${date}« ${item.text} »${context}${english}` +
+      (practiced.length ? ` [${practiced.join(", ")}]` : "") +
+      `${wrote}: ${result}${corrected}${point}`
+    );
   });
   return (
     "\n\n## History\n" +
     "The learner's last items in this mode, oldest first:\n" +
     lines.join("\n") +
-    "\nUse it to choose the next item. What the learner wrote shows the English they " +
+    "\nEach line gives the date, the French item, what it practiced (in brackets), what " +
+    "the learner wrote and how they did. A point avoided means the learner said it " +
+    "another right way: they may not know it yet. " +
+    "Use it to choose the next item. What the learner wrote shows the English they " +
     "already use: a word they wrote right is a word they know, and their wording " +
     "shows what to practice next. " +
     (isWordMode(mode)
