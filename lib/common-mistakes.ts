@@ -38,7 +38,7 @@ const FOCUS_OF_TAG: Partial<Record<ErrorTag, SentenceFocus>> = {
 const PAIR = /«\s*([^»]+?)\s*»\s*→\s*«\s*([^»]+?)\s*»/;
 
 function clean(text: string) {
-  return text.replaceAll("**", "").replace(/\.{3}|…/g, " … ").replace(/\s+/g, " ").trim();
+  return text.replaceAll("**", "").replace(/\s+/g, " ").trim();
 }
 
 // The recurring mistakes, the most frequent first, then the most recent;
@@ -61,7 +61,9 @@ export function commonMistakes(history: HistoryLike[], mastered: string[] = []) 
       if (!pair) continue;
       const [wrong, right] = [clean(pair[1]), clean(pair[2])];
       const key = pointName(right);
-      if (!key || key === pointName(wrong) || key.split(" ").length > MAX_WORDS) continue;
+      // A form with a gap (hadn't … yet) can't be named as one point.
+      if (!key || /\.{3}|…/.test(right) || key === pointName(wrong)) continue;
+      if (key.split(" ").length > MAX_WORDS) continue;
       if (done.has(key) || keys.has(key)) continue;
       keys.add(key);
       const current = found.get(key);

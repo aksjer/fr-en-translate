@@ -8,6 +8,7 @@ import {
   readKnown,
   readPoints,
   readSeen,
+  recentHistory,
   subscribeHistory,
 } from "@/lib/seen-items";
 import { englishKey } from "@/lib/options";
@@ -26,7 +27,8 @@ export function Progress() {
   const seen = inBrowser ? readSeen() : [];
   const known = inBrowser ? readKnown() : {};
   const points = inBrowser ? masteredPoints(readPoints()) : [];
-  const mistakes = commonMistakes(seen, points).slice(0, COMMON_MISTAKES);
+  // From the same recent history the server reads, so these are the ones practiced.
+  const mistakes = commonMistakes(recentHistory(seen), points).slice(0, COMMON_MISTAKES);
 
   if (!inBrowser) return null;
   const answered = seen.filter((item) => item.ok !== undefined);

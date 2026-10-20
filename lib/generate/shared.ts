@@ -612,8 +612,9 @@ export async function generateItem(
     if (!isWordMode(mode)) {
       // A mastered point is never the target again: the model is asked once more.
       const point = usable[0].point;
-      // A retest keeps its point: it practices a mistake, whatever was mastered.
-      if (attempt === 1 && point && mastered.has(point) && !combination.retest) {
+      // A retest or a habit keeps its point: it practices a mistake, whatever
+      // was mastered.
+      if (attempt === 1 && point && mastered.has(point) && !combination.retest && !combination.target) {
         fallback = { ...usable[0], fits: true };
         tryAgain =
           `\n\n## Try again\nThe learner already mastered « ${point} ». Choose another ` +
