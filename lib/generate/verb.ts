@@ -2,6 +2,7 @@
 // and a French sentence that shows its meaning. It has its own fields: with one
 // free "text" field, models kept writing a sentence instead of a verb.
 import { generateText, Output } from "ai";
+import { decodeHTML } from "entities";
 import { z } from "zod";
 import {
   CANDIDATES,
@@ -19,7 +20,6 @@ import {
   knownSection,
   usableAnswers,
   withApostrophes,
-  withoutEntities,
   type Exercise,
   type GenerateInput,
 } from "@/lib/generate/shared";
@@ -63,8 +63,8 @@ function checkedVerb(output: z.infer<typeof verbSchema>, verbType?: VerbType) {
     .replace(/^to\s+/, "");
   const past = output.past.trim().toLowerCase();
   const participle = output.participle.trim().toLowerCase();
-  const text = withoutEntities(output.text.trim());
-  const context = withoutEntities(output.context.trim());
+  const text = decodeHTML(output.text.trim());
+  const context = decodeHTML(output.context.trim());
   if (!/^[a-z]+$/.test(base) || !past || !participle || !text || !context) {
     throw new InvalidAnswerError(`Not a verb: ${base}`);
   }
