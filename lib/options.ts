@@ -50,13 +50,16 @@ export function pointName(point: string) {
 export function englishKey(reference: string) {
   return reference
     .toLowerCase()
+    // Curly apostrophes, the default on phones and Macs: can’t is can't.
+    .replace(/[’‘]/g, "'")
     .replace(/\([^)]*\)/g, " ")
-    .replace(/^\s*(to|the|a|an)\s+/, "")
+    // "a little" and "a few" keep their a: little (peu) isn't a little (un peu).
+    .replace(/^\s*(to|the|a(?!\s+(little|few|lot|bit)\b)|an)\s+/, "")
     // Contracted forms written in full: should've, you'd better, you'll.
-    .replace(/[’']ve\b/g, " have")
-    .replace(/^(i|you|he|she|it|we|they)[’']d(?=\s+better\b)/, "$1 had")
-    .replace(/^(i|you|he|she|it|we|they)[’']d\b/, "$1 would")
-    .replace(/^(i|you|he|she|it|we|they)[’']ll\b/, "$1 will")
+    .replace(/'ve\b/g, " have")
+    .replace(/^(i|you|he|she|it|we|they)'d(?=\s+better\b)/, "$1 had")
+    .replace(/^(i|you|he|she|it|we|they)'d\b/, "$1 would")
+    .replace(/^(i|you|he|she|it|we|they)'ll\b/, "$1 will")
     // A modal answered with its subject (« tu aurais dû »).
     .replace(
       /^(i|you|he|she|it|we|they)\s+(?=(can|could|should|must|might|may|will|would|ought|need|have|has|had|don't|doesn't|didn't|can't|couldn't|shouldn't|won't|wouldn't|mustn't)\b)/,

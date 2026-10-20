@@ -40,13 +40,13 @@ const FOCUS_GUIDES: Record<SentenceFocus, string> = {
 const THEME_STYLES: Partial<Record<Theme, string>> = {
   news:
     "Write it like a short line from a news story, in everyday words: a fact, often " +
-    "with someone reporting it (« Le maire a dit que… », « Selon la police… ») or with " +
-    "what is expected next.",
+    "with its source (« Selon la police… », « D'après le maire… ») or with what is " +
+    "expected next, with its main verb in the tense asked for.",
   "cars and EVs":
     "Write it like a line from a first-person car review or a talk between drivers: " +
-    "casual, in everyday words, often with a common expression (such as « ne pas " +
-    "pouvoir s'empêcher de », « dépasser largement », « ne pas vraiment marcher ») " +
-    "put in the tense asked for, about driving, charging, range, the battery or the price.",
+    "casual, in everyday words, about driving, charging, range, the battery or the price. " +
+    "A common expression (« ne pas pouvoir s'empêcher de », « dépasser largement ») only " +
+    "when it is the learning point.",
   "movies and TV shows":
     "Write it like a line of dialogue from a movie or a TV show, or what a friend says " +
     "about one: short and natural.",

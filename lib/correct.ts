@@ -157,9 +157,9 @@ const SENTENCE_EXAMPLE = [
     mistakes: [
       {
         remark:
-          "« didn't finish yet » → « haven't finished … yet » : avec yet, on utilise le " +
-          "present perfect, et yet se met à la fin.",
-        category: "tense",
+          "« didn't finish yet my homework » → « didn't finish my homework yet » : yet se " +
+          "met à la fin de la phrase.",
+        category: "word order",
       },
       {
         remark: "« homeworks » → « homework » : homework est indénombrable, jamais de s.",
@@ -167,8 +167,8 @@ const SENTENCE_EXAMPLE = [
       },
     ],
     right: false,
-    correction: "I **haven't finished** my **homework** yet.",
-    alternative: "I'm not done with my homework yet.",
+    correction: "I didn't finish my **homework yet**.",
+    alternative: "I haven't finished my homework yet.",
   }),
 ].join("\n");
 
