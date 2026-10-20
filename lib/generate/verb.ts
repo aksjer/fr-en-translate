@@ -35,7 +35,7 @@ import type { Combination } from "@/lib/settings";
 
 // A verb gets its own fields: the English verb first, then its forms, then
 // the French. With one free "text" field, models kept writing a sentence.
-export const verbSchema = z.object({
+const verbSchema = z.object({
   english: z.string(),
   past: z.string(),
   participle: z.string(),

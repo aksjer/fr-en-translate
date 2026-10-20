@@ -5,6 +5,7 @@ import {
   MAX_POINTS,
   MAX_POINTS_TO_PRACTICE,
   MAX_REVIEW,
+  MODES,
   POINT_MASTERY,
   pointName,
   type Frequency,
@@ -26,10 +27,10 @@ const MAX_PER_MODE = 2000;
 // A missed item seen in the last few of its mode isn't reviewed yet.
 const RECENTLY_SEEN = 5;
 
-// Items saved before the mode or the result was stored have none.
+// The optional fields are missing on items stored before they existed.
 export type SeenItem = {
   text: string;
-  mode?: Mode;
+  mode: Mode;
   // The English of a word or verb: the expected answer.
   english?: string;
   // What the learner wrote.
@@ -90,11 +91,10 @@ export function readSeen(): SeenItem[] {
   try {
     const parsed: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
     if (!Array.isArray(parsed)) return [];
-    return parsed.flatMap((item): SeenItem[] => {
-      if (typeof item === "string") return [{ text: item }];
-      if (item && typeof item.text === "string") return [item as SeenItem];
-      return [];
-    });
+    return parsed.filter(
+      (item): item is SeenItem =>
+        Boolean(item) && typeof item.text === "string" && MODES.includes(item.mode),
+    );
   } catch {
     // Storage blocked or corrupted: start from an empty history.
     return [];
@@ -103,7 +103,7 @@ export function readSeen(): SeenItem[] {
 
 // The last items of each mode, oldest first.
 function lastByMode(items: SeenItem[], max: number) {
-  const counts = new Map<Mode | undefined, number>();
+  const counts = new Map<Mode, number>();
   const kept: SeenItem[] = [];
   for (let index = items.length - 1; index >= 0; index--) {
     const count = counts.get(items[index].mode) ?? 0;
@@ -167,10 +167,7 @@ export function rememberResult(text: string, result: Omit<SeenItem, "text" | "mo
 // The history sent to the API: the last items of each mode, since the server
 // picks the mode.
 export function recentHistory(items: SeenItem[]) {
-  return lastByMode(
-    items.filter((item) => item.mode),
-    HISTORY_PER_MODE,
-  );
+  return lastByMode(items, HISTORY_PER_MODE);
 }
 
 // The learner's last wrong answers in a mode, with their remark, for the

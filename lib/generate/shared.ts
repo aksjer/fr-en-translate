@@ -91,7 +91,6 @@ export const generateInputSchema = settingsSchema.extend({
     .optional()
     .catch(undefined),
   // The English of the items the learner got right, by mode: never given again.
-  // A page from before this field changed shape sends none.
   known: z
     .object({
       word: z.array(clipped(40)).max(MAX_KNOWN),
@@ -440,7 +439,7 @@ export function historySection(items: HistoryItem[], mode: Mode) {
 // No length limits: one answer over a limit would fail the whole call, so the
 // code checks the lengths instead.
 // The situation comes first, so the model settles its idea before writing the item.
-export const exerciseSchema = z.object({
+const exerciseSchema = z.object({
   situation: z.string(),
   text: z.string(),
   reference: z.string(),

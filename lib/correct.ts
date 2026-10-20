@@ -87,7 +87,7 @@ const MAX_SIMILAR = 4;
 // before it decides whether the answer is right, then corrects them.
 // No length limits: one answer over a limit would fail the whole call, so the
 // code trims the answer instead.
-export const correctionSchema = z.object({
+const correctionSchema = z.object({
   translated: z.boolean(),
   mistakes: z.array(
     z.object({
@@ -102,13 +102,13 @@ export const correctionSchema = z.object({
 
 // A sentence with a grammar point also says how the learner did on it, whatever
 // the rest of the answer.
-export const pointCorrectionSchema = correctionSchema.extend({
+const pointCorrectionSchema = correctionSchema.extend({
   pointResult: z.enum(["right", "wrong", "avoided"]),
 });
 
 // A word or a verb has no "more natural version": the context sentence in
 // English shows it in use, and similar words show the nuances.
-export const wordCorrectionSchema = correctionSchema.omit({ alternative: true }).extend({
+const wordCorrectionSchema = correctionSchema.omit({ alternative: true }).extend({
   meaning: z.string(),
   inContext: z.string(),
   similar: z.array(z.object({ word: z.string(), nuance: z.string() })),
@@ -117,7 +117,7 @@ export const wordCorrectionSchema = correctionSchema.omit({ alternative: true })
 // A verb also gets the forms of the verb in the correction: the ones from
 // generation belong to the reference, which the correction may not use
 // (mistake shown under "to confuse").
-export const verbCorrectionSchema = wordCorrectionSchema.extend({
+const verbCorrectionSchema = wordCorrectionSchema.extend({
   base: z.string(),
   past: z.string(),
   participle: z.string(),
