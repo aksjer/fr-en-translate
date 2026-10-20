@@ -2,22 +2,8 @@
 import { ERROR_TAG_DEFINITIONS, ERROR_TAGS, type ErrorTag } from "@/lib/error-tags";
 import { COMMON_ENGLISH, generateItem, type GenerateInput } from "@/lib/generate/shared";
 import { TENSE_GUIDES, type SentenceFocus, type Theme } from "@/lib/options";
-import { type CommonMistake } from "@/lib/common-mistakes";
 import { untagged } from "@/lib/correct";
 import type { Combination } from "@/lib/settings";
-
-// The text field. "As people speak it today" gave slang and negations
-// without « ne »; "correct French" alone gave literary French. "No quotes" may have made models drop apostrophes (« l avion »).
-const SENTENCE_TEXT_FIELD = [
-  "- text: the item, in correct, modern French with a neutral register: no slang,",
-  "  swear words or literary style, always the « ne » of a negation, and no literary",
-  "  tense (the French simple past or imperfect subjunctive). Use French punctuation",
-  "  (a space before ! ? : ;) and apostrophes (j'ai, qu'il), with no quotation marks around the item",
-  "  and no translation or explanation. Check the spelling and accents of every word.",
-];
-
-// Sentences get the same rule as words, so they use useful English.
-const SENTENCE_VOCABULARY = `\nIts American English translation uses only words ${COMMON_ENGLISH}`;
 
 // What each grammar point means in a sentence, so the French needs it.
 const FOCUS_GUIDES: Record<SentenceFocus, string> = {
@@ -42,110 +28,48 @@ const FOCUS_GUIDES: Record<SentenceFocus, string> = {
 const THEME_STYLES: Partial<Record<Theme, string>> = {
   news:
     "Write it like a short line from a news story, in everyday words: a fact, often " +
-    "with its source (« Selon la police… », « D'après le maire… ») or with what is " +
-    "expected next, with its main verb in the tense asked for.",
+    "with its source (« Selon la police… ») or with what is expected next.",
   "cars and EVs":
     "Write it like a line from a first-person car review or a talk between drivers: " +
-    "casual, in everyday words, about driving, charging, range, the battery or the price. " +
-    "A common expression (« ne pas pouvoir s'empêcher de », « dépasser largement ») only " +
-    "when it is the learning point.",
+    "casual, about driving, charging, range, the battery or the price.",
   "movies and TV shows":
     "Write it like a line of dialogue from a movie or a TV show, or what a friend says " +
     "about one: short and natural.",
 };
 
-// The point is never the word the tense already needs: with the future, will
-// gave no other point.
-const OTHER_THAN_TENSE =
-  "The point is never the plain auxiliary the tense itself needs (will for the " +
-  "future, would for the conditional, have or had for a perfect tense, be in a " +
-  "continuous tense), though a question tag or a short answer may use it (haven't " +
-  "you?, Yes, I will). Combine the point with the tense in its natural form (will " +
-  "have to, has had to, hasn't been able to); if a point doesn't fit the tense, " +
-  "choose another one of the same kind.";
-
-// One learning point besides the tense: a sentence with several difficulties
-// is hard to learn from, and the correction mixes them up. The code picks a
-// grammar point for most sentences; the others practice a recent mistake
-// (more precise than a weak point's category) or a weak point.
-function learningPoint(
-  focus?: SentenceFocus,
-  retest?: boolean,
-  retestPoint?: string,
-  retestMistake?: string,
-  target?: CommonMistake,
-) {
-  if (target) {
-    return (
-      "\n\n## Learning point\nThe tense is the main point of the sentence. This " +
-      `sentence practices one of the learner's habits: ${target.count} times, they wrote ` +
-      `« ${untagged(target.wrong)} » where English needs « ${untagged(target.right)} ». Its ` +
-      `natural translation must need « ${untagged(target.right)} » again, in a new ` +
-      "situation where a French speaker would make the same mistake, without pointing " +
-      `it out, and point must be « ${untagged(target.right)} ». Never more than this one ` +
-      "other point."
-    );
-  }
-  if (retest && retestPoint) {
-    return (
-      "\n\n## Learning point\nThe tense is the main point of the sentence. This " +
-      "sentence retests the learner's last wrong sentence (the last wrong line of the history), " +
-      `whose learning point was « ${retestPoint} »: its natural translation must need ` +
-      `« ${retestPoint} » again, in a new situation, without pointing it out, and point ` +
-      `must be « ${retestPoint} ». Never more than this one other point.`
-    );
-  }
-  if (retest && retestMistake) {
-    return (
-      "\n\n## Learning point\nThe tense is the main point of the sentence. This " +
-      `sentence retests the learner's last mistake: « ${untagged(retestMistake).trim()} ». ` +
-      "Its natural translation must need the same difficulty again (the same word, " +
-      "structure or word order), in a new situation, without pointing it out, and point " +
-      "must name it. If that mistake was the tense itself, the tense is the retest and " +
-      "point is empty. Never more than this one other point."
-    );
-  }
-  if (retest) {
-    return (
-      "\n\n## Learning point\nThe tense is the main point of the sentence. This " +
-      "sentence retests the learner's last wrong sentence (the last wrong line of the history): " +
-      "its natural translation must need the same difficulty as that mistake again, in " +
-      "a new situation, without pointing it out. Never more than this one other point."
-    );
-  }
-  return focus
-    ? "\n\n## Learning point\nThe tense is the main point of the sentence. Its natural " +
-        `translation must also need ${FOCUS_GUIDES[focus]}, without pointing it out. ` +
-        `${OTHER_THAN_TENSE} ` +
-        "Never more than this one other point: a sentence with several difficulties is " +
-        "hard to learn from."
-    : "\n\n## Learning point\nThe tense is the main point of the sentence. Add at most " +
-        "one other point, the first of these that fits the tense, without pointing it out:\n" +
-        "1. the difficulty of a wrong item marked (recent) in the history, when its remark " +
-        "names it, the last one first: test the same difficulty again in a new sentence;\n" +
-        "2. else one of the weak points below, if any;\n" +
-        "3. else one common word or phrase that French speakers often get wrong.\n" +
-        `${OTHER_THAN_TENSE} ` +
-        "Never more than one: a sentence with several difficulties is hard to learn from.";
+// The one learning point besides the tense: a sentence with several
+// difficulties is hard to learn from, and the correction mixes them up. The
+// code picks it: a habit, a retest of the last mistake, a grammar point, or
+// else the model's choice among the learner's mistakes.
+function learningPoint(combination: Combination) {
+  const { focus, retest, retestPoint, retestMistake, target } = combination;
+  const right = target && untagged(target.right);
+  const point = right ?? retestPoint;
+  const what = target
+    ? `« ${right} », in a situation where a French speaker would write « ` +
+      `${untagged(target.wrong)} » as the learner did ${target.count} times`
+    : retestPoint
+      ? `« ${retestPoint} » again, which the learner just got wrong`
+      : retestMistake
+        ? `the difficulty of the learner's last mistake again (the same word, structure ` +
+          `or word order): « ${untagged(retestMistake).trim()} ». If that mistake was the ` +
+          "tense, the tense is the point and point is empty"
+        : retest
+          ? "the difficulty of the learner's last wrong sentence in the history again"
+          : focus
+            ? FOCUS_GUIDES[focus]
+            : "one difficulty for French speakers: the mistake of a wrong (recent) item " +
+              "of the history, else a weak point below, else a common word French " +
+              "speakers get wrong";
+  return (
+    "\n\n## Learning point\nBesides the tense, its natural translation needs " +
+    `${what}, in a new situation, without pointing it out` +
+    (point ? `; the reference uses « ${point} »` : "") +
+    ". Never a second point, and never the plain auxiliary the tense needs (will, " +
+    "would, have, be); combine the point with the tense in its natural form (will " +
+    "have to, hasn't been able to)."
+  );
 }
-
-// The model invents the situation itself; this keeps it from always falling
-// back on the most typical sentence for the theme.
-const VARIETY =
-  "\n\n## Variety\nInvent a specific, concrete situation on this theme that could " +
-  "happen in real life: decide who is involved, where and when. Avoid the most " +
-  "obvious example for the theme (going to the market, today's weather…), " +
-  "but stay realistic: no science fiction or fantasy. Write what a French speaker " +
-  "would really say in that situation. Use another structure, person and sentence type " +
-  "than the last sentences of the history (not « Tu ne … pas … en ce moment » again " +
-  "and again).";
-
-const PRIORITY =
-  "\n\n## Priority\nThe reference is always natural American English: never bend it to " +
-  "fit a learning point (not buy the tickets into the machine); choose a situation where " +
-  "the point is natural. If two instructions conflict, the tense and the theme come first, " +
-  "then common words, then the learning point, then the words being learned, then the " +
-  "variety.";
 
 // The words and verbs met in the other modes, so sentences use them again in
 // a new context: words seen in several contexts are remembered better.
@@ -162,11 +86,8 @@ function wordsSection(input: GenerateInput) {
   }
   if (!words.size) return "";
   return (
-    "\n\n## Words being learned\nEnglish words the learner recently learned or missed " +
-    "in other exercises, the last first. When one fits the theme, the tense and the " +
-    "learning point naturally, use it in the translation, never more than one. Never " +
-    "force one in: if it makes the French or the English sound odd (« tout le repas " +
-    "abordable »), use none:\n" +
+    "\n\n## Words being learned\nEnglish words the learner met in other exercises, the " +
+    "last first. Use one in the translation only if it fits naturally:\n" +
     [...words].map(([english, result]) => `${english} (${result})`).join(", ")
   );
 }
@@ -197,27 +118,23 @@ function weakPointsSection(input: GenerateInput) {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 3);
   return top.length
-    ? "\n\n## Weak points\n" +
-        "The kinds of mistakes the learner made most in their recent sentences:\n" +
-        top.map(([tag, count]) => `- ${ERROR_TAG_DEFINITIONS[tag]}: ${count} times`).join("\n") +
-        "\nOne of these can be the extra learning point (see Learning point)."
+    ? "\n\n## Weak points\nThe kinds of mistakes the learner made most in their recent " +
+        "sentences:\n" +
+        top.map(([tag, count]) => `- ${ERROR_TAG_DEFINITIONS[tag]}: ${count} times`).join("\n")
     : "";
 }
 
-// The learner's grammar points: a mastered one is never the learning point
-// again, and one to practice again comes back when it fits.
+// The learner's grammar points: the code asks again for a mastered one, so
+// the list only spares that second call; one to practice comes back when it fits.
 function pointsSection(input: GenerateInput) {
   const { mastered = [], practice = [] } = input.points ?? {};
   return (
     (mastered.length
-      ? "\n\n## Points mastered\nThe learner got these right twice: never make one of " +
-        "them the learning point again. If every common point of the kind asked for is " +
-        "here, use one in another form that isn't (should have, couldn't, don't have " +
-        `to):\n${mastered.join(", ")}`
+      ? "\n\n## Points mastered\nNever the learning point (another form is: should have, " +
+        `couldn't):\n${mastered.join(", ")}`
       : "") +
     (practice.length
-      ? "\n\n## Points to practice again\nThe learner missed these or got them right " +
-        "only once. When one fits the learning point, prefer it, in a new sentence:\n" +
+      ? "\n\n## Points to practice again\nPrefer one when it fits the learning point:\n" +
         practice.join(", ")
       : "")
   );
@@ -225,58 +142,43 @@ function pointsSection(input: GenerateInput) {
 
 export async function generateSentence(input: GenerateInput, combination: Combination) {
   const { focus, tense, theme } = combination;
+  const guide = tense && TENSE_GUIDES[tense];
   // A habit or a retest of a point keeps it under its own name, whatever the
   // model calls it: its right answers then make it mastered.
   return generateItem(input, combination, {
     point: combination.target?.right ?? combination.retestPoint,
-    // Planning the verb first keeps the tense right.
+    // Planning the verb first keeps the tense right. "As people speak it today"
+    // gave slang and negations without « ne »; "correct French" alone gave
+    // literary French.
     fields: [
-      "- situation: first, one short line in English: the situation you chose (who, where,",
-      `  when), then the main verb of the English translation in the ${tense}, and the`,
-      "  French verb as it will appear in the sentence.",
-      ...SENTENCE_TEXT_FIELD,
-      "- reference: the most natural American English translation of text, in the tense a",
-      `  native speaker would use for this French. It must be the ${tense}: if it isn't`,
-      "  natural, change the French, not the tense. Use American words and spelling",
-      "  (apartment, color, not flat, colour). In the present, the simple present for a",
-      "  fact, a habit or a feeling (I love this dish, you miss your flight), the present",
-      "  continuous only for an action going on right now. Put every word where a native speaker would,",
-      "  an adverb (yet, soon, already, still) in its usual place: hadn't yet bought the",
-      "  house we had talked about, not hadn't bought the house yet that we had talked",
-      "  about; we'll stop by this river soon, not we will stop soon by this river. Check",
-      "  the main verb's tense last: in the past, never have or has + participle (the",
-      "  mayor didn't announce it yet, not hasn't announced).",
-      "- point: only the English word or words of the learning point, lowercase, with no",
-      "  explanation, parentheses or + (as soon as, should, should have, couldn't, during,",
-      "  already, did), or empty if the sentence has no other point than the tense. When",
-      "  the task names a kind of point (an auxiliary, a preposition…), point is a word of",
-      "  that kind taken from the reference (did, into, unless), never another word of the",
-      "  sentence.",
+      "- situation: one short line in English: who, where and when, then the main verb of",
+      `  the translation in the ${tense}.`,
+      "- text: the sentence in correct, modern French with a neutral register (no slang or",
+      "  literary tense, always the « ne » of a negation), French punctuation and",
+      "  apostrophes, no quotation marks. Check the spelling and accents of every word.",
+      "- reference: the most natural American English translation of text, in the",
+      `  ${tense}: if that isn't natural, change the French, not the tense. American words`,
+      "  and spelling, every word where a native speaker puts it, and in the present the",
+      "  simple present unless the action is going on right now.",
+      "- point: the English word or words of the learning point as the reference has",
+      "  them, lowercase (as soon as, should have, did), or empty.",
     ],
     task:
       `Write one original French sentence on the theme "${theme}", as long as a line in ` +
-      "a conversation, a video or a news story, whose natural American English " +
-      `translation is in the ${tense}: ` +
-      `${tense && TENSE_GUIDES[tense].english}. ` +
-      `To get it, use ${tense && TENSE_GUIDES[tense].french}. ` +
-      "Choose the person of the main verb (je, tu, il, elle, on, nous, vous, ils or " +
-      "elles) and the sentence type (statement, question or negation; an exclamation only " +
-      "when the situation calls for one)." +
-      SENTENCE_VOCABULARY +
+      "a conversation, a video or the news. Its natural American English translation is " +
+      `in the ${tense}: ${guide?.english}; to get it, use ${guide?.french}. It uses only ` +
+      `words ${COMMON_ENGLISH}` +
       (theme && THEME_STYLES[theme] ? ` ${THEME_STYLES[theme]}` : "") +
-      learningPoint(
-        focus,
-        combination.retest,
-        combination.retestPoint,
-        combination.retestMistake,
-        combination.target,
-      ) +
-      VARIETY +
-      PRIORITY,
+      learningPoint(combination) +
+      "\n\n## Variety\nInvent a concrete, realistic situation, not the most obvious one " +
+      "for the theme, with another person, structure and sentence type than the last " +
+      "sentences of the history. The reference stays natural American English: choose a " +
+      "situation where the point is natural rather than bending it.",
     // Weak points only matter when the code picked no grammar point.
     // A retest practices only its mistake: no other point is offered.
-    sections: combination.retest || combination.target
-      ? wordsSection(input)
-      : pointsSection(input) + (focus ? "" : weakPointsSection(input)) + wordsSection(input),
+    sections:
+      combination.retest || combination.target
+        ? wordsSection(input)
+        : pointsSection(input) + (focus ? "" : weakPointsSection(input)) + wordsSection(input),
   });
 }

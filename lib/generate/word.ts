@@ -19,7 +19,7 @@ import type { Combination } from "@/lib/settings";
 // What a word of each kind looks like, besides the examples of commonAt. Only
 // examples: the history keeps the model from giving the same ones again.
 const KIND_GUIDES: Record<WordKind, string> = {
-  noun: "Give it with its article (le, la, l', un, une). ",
+  noun: "",
   // Many of the most useful ones are expressions (anyway, worth it).
   adjective: "Expressions of several words count too (« ça vaut le coup » → worth it). ",
   adverb: "Expressions of several words count too (« de toute façon », « en fait »). ",
@@ -31,9 +31,6 @@ const KIND_GUIDES: Record<WordKind, string> = {
   preposition: "Expressions of several words count too (« au lieu de », « grâce à »). ",
   conjunction: "Linking expressions of several words count too (« dès que », « ainsi que »). ",
 };
-
-// The example of the prompt: a context copied from it is asked again.
-const CONTEXT_EXAMPLE = "Les feuilles tombent des arbres en automne.";
 
 export async function generateWord(
   input: GenerateInput,
@@ -61,39 +58,31 @@ export async function generateWord(
   // A review gives a word of any kind: it gets its own kind back below.
   const exercise = await generateItem(input, review ? { ...combination, kind: undefined } : combination, {
     review,
-    contextExample: CONTEXT_EXAMPLE,
     sections: review ? undefined : similarSection(input, "word"),
     // The English comes first, since the learner works on their English: starting
-    // from the French gave loose translations (un périple → an ordeal).
+    // from the French gave loose translations (un périple → an ordeal). The
+    // example describes its context instead of giving one, so it can't be copied.
     fields: [
-      "- situation: first, one short line in English: the English word you chose and its",
-      "  meaning here (e.g. leaf: part of a tree).",
-      "- text: the French word or short expression only, with its article for a noun (la",
-      "  feuille), and no context, quotation marks, translation or explanation. Check its",
-      "  spelling and accents.",
-      "- context: one short, everyday French sentence that uses this French word in the",
-      "  meaning of the English word. The learner sees it under the word, so it must leave",
-      `  only this meaning possible (e.g. « ${CONTEXT_EXAMPLE} »`,
-      "  for leaf, since feuille is also a sheet of paper). Check its spelling and accents.",
-      "- reference: the most natural American English translation of text alone (the word,",
-      "  never the context sentence) in the meaning of context, in American words and",
-      "  spelling (apartment, color, not flat, colour).",
+      "- situation: one short line in English: the English word and its meaning here",
+      "  (e.g. leaf: part of a tree).",
+      "- text: the French word or short expression only, with its article for a noun",
+      "  (la feuille). Check its spelling and accents.",
+      "- context: one short, everyday French sentence that uses text in this meaning",
+      "  only (for la feuille → leaf, a sentence about a tree, never about paper).",
+      "- reference: the most natural American English translation of text alone, never",
+      "  of the context, in American words and spelling (apartment, color).",
     ],
     task: review
       ? reviewTask(review, "word", theme)
-      : `Give ${CANDIDATES} items, ${CANDIDATES} different English words. Each one is a ` +
-        "single French word, or a short expression except for a noun, whose American " +
-        `English translation is ${commonAt(kind)}, with a ` +
-        `context sentence on the theme "${theme}". ` +
+      : `Give ${CANDIDATES} different English words. Each one is a French word, or a ` +
+        "short expression except for a noun, whose American English translation is " +
+        `${commonAt(kind)}, on the theme "${theme}" (only a direction: a common word ` +
+        "loosely related to it beats a rare one). " +
         KIND_GUIDES[kind] +
-        "Pick a word whose American English translation looks different from the French " +
-        "(not « généreux » → generous). The French must be the word a French speaker would " +
-        "really use for this English, never a look-alike with another meaning. " +
-        "The text is only the word, never a sentence: the sentence goes in context. " +
-        "The theme is only a direction: if no word fits it and every other rule, choose " +
-        "one loosely related to it rather than a less common word. If the most common " +
-        "words of this kind are all learned, take another common form or use of one " +
-        "rather than a rare word.",
+        "Its English looks different from the French (not « généreux » → generous). The " +
+        "French is the word a French speaker really uses for this English, so seeing text " +
+        "and context they would answer with your reference. When the most common words " +
+        "of this kind are learned, take another common form or use of one.",
   });
   const reviewed =
     exercise.review && review?.find((item) => sameText(item.text) === sameText(exercise.text));

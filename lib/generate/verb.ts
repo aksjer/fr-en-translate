@@ -47,9 +47,6 @@ const verbSchema = z.object({
   frequency: z.enum(FREQUENCIES),
 });
 
-// The example of the prompt: a context copied from it is asked again.
-const CONTEXT_EXAMPLE = "Nous louons un appartement près de la plage.";
-
 // A regular verb's past and participle are the same -ed form built on it
 // (worked, tried, stopped); fled or bled are shorter than their verb.
 function isRegular(verb: string, past: string, participle: string) {
@@ -74,7 +71,7 @@ function checkedVerb(output: z.infer<typeof verbSchema>, verbType?: VerbType) {
   if (!/^[a-z]+$/.test(base) || !past || !participle || !text) {
     throw new InvalidAnswerError(`Not a verb: ${base}`);
   }
-  const context = checkedContext(output.context, text, "verb", [CONTEXT_EXAMPLE]);
+  const context = checkedContext(output.context, text, "verb");
   if (
     /[.!?]$/.test(text) ||
     text.replace(/\([^)]*\)/g, "").split(/\s+/).length > 6
@@ -148,22 +145,15 @@ export async function generateVerb(
         "that the learner will translate from French.",
         "",
         "## Fields, in this order",
-        ...(review
-          ? []
-          : [
-              `verbs: ${CANDIDATES} different verbs, best first, each with these fields:`,
-            ]),
-        '- english: the verb, in its base form, one word, without "to".',
-        "- past: its simple past in American English.",
-        "- participle: its past participle in American English (gotten, not got).",
-        "- text: the most common French infinitive for this verb (e.g. « conduire » for",
-        "  drive). Only the infinitive, never a sentence or a conjugated verb, with no",
-        "  context or quotation marks. Check its spelling and accents.",
-        "- context: one short, everyday French sentence that uses this French verb,",
-        "  conjugated, in the meaning of the English verb. The learner sees it under the",
-        `  infinitive, so it must leave only this meaning possible (e.g. « ${CONTEXT_EXAMPLE} »`,
-        "  for rent, since louer can also mean to praise).",
-        "  Check its spelling and accents.",
+        ...(review ? [] : [`verbs: ${CANDIDATES} different verbs, best first, each with:`]),
+        '- english: the verb in its base form, one word, without "to".',
+        "- past, participle: its simple past and past participle in American English",
+        "  (gotten, not got).",
+        "- text: the most common French infinitive for this verb, only the infinitive",
+        "  (« conduire » for drive). Check its spelling and accents.",
+        "- context: one short, everyday French sentence that uses text, conjugated, in",
+        "  this meaning only (for louer → rent, a sentence about a home or a car, never",
+        "  about praise). Check its spelling and accents.",
         ...FREQUENCY_FIELD,
       ].join("\n"),
       prompt:
@@ -174,16 +164,12 @@ export async function generateVerb(
         (review
           ? reviewTask(review, "verb", theme)
           : `Choose ${CANDIDATES} different verbs. Each one is ` +
-            `${commonAt(`${verbType} verb`)}, useful when talking about ` +
-            `"${theme}". The theme is only a direction: if no verb fits it and every other ` +
-            "rule, choose one loosely related to it rather than a less common verb. " +
-            "Never a verb that looks like its French translation (decide → décider), or one " +
-            "whose look-alike French verb means something else (to attend is « assister à », " +
-            "not « attendre »). " +
-            "Then check it the other way: a French speaker who sees your French infinitive " +
-            "and its context sentence must naturally answer with this English verb. If they " +
-            "would rather answer another English verb (« confondre » is confuse or mix up, " +
-            "not mistake), choose another verb.") +
+            `${commonAt(`${verbType} verb`)}, useful when talking about "${theme}" (only ` +
+            "a direction: a common verb loosely related to it beats a rare one). Its " +
+            "French translation looks different from it (not decide → décider), and has " +
+            "no look-alike with another meaning (attend is « assister à », not « attendre " +
+            "»). A French speaker who sees text and context would answer with this verb, " +
+            "not another one (« confondre » is confuse or mix up, not mistake).") +
         // A review only gives a listed verb again: the history would contradict it.
         (review
           ? ""

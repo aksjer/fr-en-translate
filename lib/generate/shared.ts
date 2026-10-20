@@ -145,9 +145,8 @@ export type Exercise = Combination & {
 export const GOAL =
   "## Goal\n" +
   "The app helps a French speaker learn the most useful American English they don't know " +
-  "yet. They translate your item into American English, and another teacher grades it. " +
-  "Each item should teach them something new and useful in everyday American English, " +
-  "or something they got wrong before.";
+  "yet. They translate your item into American English, and another teacher grades it " +
+  "against your item as you wrote it.";
 
 // Any French is easy for the learner: what matters is the English the
 // translation needs.
@@ -164,9 +163,8 @@ export function learner(mode: Mode) {
 // News words count too: the learner reads the news.
 const COMMON_RULE =
   "among the most common words of everyday American English (the Oxford 3000, the top " +
-  "of COCA): words heard every week in conversations, videos, TV shows and the news, " +
-  "or found in almost every news article (amid, despite, according to), never a rare " +
-  "or specialized word (craftsmanship, journey for « périple », to reap)";
+  "of COCA, news words such as despite or according to), never a rare or specialized " +
+  "word (craftsmanship, to reap)";
 
 export const COMMON_ENGLISH = `${COMMON_RULE}.`;
 
@@ -296,8 +294,8 @@ function sameSentence(one: string, other: string) {
 }
 
 // A context sentence, cleaned up, or an error if it can't be shown: it must
-// use the French item, and be neither the prompt's example nor the last
-// context of a review.
+// use the French item, and not be a copy (of the last context of a review).
+// The prompts give no context sentence to copy.
 export function checkedContext(
   raw: string,
   text: string,
@@ -470,8 +468,8 @@ export function chooseAnswer<T extends Choice>(
 export function knownSection(known: string[], mode: "word" | "verb") {
   if (!known.length) return "";
   return (
-    `\n\n## Already learned\nThe learner already knows these English ${mode}s. ` +
-    `Never give one of them again:\n${known.join(", ")}`
+    `\n\n## Already learned\nThe learner knows these English ${mode}s: never one of ` +
+    `them:\n${known.join(", ")}`
   );
 }
 
@@ -495,11 +493,9 @@ export function similarSection(input: GenerateInput, mode: "word" | "verb") {
     .slice(0, MAX_SIMILAR_TO_TEACH);
   if (!words.length) return "";
   return (
-    "\n\n## Seen in corrections\nThe corrections showed the learner these English " +
-    `${mode}s, close to or often confused with ones they practiced, the last first. ` +
-    "Some are British or rare: skip them. When one is common American English and " +
-    `fits the ${mode === "word" ? "kind" : "type"} asked for and every other rule, ` +
-    `prefer it as one of your items:\n${words.join(", ")}`
+    "\n\n## Seen in corrections\nEnglish " +
+    `${mode}s the corrections showed the learner, the last first. Prefer one that is ` +
+    `common American English and fits the task:\n${words.join(", ")}`
   );
 }
 
@@ -576,24 +572,10 @@ export function historySection(items: HistoryItem[], mode: Mode) {
   });
   return (
     "\n\n## History\n" +
-    "The learner's last items in this mode, oldest first:\n" +
-    lines.join("\n") +
-    "\nEach line gives the date, the French item, what it practiced (in brackets), what " +
-    "the learner wrote and how they did. A point avoided means the learner said it " +
-    "another right way: they may not know it yet. " +
-    (isWordMode(mode)
-      ? "If several recent words have a frequency of sometimes or rare, choose more " +
-        "common ones. "
-      : "") +
-    "Use it to choose the next item. What the learner wrote shows the English they " +
-    "already use: a word they wrote right is a word they know, and their wording " +
-    "shows what to practice next. " +
-    (isWordMode(mode)
-      ? "Give no item of the history again, and none of its English words, even with " +
-        "another French word or context. The same French word with another meaning is " +
-        "a new item."
-      : "Vary the person, the sentence type, the situation and the characters from one " +
-        "item to the next.")
+    "The learner's last items in this mode, oldest first, with what they practiced (in " +
+    "brackets), what the learner wrote and how they did. What they wrote right, they " +
+    "know; what they missed, they need:\n" +
+    lines.join("\n")
   );
 }
 
@@ -627,7 +609,7 @@ type ItemAnswer = z.infer<typeof exerciseSchema> & {
 };
 
 // Checks one answer in code, and cleans it up for the page.
-function checkedItem(output: ItemAnswer, mode: Mode, contextExample?: string) {
+function checkedItem(output: ItemAnswer, mode: Mode) {
   // The situation only helps the model think; the page doesn't need it.
   const raw = output.text.trim();
   const text = withApostrophes(raw);
@@ -638,7 +620,7 @@ function checkedItem(output: ItemAnswer, mode: Mode, contextExample?: string) {
   const context =
     output.context === undefined
       ? undefined
-      : checkedContext(output.context, text, "word", [contextExample]);
+      : checkedContext(output.context, text, "word");
   // A word is never a sentence, nor is its reference (the model sometimes
   // translates the context sentence instead).
   if (isWordMode(mode) && /[.!?]$/.test(text)) {
@@ -686,8 +668,6 @@ export async function generateItem(
     task: string;
     sections?: string;
     review?: ReviewItem[];
-    // The context sentence of the prompt's example, never shown as is.
-    contextExample?: string;
     // A sentence's point picked by the code (a retest, a habit), whatever the
     // model names.
     point?: string;
@@ -722,11 +702,7 @@ export async function generateItem(
         "natural, correct French that the learner will translate into American English.",
         "",
         "## Fields, in this order",
-        ...(several
-          ? [
-              `items: ${CANDIDATES} different items, best first, each with these fields:`,
-            ]
-          : []),
+        ...(several ? [`items: ${CANDIDATES} different items, best first, each with:`] : []),
         ...prompt.fields,
         ...(isWordMode(mode) ? FREQUENCY_FIELD : []),
       ].join("\n"),
@@ -749,7 +725,7 @@ export async function generateItem(
         : [output as ItemAnswer],
     );
     const usable = usableAnswers(answers, (answer) =>
-      checkedItem(answer, mode, prompt.contextExample),
+      checkedItem(answer, mode),
     );
     if (!usable.length) throw new InvalidAnswerError("No usable item");
     if (!isWordMode(mode)) {
