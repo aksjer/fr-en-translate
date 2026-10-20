@@ -66,7 +66,16 @@ const OTHER_THAN_TENSE =
 // is hard to learn from, and the correction mixes them up. The code picks a
 // grammar point for most sentences; the others practice a recent mistake
 // (more precise than a weak point's category) or a weak point.
-function learningPoint(focus?: SentenceFocus, retest?: boolean) {
+function learningPoint(focus?: SentenceFocus, retest?: boolean, retestPoint?: string) {
+  if (retest && retestPoint) {
+    return (
+      "\n\n## Learning point\nThe tense is the main point of the sentence. This " +
+      "sentence retests the learner's last wrong sentence (the last wrong line of the history), " +
+      `whose learning point was « ${retestPoint} »: its natural translation must need ` +
+      `« ${retestPoint} » again, in a new situation, without pointing it out, and point ` +
+      `must be « ${retestPoint} ». Never more than this one other point.`
+    );
+  }
   if (retest) {
     return (
       "\n\n## Learning point\nThe tense is the main point of the sentence. This " +
@@ -123,8 +132,9 @@ function wordsSection(input: GenerateInput) {
   return (
     "\n\n## Words being learned\nEnglish words the learner recently learned or missed " +
     "in other exercises, the last first. When one fits the theme, the tense and the " +
-    "learning point naturally, use it in the translation, never more than one and " +
-    "never forced in:\n" +
+    "learning point naturally, use it in the translation, never more than one. Never " +
+    "force one in: if it makes the French or the English sound odd (« tout le repas " +
+    "abordable »), use none:\n" +
     [...words].map(([english, result]) => `${english} (${result})`).join(", ")
   );
 }
@@ -193,7 +203,9 @@ export function generateSentence(input: GenerateInput, combination: Combination)
       "- reference: the most natural American English translation of text, in the tense a",
       `  native speaker would use for this French. It must be the ${tense}: if it isn't`,
       "  natural, change the French, not the tense. Use American words and spelling",
-      "  (apartment, color, not flat, colour).",
+      "  (apartment, color, not flat, colour). Put every word where a native speaker would:",
+      "  an adverb in its usual place (hadn't yet bought the house we had talked about, not",
+      "  hadn't bought the house yet that we had talked about).",
       "- point: only the English word or words of the learning point, lowercase, with no",
       "  explanation, parentheses or + (as soon as, should, should have, couldn't, during,",
       "  already, did), or empty if the sentence has no other point than the tense.",
@@ -209,7 +221,7 @@ export function generateSentence(input: GenerateInput, combination: Combination)
       "when the situation calls for one)." +
       SENTENCE_VOCABULARY +
       (theme && THEME_STYLES[theme] ? ` ${THEME_STYLES[theme]}` : "") +
-      learningPoint(focus, combination.retest) +
+      learningPoint(focus, combination.retest, combination.retestPoint) +
       VARIETY +
       PRIORITY,
     // Weak points only matter when the code picked no grammar point.

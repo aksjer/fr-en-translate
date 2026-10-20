@@ -23,7 +23,7 @@ export function generateExercise(input: GenerateInput): Promise<Exercise> {
   const retested = sentences.slice(lastIndex).some((item) => item.retest);
   const combination = pickCombination(
     input,
-    last?.ok === false && !retested ? { tense: last.tense } : undefined,
+    last?.ok === false && !retested ? { tense: last.tense, point: last.point } : undefined,
   );
   return GENERATORS[combination.mode](input, combination);
 }

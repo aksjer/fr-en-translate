@@ -43,6 +43,8 @@ export type Combination = {
   focus?: SentenceFocus;
   // A sentence that practices the mistake of the wrong sentence just before.
   retest?: boolean;
+  // The learning point of that wrong sentence, practiced again by the retest.
+  retestPoint?: string;
 };
 
 function pick<T>(selected: readonly T[] | undefined, all: readonly T[]): T {
@@ -64,7 +66,7 @@ const MISTAKE_SENTENCE_CHANCE = 0.25;
 // another one.
 export function pickCombination(
   settings: Settings,
-  wrongSentence?: { tense?: Tense },
+  wrongSentence?: { tense?: Tense; point?: string },
 ): Combination {
   const mode = pick(settings.modes, MODES);
   const uses = MODE_USES[mode];
@@ -78,6 +80,7 @@ export function pickCombination(
   return {
     mode,
     ...(retest && { retest: true }),
+    ...(retest && wrongSentence.point && { retestPoint: wrongSentence.point }),
     ...(uses.tense && { tense: sameTense ?? pick(settings.tenses, TENSES) }),
     ...(uses.verbType && {
       verbType: pick(settings.verbTypes, VERB_TYPES),
