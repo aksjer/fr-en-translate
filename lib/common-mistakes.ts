@@ -38,6 +38,12 @@ const FOCUS_OF_TAG: Partial<Record<ErrorTag, SentenceFocus>> = {
 // Remarks start with « what the learner wrote » → « the right form ».
 const PAIR = /«\s*([^»]+?)\s*»\s*→\s*«\s*([^»]+?)\s*»/;
 
+// What the learner wrote and the right form, from a remark.
+export function remarkPair(remark: string) {
+  const pair = PAIR.exec(remark);
+  return pair ? { wrong: clean(pair[1]), right: clean(pair[2]) } : undefined;
+}
+
 function clean(text: string) {
   return text.replaceAll("**", "").replace(/\s+/g, " ").trim();
 }
@@ -58,9 +64,9 @@ export function commonMistakes(history: HistoryLike[], mastered: string[] = []) 
     const keys = new Set<string>();
     for (const mistake of mistakes) {
       if (SKIPPED_TAGS.includes(mistake.tag)) continue;
-      const pair = PAIR.exec(mistake.remark);
+      const pair = remarkPair(mistake.remark);
       if (!pair) continue;
-      const [wrong, right] = [clean(pair[1]), clean(pair[2])];
+      const { wrong, right } = pair;
       const key = pointName(right);
       // A form with a gap (hadn't … yet) can't be named as one point.
       if (!key || /\.{3}|…/.test(right) || key === pointName(wrong)) continue;

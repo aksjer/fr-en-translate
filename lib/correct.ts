@@ -1,4 +1,5 @@
 import { Output, streamText } from "ai";
+import { remarkPair } from "@/lib/common-mistakes";
 import { z } from "zod";
 import { ERROR_TAG_DEFINITIONS, ERROR_TAGS, type ErrorTag } from "@/lib/error-tags";
 import {
@@ -251,6 +252,18 @@ function sameSubject(answer: string, correction: string) {
   return !one || !other || one === other;
 }
 
+// A remark on words that the correction itself keeps (« hurry up » → « hurry »
+// with "hurry up" in the correction) points at no mistake. Only for several
+// words: a single one (in) may appear elsewhere in the sentence.
+function keptInCorrection(remark: string, correction: string) {
+  const pair = remarkPair(remark);
+  if (!pair || pair.wrong.split(" ").length < 2) return false;
+  // Words only, so "hurry **up**." still contains hurry up.
+  const words = (text: string) =>
+    ` ${text.toLowerCase().replace(/[^\p{L}\p{N}']+/gu, " ").trim()} `;
+  return words(correction).includes(words(pair.wrong));
+}
+
 // Asks the model to grade one translation. onRemarks gets the remarks written
 // so far while the model writes, so the page can show them before the end.
 export async function correctTranslation(
@@ -357,6 +370,9 @@ export async function correctTranslation(
               "  (make my homework; a British word is only a slip), or a phrasing that sounds",
               '  foreign ("I am agree", "he explained me the problem", "since three years")',
               "  makes it wrong.",
+              "- Only what a native speaker would say differently is a mistake: never a word",
+              "  or form that is natural too (put it in or into the drawer, hurry or hurry up),",
+              "  and never a word the correction keeps.",
             ]),
         "- A wrong or missing meaning, or a false friend, always makes it wrong.",
         "",
@@ -523,7 +539,7 @@ export async function correctTranslation(
     (wordMode || output.mistakes.length === 0);
   const mistakes = (sameAsCorrection ? [] : output.mistakes)
     .map((mistake) => ({ ...mistake, remark: mistake.remark.trim() }))
-    .filter((mistake) => mistake.remark);
+    .filter((mistake) => mistake.remark && !keptInCorrection(mistake.remark, output.correction));
   const remarks = mistakes
     .slice(0, MAX_REMARKS)
     .map((mistake) => mistake.remark);
