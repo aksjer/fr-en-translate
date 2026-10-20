@@ -186,6 +186,8 @@ export function Trainer() {
       const answer = translation.trim().slice(0, 300);
       rememberResult(exercise.text, {
         english,
+        // The expected word, when the learner's right word is another one.
+        ...(expected && english !== expected && { reference: expected }),
         answer,
         ok: correction.isCorrect,
         tag: correction.isCorrect ? undefined : correction.tag,

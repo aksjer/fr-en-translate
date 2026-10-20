@@ -301,9 +301,18 @@ export function chooseAnswer<T extends Choice>(
   const texts = new Set(
     rules.recent.flatMap((item) => (item.english ? [] : [sameText(item.text)])),
   );
+  // An item answered right with another word (sofa for « le canapé » → couch)
+  // doesn't come back as is: its expected word may, with another French word.
+  const answered = new Set(
+    rules.recent.flatMap((item) =>
+      item.reference && item.ok ? [`${sameText(item.text)} → ${item.reference}`] : [],
+    ),
+  );
   return answers.find(
     (answer) =>
-      !english.has(answer.english) && !texts.has(sameText(answer.text)),
+      !english.has(answer.english) &&
+      !texts.has(sameText(answer.text)) &&
+      !answered.has(`${sameText(answer.text)} → ${answer.english}`),
   );
 }
 
@@ -370,7 +379,7 @@ export function historySection(items: HistoryItem[], mode: Mode) {
     // A sentence's expected English, only when the learner didn't answer it.
     const english = isWordMode(mode)
       ? item.english
-        ? ` → ${item.english}`
+        ? ` → ${item.english}${item.reference ? ` (expected: ${item.reference})` : ""}`
         : ""
       : item.reference && item.ok === undefined
         ? ` → « ${item.reference} »`
@@ -394,9 +403,10 @@ export function historySection(items: HistoryItem[], mode: Mode) {
       ? item.mistakes.map((mistake) => mistake.remark).join(" / ")
       : item.remark;
     // The last 5 sentences can give the next one its extra learning point,
-    // unless a retest already practiced their mistake.
+    // unless a later retest already practiced their mistake; a missed retest
+    // keeps it.
     const recent =
-      !isWordMode(mode) && items.length - index <= 5 && index > lastRetest
+      !isWordMode(mode) && items.length - index <= 5 && index >= lastRetest
         ? " (recent)"
         : "";
     const result =
@@ -602,7 +612,8 @@ export async function generateItem(
     if (!isWordMode(mode)) {
       // A mastered point is never the target again: the model is asked once more.
       const point = usable[0].point;
-      if (attempt === 1 && point && mastered.has(point)) {
+      // A retest keeps its point: it practices a mistake, whatever was mastered.
+      if (attempt === 1 && point && mastered.has(point) && !combination.retest) {
         fallback = { ...usable[0], fits: true };
         tryAgain =
           `\n\n## Try again\nThe learner already mastered « ${point} ». Choose another ` +
@@ -620,7 +631,10 @@ export async function generateItem(
     // A review the model ignored twice gives a new item, which still mustn't
     // be learned or recent.
     const fresh = prompt.review ? chooseAnswer(usable, { known, recent }) : undefined;
-    if (attempt > 1) return { ...(fresh ?? usable[0]), fits: false };
+    if (attempt > 1) {
+      // A good first answer beats a learned or recent second one.
+      return fresh ? { ...fresh, fits: false } : (fallback ?? { ...usable[0], fits: false });
+    }
     fallback = { ...(fresh ?? usable[0]), fits: false };
     tryAgain = tryAgainSection(usable, Boolean(prompt.review));
     throw new InvalidAnswerError(

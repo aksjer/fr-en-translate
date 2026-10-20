@@ -59,7 +59,8 @@ export type SeenItem = {
   retest?: boolean;
   // The French sentence that showed the meaning of a word or verb.
   context?: string;
-  // The expected English of a sentence, and the learner's sentence corrected.
+  // The expected English of a sentence, or of a word or verb answered right
+  // with another word; and the learner's sentence corrected.
   reference?: string;
   correction?: string;
   // Every mistake of a wrong answer; tag and remark keep the main one.

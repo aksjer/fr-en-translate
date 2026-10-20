@@ -213,7 +213,9 @@ export function generateSentence(input: GenerateInput, combination: Combination)
       VARIETY +
       PRIORITY,
     // Weak points only matter when the code picked no grammar point.
-    sections:
-      pointsSection(input) + (focus ? "" : weakPointsSection(input)) + wordsSection(input),
+    // A retest practices only its mistake: no other point is offered.
+    sections: combination.retest
+      ? wordsSection(input)
+      : pointsSection(input) + (focus ? "" : weakPointsSection(input)) + wordsSection(input),
   });
 }

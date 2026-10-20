@@ -201,7 +201,10 @@ export async function generateVerb(
     // A review the model ignored twice gives a new verb, which still mustn't
     // be learned or recent.
     const fresh = review ? chooseAnswer(usable, { known, recent }) : undefined;
-    if (attempt > 1) return { ...(fresh ?? usable[0]), fits: false };
+    if (attempt > 1) {
+      // A good first answer beats a learned or recent second one.
+      return fresh ? { ...fresh, fits: false } : (fallback ?? { ...usable[0], fits: false });
+    }
     fallback = { ...(fresh ?? usable[0]), fits: false };
     tryAgain = tryAgainSection(usable, Boolean(review));
     throw new InvalidAnswerError(
