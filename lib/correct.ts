@@ -255,7 +255,7 @@ function sameSubject(answer: string, correction: string) {
 // A remark on words that the correction itself keeps (« hurry up » → « hurry »
 // with "hurry up" in the correction) points at no mistake. Only for several
 // words: a single one (in) may appear elsewhere in the sentence.
-function keptInCorrection(remark: string, correction: string) {
+function keptInCorrection(remark: string, answer: string, correction: string) {
   const pair = remarkPair(remark);
   if (!pair || pair.wrong.split(" ").length < 2) return false;
   // Words only, so "hurry **up**." still contains hurry up.
@@ -263,7 +263,10 @@ function keptInCorrection(remark: string, correction: string) {
     ` ${text.toLowerCase().replace(/[^\p{L}\p{N}']+/gu, " ").trim()} `;
   // A missing word next to it (« look at » → « look at it ») is a real mistake.
   if (words(pair.right).includes(words(pair.wrong))) return false;
-  return words(correction).includes(words(pair.wrong));
+  // Kept only if the correction has it as many times as the answer: a common
+  // pair (in the) may also come elsewhere in the sentence.
+  const count = (text: string) => words(text).split(words(pair.wrong)).length - 1;
+  return count(answer) > 0 && count(correction) >= count(answer);
 }
 
 // Asks the model to grade one translation. onRemarks gets the remarks written
@@ -544,10 +547,8 @@ export async function correctTranslation(
     .map((mistake) => ({ ...mistake, remark: mistake.remark.trim() }))
     .filter((mistake) => mistake.remark);
   const mistakes = written.filter(
-    (mistake) => !keptInCorrection(mistake.remark, output.correction),
+    (mistake) => !keptInCorrection(mistake.remark, input.translation, output.correction),
   );
-  // Wrong only because of remarks on words the correction keeps: right.
-  const onlyKeptWords = written.length > 0 && mistakes.length === 0;
   const remarks = mistakes
     .slice(0, MAX_REMARKS)
     .map((mistake) => mistake.remark);
@@ -555,13 +556,7 @@ export async function correctTranslation(
     remarks.push("Ta réponse n'est pas une traduction en anglais du texte.");
   }
   // Still wrong without a mistake after a second try: at least show the fix.
-  if (
-    output.translated &&
-    !output.right &&
-    remarks.length === 0 &&
-    !sameAsCorrection &&
-    !onlyKeptWords
-  ) {
+  if (output.translated && !output.right && remarks.length === 0 && !sameAsCorrection) {
     remarks.push(
       `« ${input.translation.trim()} » → « ${output.correction.replace(/\*\*/g, "").trim()} »`,
     );
@@ -569,7 +564,6 @@ export async function correctTranslation(
   const isCorrect =
     output.translated &&
     (sameAsCorrection ||
-      onlyKeptWords ||
       (output.right && !mistakes.some((mistake) => WRONG_TAGS.includes(mistake.category))));
   // The tag and remark of a wrong answer: the first wrong-making mistake if any.
   const main =
