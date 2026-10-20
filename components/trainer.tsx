@@ -253,6 +253,7 @@ export function Trainer() {
     } catch (e) {
       setError((e as Error).message);
     } finally {
+      setDraftRemarks([]);
       setLoading(null);
     }
   }

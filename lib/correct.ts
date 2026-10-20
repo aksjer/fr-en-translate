@@ -251,6 +251,8 @@ function sameSubject(answer: string, correction: string) {
 export async function correctTranslation(
   rawInput: CorrectInput,
   onRemarks?: (remarks: string[]) => void,
+  // Stops the model when the page leaves.
+  abortSignal?: AbortSignal,
 ): Promise<Correction> {
   const input = correctInputSchema.parse(rawInput);
   const wordMode = isWordMode(input.mode);
@@ -259,7 +261,10 @@ export async function correctTranslation(
     attempt += 1;
     // An error while streaming ends the stream: kept to be thrown with its cause.
     let streamError: unknown;
+    // A new attempt starts with no remark: the last one's were rejected.
+    if (attempt > 1) onRemarks?.([]);
     const result = streamText({
+      abortSignal,
       onError: ({ error }) => {
         streamError = error;
       },

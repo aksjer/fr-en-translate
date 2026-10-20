@@ -8,20 +8,32 @@ export async function POST(request: Request) {
   if (error) return error;
 
   const encoder = new TextEncoder();
+  // The page may leave mid-stream: the stream is closed then, and nothing more
+  // is sent.
+  let open = true;
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (line: object) =>
-        controller.enqueue(encoder.encode(JSON.stringify(line) + "\n"));
+      const send = (line: object) => {
+        if (open) controller.enqueue(encoder.encode(JSON.stringify(line) + "\n"));
+      };
       try {
-        const result = await correctTranslation(data, (remarks) => send({ remarks }));
+        const result = await correctTranslation(
+          data,
+          (remarks) => send({ remarks }),
+          request.signal,
+        );
         send({ result });
       } catch (error) {
+        if (!open) return;
         console.error("Model correction failed", error);
         const response = providerErrorResponse(error, "The correction failed. Try again.");
         send(await response.json());
       } finally {
-        controller.close();
+        if (open) controller.close();
       }
+    },
+    cancel() {
+      open = false;
     },
   });
   return new Response(stream, {
