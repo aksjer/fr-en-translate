@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { focusWeights, type CommonMistake } from "@/lib/common-mistakes";
 import {
   MODE_USES,
   MODES,
@@ -8,6 +9,7 @@ import {
   VERB_TYPES,
   WORD_KINDS,
   WORD_TYPES,
+  pointName,
   type Mode,
   type SentenceFocus,
   type Tense,
@@ -47,6 +49,8 @@ export type Combination = {
   retestPoint?: string;
   // The main mistake of that wrong sentence, when its point was right.
   retestMistake?: string;
+  // One of the learner's recurring mistakes, practiced instead of a focus.
+  target?: CommonMistake;
 };
 
 function pick<T>(selected: readonly T[] | undefined, all: readonly T[]): T {
@@ -61,6 +65,21 @@ function typesFor<T extends string>(selected: readonly string[] | undefined, all
 
 // About 1 in 4 sentences practice the learner's own mistakes instead.
 const MISTAKE_SENTENCE_CHANCE = 0.25;
+// While the learner has recurring mistakes, half the sentences practice one,
+// picked among the most frequent.
+const TARGET_CHANCE = 0.5;
+const TARGET_CHOICES = 3;
+
+// A random value, each one as likely as its weight (1 at least).
+function weightedPick<T>(values: readonly T[], weights: Map<T, number>): T {
+  const total = values.reduce((sum, value) => sum + 1 + (weights.get(value) ?? 0), 0);
+  let draw = Math.random() * total;
+  for (const value of values) {
+    draw -= 1 + (weights.get(value) ?? 0);
+    if (draw < 0) return value;
+  }
+  return values[values.length - 1];
+}
 
 // One random value of each setting the mode uses. A sentence right after a
 // wrong one practices its mistake again, while it is fresh, in the same tense
@@ -69,10 +88,24 @@ const MISTAKE_SENTENCE_CHANCE = 0.25;
 export function pickCombination(
   settings: Settings,
   wrongSentence?: { tense?: Tense; point?: string; mistake?: string },
+  // The learner's recurring mistakes, and the point of their last sentence,
+  // which isn't practiced twice in a row.
+  mistakes: CommonMistake[] = [],
+  lastPoint?: string,
 ): Combination {
   const mode = pick(settings.modes, MODES);
   const uses = MODE_USES[mode];
   const retest = mode === "sentence" && wrongSentence !== undefined;
+  const targets = mistakes
+    .slice(0, TARGET_CHOICES + 1)
+    .filter((mistake) => pointName(mistake.right) !== (lastPoint && pointName(lastPoint)))
+    .slice(0, TARGET_CHOICES);
+  const target =
+    mode === "sentence" && !retest && targets.length && Math.random() < TARGET_CHANCE
+      ? targets[Math.floor(Math.random() * targets.length)]
+      : undefined;
+  const selectedFocuses = typesFor(settings.wordTypes, SENTENCE_FOCUSES);
+  const focuses = selectedFocuses.length ? selectedFocuses : SENTENCE_FOCUSES;
   const sameTense =
     retest &&
     wrongSentence.tense &&
@@ -94,10 +127,12 @@ export function pickCombination(
     ...(mode === "word" && {
       kind: pick(typesFor(settings.wordTypes, WORD_KINDS), WORD_KINDS),
     }),
+    ...(target && { target }),
     ...(mode === "sentence" &&
       !retest &&
+      !target &&
       Math.random() >= MISTAKE_SENTENCE_CHANCE && {
-        focus: pick(typesFor(settings.wordTypes, SENTENCE_FOCUSES), SENTENCE_FOCUSES),
+        focus: weightedPick(focuses, focusWeights(mistakes)),
       }),
   };
 }

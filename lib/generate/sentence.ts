@@ -2,6 +2,7 @@
 import { ERROR_TAG_DEFINITIONS, ERROR_TAGS, type ErrorTag } from "@/lib/error-tags";
 import { COMMON_ENGLISH, generateItem, type GenerateInput } from "@/lib/generate/shared";
 import { TENSE_GUIDES, type SentenceFocus, type Theme } from "@/lib/options";
+import { type CommonMistake } from "@/lib/common-mistakes";
 import { untagged } from "@/lib/correct";
 import type { Combination } from "@/lib/settings";
 
@@ -72,7 +73,19 @@ function learningPoint(
   retest?: boolean,
   retestPoint?: string,
   retestMistake?: string,
+  target?: CommonMistake,
 ) {
+  if (target) {
+    return (
+      "\n\n## Learning point\nThe tense is the main point of the sentence. This " +
+      `sentence practices one of the learner's habits: ${target.count} times, they wrote ` +
+      `« ${untagged(target.wrong)} » where English needs « ${untagged(target.right)} ». Its ` +
+      `natural translation must need « ${untagged(target.right)} » again, in a new ` +
+      "situation where a French speaker would make the same mistake, without pointing " +
+      `it out, and point must be « ${untagged(target.right)} ». Never more than this one ` +
+      "other point."
+    );
+  }
   if (retest && retestPoint) {
     return (
       "\n\n## Learning point\nThe tense is the main point of the sentence. This " +
@@ -250,12 +263,13 @@ export function generateSentence(input: GenerateInput, combination: Combination)
         combination.retest,
         combination.retestPoint,
         combination.retestMistake,
+        combination.target,
       ) +
       VARIETY +
       PRIORITY,
     // Weak points only matter when the code picked no grammar point.
     // A retest practices only its mistake: no other point is offered.
-    sections: combination.retest
+    sections: combination.retest || combination.target
       ? wordsSection(input)
       : pointsSection(input) + (focus ? "" : weakPointsSection(input)) + wordsSection(input),
   });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { commonMistakes } from "@/lib/common-mistakes";
 import {
   historyVersion,
   masteredPoints,
@@ -14,6 +15,7 @@ import { englishKey } from "@/lib/options";
 const LEARNED_MODES = ["word", "verb"] as const;
 const LEARNED_TITLES = { word: "Words", verb: "Verbs" };
 const RECENT = 30;
+const COMMON_MISTAKES = 5;
 
 // Everything comes from this browser: nothing is sent anywhere.
 export function Progress() {
@@ -24,6 +26,7 @@ export function Progress() {
   const seen = inBrowser ? readSeen() : [];
   const known = inBrowser ? readKnown() : {};
   const points = inBrowser ? masteredPoints(readPoints()) : [];
+  const mistakes = commonMistakes(seen, points).slice(0, COMMON_MISTAKES);
 
   if (!inBrowser) return null;
   const answered = seen.filter((item) => item.ok !== undefined);
@@ -63,6 +66,22 @@ export function Progress() {
           )}
         </div>
       </section>
+
+      {/* The same mistakes in several answers: the next sentences practice them. */}
+      {mistakes.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h3 className="font-medium">Common mistakes</h3>
+          <ul className="flex flex-col gap-1 text-sm">
+            {mistakes.map((mistake) => (
+              <li key={mistake.right}>
+                <span className="text-red-600 line-through">{mistake.wrong}</span> →{" "}
+                <span lang="en-US">{mistake.right}</span>
+                <span className="text-zinc-500"> ({mistake.count} times)</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {recent.length > 0 && (
         <section className="flex flex-col gap-3">

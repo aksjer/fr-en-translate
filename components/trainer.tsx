@@ -274,6 +274,7 @@ export function Trainer() {
     exercise?.mode,
     exercise?.review ? "review" : undefined,
     exercise?.retest ? "retest" : undefined,
+    exercise?.target ? "your mistake" : undefined,
     exercise?.kind,
     exercise?.focus && `focus: ${exercise.focus}`,
     exercise?.verbType && `${exercise.verbType} verb`,
