@@ -43,8 +43,10 @@ const THEME_STYLES: Partial<Record<Theme, string>> = {
     "with someone reporting it (« Le maire a dit que… », « Selon la police… ») or with " +
     "what is expected next.",
   "cars and EVs":
-    "Write it like a short line from a car news site or a talk between drivers, in " +
-    "everyday words (charge, range, battery, drive, price, fast).",
+    "Write it like a line from a first-person car review or a talk between drivers: " +
+    "casual, in everyday words, often with a common expression (« Je n'ai pas pu " +
+    "m'empêcher de… », « Ça n'a pas vraiment marché », « L'autonomie a largement " +
+    "dépassé… »), about driving, charging, range, the battery or the price.",
   "movies and TV shows":
     "Write it like a line of dialogue from a movie or a TV show, or what a friend says " +
     "about one: short and natural.",
