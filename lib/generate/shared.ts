@@ -165,11 +165,34 @@ export const FREQUENCY_FIELD = [
   "  every week), sometimes, or rare.",
 ];
 
+// Gemini sometimes writes accents as HTML entities (« malgr&eacute; »): the
+// code turns them back into letters.
+const ENTITIES: Record<string, string> = {
+  eacute: "é", egrave: "è", ecirc: "ê", euml: "ë", agrave: "à", acirc: "â", auml: "ä",
+  ccedil: "ç", icirc: "î", iuml: "ï", ocirc: "ô", ouml: "ö", ugrave: "ù", ucirc: "û",
+  uuml: "ü", yuml: "ÿ", oelig: "œ", aelig: "æ", laquo: "«", raquo: "»", nbsp: " ",
+  rsquo: "’", lsquo: "‘", apos: "'", quot: '"', amp: "&", hellip: "…",
+};
+
+// Its semicolon is sometimes missing too (« pr&eacutevisible »).
+const ENTITY_NAMES = new RegExp(`&(${Object.keys(ENTITIES).join("|")});?`, "gi");
+
+export function withoutEntities(text: string) {
+  return text
+    .replace(/&#(\d+);/g, (_, code: string) => String.fromCodePoint(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code: string) => String.fromCodePoint(parseInt(code, 16)))
+    .replace(ENTITY_NAMES, (_, name: string) => {
+      const letter = ENTITIES[name.toLowerCase()];
+      return name[0] === name[0].toUpperCase() ? letter.toUpperCase() : letter;
+    });
+}
+
 // Gemini sometimes drops accented letters, leaving a space in their place
 // (« je suis tr s occup . »). French never puts a space before a period or a
 // comma, so that space shows a broken text; the item is asked again.
+// An entity the code doesn't know shows a broken text too.
 export function hasDroppedLetters(text: string) {
-  return /\s[.,]/.test(text);
+  return /\s[.,]/.test(text) || /&#?[a-z0-9]/i.test(text);
 }
 
 // Gemini sometimes drops the apostrophe of l' (« dans l avion »): the code adds
@@ -355,14 +378,14 @@ type ItemAnswer = z.infer<typeof exerciseSchema> & {
 // Checks one answer in code, and cleans it up for the page.
 function checkedItem(output: ItemAnswer, mode: Mode) {
   // The situation only helps the model think; the page doesn't need it.
-  const raw = output.text.trim();
+  const raw = withoutEntities(output.text.trim());
   const text = withApostrophes(raw);
   if (text !== raw) console.warn("Added a missing apostrophe:", raw);
-  const reference = output.reference.trim();
+  const reference = withoutEntities(output.reference.trim());
   const context =
     output.context === undefined
       ? undefined
-      : withApostrophes(output.context.trim());
+      : withApostrophes(withoutEntities(output.context.trim()));
   if (!text || !reference || context === "") {
     throw new InvalidAnswerError("Empty item, context or reference");
   }

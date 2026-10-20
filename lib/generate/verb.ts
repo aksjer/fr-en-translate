@@ -19,6 +19,7 @@ import {
   knownSection,
   usableAnswers,
   withApostrophes,
+  withoutEntities,
   type Exercise,
   type GenerateInput,
 } from "@/lib/generate/shared";
@@ -62,8 +63,8 @@ function checkedVerb(output: z.infer<typeof verbSchema>, verbType?: VerbType) {
     .replace(/^to\s+/, "");
   const past = output.past.trim().toLowerCase();
   const participle = output.participle.trim().toLowerCase();
-  const text = output.text.trim();
-  const context = output.context.trim();
+  const text = withoutEntities(output.text.trim());
+  const context = withoutEntities(output.context.trim());
   if (!/^[a-z]+$/.test(base) || !past || !participle || !text || !context) {
     throw new InvalidAnswerError(`Not a verb: ${base}`);
   }
