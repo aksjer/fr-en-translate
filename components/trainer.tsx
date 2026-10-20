@@ -20,6 +20,7 @@ import {
 } from "@/lib/seen-items";
 import { useSettings } from "@/lib/use-settings";
 import { ReportButton } from "@/components/report-button";
+import { MicButton } from "@/components/mic-button";
 import { SpeakButton } from "@/components/speak-button";
 
 type Exercise = Combination & {
@@ -338,26 +339,33 @@ export function Trainer() {
             }}
             className="flex flex-col gap-4"
           >
-            <textarea
-              ref={inputRef}
-              id="translation"
-              lang="en-US"
-              rows={exercise.mode === "sentence" ? 3 : 1}
-              maxLength={MAX_TEXT_LENGTH}
-              aria-label="Your answer"
-              placeholder="Your answer · Enter to check"
-              value={translation}
-              onChange={(event) => setTranslation(event.target.value)}
-              onKeyDown={(event) => {
-                // Enter submits, Shift+Enter adds a new line.
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  correct();
-                }
-              }}
-              disabled={loading !== null || result !== null}
-              className="rounded-xl border border-zinc-300 bg-transparent p-3 text-lg outline-none focus-visible:ring-2 focus-visible:ring-blue-600 dark:border-zinc-700"
-            />
+            <div className="flex items-start gap-2">
+              <textarea
+                ref={inputRef}
+                id="translation"
+                lang="en-US"
+                rows={exercise.mode === "sentence" ? 3 : 1}
+                maxLength={MAX_TEXT_LENGTH}
+                aria-label="Your answer"
+                placeholder="Your answer · Enter to check"
+                value={translation}
+                onChange={(event) => setTranslation(event.target.value)}
+                onKeyDown={(event) => {
+                  // Enter submits, Shift+Enter adds a new line.
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    correct();
+                  }
+                }}
+                disabled={loading !== null || result !== null}
+                className="min-w-0 flex-1 rounded-xl border border-zinc-300 bg-transparent p-3 text-lg outline-none focus-visible:ring-2 focus-visible:ring-blue-600 dark:border-zinc-700"
+              />
+              <MicButton
+                value={translation}
+                onChange={setTranslation}
+                disabled={loading !== null || result !== null}
+              />
+            </div>
 
           </form>
         </section>
