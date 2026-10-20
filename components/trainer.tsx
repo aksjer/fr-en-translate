@@ -83,11 +83,45 @@ async function post<T>(url: string, body: unknown): Promise<T> {
   return response.json();
 }
 
+// Reads the correction stream: one JSON object per line, { remarks } while the
+// model writes, then { result } or { error }.
+async function postCorrection(
+  body: unknown,
+  onRemarks: (remarks: string[]) => void,
+): Promise<Correction> {
+  const response = await fetch("/api/correct", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok || !response.body) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.error ?? "The service isn't responding. Try again.");
+  }
+  const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+  let buffer = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    buffer += value ?? "";
+    const lines = buffer.split("\n");
+    buffer = done ? "" : (lines.pop() ?? "");
+    for (const line of lines.filter(Boolean)) {
+      const message = JSON.parse(line);
+      if (message.error) throw new Error(message.error);
+      if (message.result) return message.result;
+      if (message.remarks) onRemarks(message.remarks);
+    }
+    if (done) throw new Error("The service isn't responding. Try again.");
+  }
+}
+
 export function Trainer() {
   const [settings] = useSettings();
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [translation, setTranslation] = useState("");
   const [result, setResult] = useState<Correction | null>(null);
+  // The remarks the model has written so far, shown while it corrects.
+  const [draftRemarks, setDraftRemarks] = useState<string[]>([]);
   const [loading, setLoading] = useState<"generate" | "correct" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -166,19 +200,23 @@ export function Trainer() {
     if (!exercise || !translation.trim()) return;
     setLoading("correct");
     setError(null);
+    setDraftRemarks([]);
     try {
-      const correction = await post<Correction>("/api/correct", {
-        mode: exercise.mode,
-        text: exercise.text,
-        translation,
-        tense: exercise.tense,
-        kind: exercise.kind,
-        focus: exercise.focus,
-        point: exercise.point,
-        reference: exercise.reference,
-        context: exercise.context,
-        pastMistakes: pastMistakes(readSeen(), exercise.mode),
-      });
+      const correction = await postCorrection(
+        {
+          mode: exercise.mode,
+          text: exercise.text,
+          translation,
+          tense: exercise.tense,
+          kind: exercise.kind,
+          focus: exercise.focus,
+          point: exercise.point,
+          reference: exercise.reference,
+          context: exercise.context,
+          pastMistakes: pastMistakes(readSeen(), exercise.mode),
+        },
+        setDraftRemarks,
+      );
       setResult(correction);
       const expected =
         isWordMode(exercise.mode) && exercise.reference
@@ -322,6 +360,19 @@ export function Trainer() {
 
           </form>
         </section>
+      )}
+
+      {loading === "correct" && draftRemarks.length > 0 && (
+        <ul
+          aria-live="polite"
+          className="flex flex-col gap-1 rounded-2xl border border-zinc-200 p-6 text-sm text-zinc-500 dark:border-zinc-800"
+        >
+          {draftRemarks.map((remark, index) => (
+            <li key={index} lang="fr">
+              {remark}
+            </li>
+          ))}
+        </ul>
       )}
 
       {result && (

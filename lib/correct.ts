@@ -1,4 +1,4 @@
-import { generateText, Output } from "ai";
+import { Output, streamText } from "ai";
 import { z } from "zod";
 import { ERROR_TAG_DEFINITIONS, ERROR_TAGS, type ErrorTag } from "@/lib/error-tags";
 import {
@@ -246,14 +246,23 @@ function sameSubject(answer: string, correction: string) {
   return !one || !other || one === other;
 }
 
-// Asks the model to grade one translation.
-export async function correctTranslation(rawInput: CorrectInput): Promise<Correction> {
+// Asks the model to grade one translation. onRemarks gets the remarks written
+// so far while the model writes, so the page can show them before the end.
+export async function correctTranslation(
+  rawInput: CorrectInput,
+  onRemarks?: (remarks: string[]) => void,
+): Promise<Correction> {
   const input = correctInputSchema.parse(rawInput);
   const wordMode = isWordMode(input.mode);
   let attempt = 0;
   const output = await retryIfInvalid(async () => {
     attempt += 1;
-    const { output: raw } = await generateText({
+    // An error while streaming ends the stream: kept to be thrown with its cause.
+    let streamError: unknown;
+    const result = streamText({
+      onError: ({ error }) => {
+        streamError = error;
+      },
       model,
       providerOptions: thinkingFor("correct"),
       maxRetries: 1,
@@ -472,6 +481,16 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
         .filter(Boolean)
         .join("\n"),
     });
+    for await (const partial of result.partialOutputStream) {
+      const remarks = (partial.mistakes ?? [])
+        .map((mistake) => mistake?.remark?.trim())
+        .filter((remark): remark is string => Boolean(remark));
+      if (remarks.length) onRemarks?.(remarks.map(untagged));
+    }
+    const raw = await Promise.resolve(result.output).catch((error: unknown) => {
+      throw streamError ?? error;
+    });
+    if (streamError) throw streamError;
     const output = withoutEntities(raw);
     if (!output.correction.trim()) {
       throw new InvalidAnswerError("Empty correction");
