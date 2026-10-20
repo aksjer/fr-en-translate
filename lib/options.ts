@@ -23,6 +23,12 @@ export const MAX_REVIEW = 50;
 // when one comes back.
 export const MAX_PAST_MISTAKES = 50;
 
+// Grammar points of sentences: mastered after this many right answers on
+// different days, and how many of each list the prompt gets.
+export const POINT_MASTERY = 2;
+export const MAX_POINTS = 500;
+export const MAX_POINTS_TO_PRACTICE = 30;
+
 // The English an item is known by: "to wear" → wear, "the couch" → couch,
 // without the context in parentheses.
 export function englishKey(reference: string) {

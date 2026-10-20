@@ -2,7 +2,10 @@ import {
   HISTORY_PER_MODE,
   MAX_KNOWN,
   MAX_PAST_MISTAKES,
+  MAX_POINTS,
+  MAX_POINTS_TO_PRACTICE,
   MAX_REVIEW,
+  POINT_MASTERY,
   type Frequency,
   type Mode,
 } from "@/lib/options";
@@ -31,6 +34,8 @@ export type SeenItem = {
   remark?: string;
   // How common the model said the English word or verb is.
   frequency?: Frequency;
+  // The grammar point a sentence practiced (as soon as, should).
+  point?: string;
 };
 
 export function readSeen(): SeenItem[] {
@@ -91,8 +96,20 @@ function writeSeen(items: SeenItem[]) {
   changed();
 }
 
-export function rememberSeen(text: string, mode: Mode, frequency?: Frequency) {
-  writeSeen([...readSeen(), { text: text.trim(), mode, ...(frequency && { frequency }) }]);
+export function rememberSeen(
+  text: string,
+  mode: Mode,
+  extra: { frequency?: Frequency; point?: string } = {},
+) {
+  writeSeen([
+    ...readSeen(),
+    {
+      text: text.trim(),
+      mode,
+      ...(extra.frequency && { frequency: extra.frequency }),
+      ...(extra.point && { point: extra.point }),
+    },
+  ]);
 }
 
 // Adds the result to the last time this item was shown.
@@ -179,4 +196,70 @@ export function rememberKnown(mode: Mode, english: string) {
     // Not saved: this item may come back, which is acceptable.
   }
   changed();
+}
+
+// The grammar points of sentences (as soon as, should) and how the learner did:
+// one is mastered after POINT_MASTERY right answers on different days, and a
+// wrong answer starts it over. A mastered point is never the target again.
+const POINTS_KEY = "fr-en-translate:points";
+
+export type PointProgress = { right: number; lastRight?: string };
+
+function today() {
+  return new Date().toLocaleDateString("en-CA");
+}
+
+export function pointKey(point: string) {
+  return point.trim().toLowerCase();
+}
+
+export function readPoints(): Record<string, PointProgress> {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(POINTS_KEY) ?? "{}");
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return Object.fromEntries(
+      Object.entries(parsed).filter(
+        (entry): entry is [string, PointProgress] =>
+          Boolean(entry[1]) && typeof (entry[1] as PointProgress).right === "number",
+      ),
+    );
+  } catch {
+    return {};
+  }
+}
+
+export function rememberPoint(point: string, right: boolean) {
+  const key = pointKey(point);
+  if (!key) return;
+  try {
+    const points = readPoints();
+    const current = points[key] ?? { right: 0 };
+    // Two right answers the same day count once: mastery needs another day.
+    const next: PointProgress = right
+      ? current.lastRight === today()
+        ? current
+        : { right: current.right + 1, lastRight: today() }
+      : { right: 0 };
+    // The point moves to the end, so the oldest go first when the list is full.
+    const entries = [
+      ...Object.entries(points).filter(([other]) => other !== key),
+      [key, next] as const,
+    ].slice(-MAX_POINTS);
+    localStorage.setItem(POINTS_KEY, JSON.stringify(Object.fromEntries(entries)));
+  } catch {
+    // Not saved: this point may come back, which is acceptable.
+  }
+  changed();
+}
+
+export function masteredPoints(points: Record<string, PointProgress>) {
+  return Object.keys(points).filter((key) => points[key].right >= POINT_MASTERY);
+}
+
+// The points missed or right only once, the most recent first.
+export function pointsToPractice(points: Record<string, PointProgress>) {
+  return Object.keys(points)
+    .filter((key) => points[key].right < POINT_MASTERY)
+    .reverse()
+    .slice(0, MAX_POINTS_TO_PRACTICE);
 }

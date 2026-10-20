@@ -15,6 +15,8 @@ import {
   isWordMode,
   MAX_HISTORY,
   MAX_KNOWN,
+  MAX_POINTS,
+  MAX_POINTS_TO_PRACTICE,
   MAX_REVIEW,
   MAX_TEXT_LENGTH,
   FREQUENCIES,
@@ -67,6 +69,16 @@ export const generateInputSchema = settingsSchema.extend({
     .partial()
     .optional()
     .catch(undefined),
+  // The grammar points of sentences the learner mastered (never the target
+  // again) and the ones to practice again.
+  points: z
+    .object({
+      mastered: z.array(clipped(60)).max(MAX_POINTS),
+      practice: z.array(clipped(60)).max(MAX_POINTS_TO_PRACTICE),
+    })
+    .partial()
+    .optional()
+    .catch(undefined),
   // The oldest missed words and verbs, by mode, for a review.
   review: z
     .object({
@@ -91,6 +103,8 @@ export type Exercise = Combination & {
   review?: boolean;
   // How common the model says the English word or verb is.
   frequency?: Frequency;
+  // The grammar point a sentence practices (as soon as, should).
+  point?: string;
 };
 
 // What the app is for: with it, the model can choose well in cases no rule covers.
@@ -328,9 +342,13 @@ const wordExerciseSchema = z.object({
   frequency: z.enum(FREQUENCIES),
 });
 
+// A sentence also names its learning point, so the page can remember it.
+const sentenceExerciseSchema = exerciseSchema.extend({ point: z.string() });
+
 type ItemAnswer = z.infer<typeof exerciseSchema> & {
   context?: string;
   frequency?: Frequency;
+  point?: string;
 };
 
 // Checks one answer in code, and cleans it up for the page.
@@ -371,6 +389,7 @@ function checkedItem(output: ItemAnswer, mode: Mode) {
     english: englishKey(reference),
     ...(context && { context }),
     ...(output.frequency && { frequency: output.frequency }),
+    ...(output.point?.trim() && { point: output.point.trim().slice(0, 60) }),
   };
 }
 
@@ -405,7 +424,7 @@ export async function generateItem(
   const { mode } = combination;
   const { known, recent } = history(input, mode);
   const several = isWordMode(mode) && !prompt.review;
-  const schema = isWordMode(mode) ? wordExerciseSchema : exerciseSchema;
+  const schema = isWordMode(mode) ? wordExerciseSchema : sentenceExerciseSchema;
 
   let attempt = 0;
   let tryAgain = "";
@@ -475,6 +494,7 @@ export async function generateItem(
     reference: item.reference,
     ...(item.context && { context: item.context }),
     ...("frequency" in item && item.frequency && { frequency: item.frequency }),
+    ...("point" in item && item.point && { point: item.point }),
     ...combination,
     // A review whose answer isn't a listed item is a new word.
     ...(prompt.review && item.fits && { review: true }),

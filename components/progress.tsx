@@ -3,7 +3,9 @@
 import { useSyncExternalStore } from "react";
 import {
   historyVersion,
+  masteredPoints,
   readKnown,
+  readPoints,
   readSeen,
   subscribeHistory,
 } from "@/lib/seen-items";
@@ -21,10 +23,11 @@ export function Progress() {
     useSyncExternalStore(subscribeHistory, historyVersion, () => -1) >= 0;
   const seen = inBrowser ? readSeen() : [];
   const known = inBrowser ? readKnown() : {};
+  const points = inBrowser ? masteredPoints(readPoints()) : [];
 
   if (!inBrowser) return null;
   const answered = seen.filter((item) => item.ok !== undefined);
-  const learned = LEARNED_MODES.some((mode) => known[mode]?.length);
+  const learned = LEARNED_MODES.some((mode) => known[mode]?.length) || points.length > 0;
   if (!answered.length && !learned) {
     return <p className="text-zinc-500">No answers yet.</p>;
   }
@@ -50,6 +53,15 @@ export function Progress() {
             </div>
           );
         })}
+        {/* Grammar points of sentences, right twice on different days. */}
+        <div className="flex flex-col gap-1">
+          <h4 className="text-sm text-zinc-500">Points ({points.length})</h4>
+          {points.length > 0 ? (
+            <p className="text-sm">{[...points].reverse().join(", ")}</p>
+          ) : (
+            <p className="text-sm text-zinc-400">None yet.</p>
+          )}
+        </div>
       </section>
 
       {recent.length > 0 && (

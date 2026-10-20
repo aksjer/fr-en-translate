@@ -5,11 +5,15 @@ import type { ErrorTag } from "@/lib/error-tags";
 import { englishKey, isWordMode, MAX_TEXT_LENGTH, type Frequency } from "@/lib/options";
 import type { Combination } from "@/lib/settings";
 import {
+  masteredPoints,
+  pointsToPractice,
   readKnown,
+  readPoints,
   pastMistakes,
   readSeen,
   recentHistory,
   rememberKnown,
+  rememberPoint,
   rememberResult,
   rememberSeen,
   toReview,
@@ -26,6 +30,8 @@ type Exercise = Combination & {
   review?: boolean;
   // How common the model says the English word or verb is.
   frequency?: Frequency;
+  // The grammar point a sentence practices (as soon as, should).
+  point?: string;
 };
 
 type Correction = {
@@ -40,6 +46,7 @@ type Correction = {
   forms?: [string, string, string];
   tag?: ErrorTag;
   remark?: string;
+  pointRight?: boolean;
 };
 
 // Renders **text** from the API as bold, without using innerHTML.
@@ -112,6 +119,7 @@ export function Trainer() {
       // the missed ones to review: the next item is chosen from them.
       const seen = readSeen();
       const known = readKnown();
+      const points = readPoints();
       const history = recentHistory(seen).map((item) => ({
         ...item,
         text: item.text.slice(0, 300),
@@ -121,9 +129,10 @@ export function Trainer() {
         history,
         known,
         review: { word: toReview(seen, known, "word"), verb: toReview(seen, known, "verb") },
+        points: { mastered: masteredPoints(points), practice: pointsToPractice(points) },
       });
       setExercise(next);
-      rememberSeen(next.text, next.mode, next.frequency);
+      rememberSeen(next.text, next.mode, { frequency: next.frequency, point: next.point });
       setTranslation("");
       setResult(null);
     } catch (e) {
@@ -145,6 +154,7 @@ export function Trainer() {
         tense: exercise.tense,
         kind: exercise.kind,
         focus: exercise.focus,
+        point: exercise.point,
         reference: exercise.reference,
         context: exercise.context,
         pastMistakes: pastMistakes(readSeen(), exercise.mode, exercise.text),
@@ -162,6 +172,9 @@ export function Trainer() {
         tag: correction.isCorrect ? undefined : correction.tag,
         remark: correction.isCorrect ? undefined : correction.remark,
       });
+      if (exercise.point && correction.pointRight !== undefined) {
+        rememberPoint(exercise.point, correction.pointRight);
+      }
       // A word or verb answered right never comes back.
       if (english && correction.isCorrect) {
         rememberKnown(exercise.mode, english);

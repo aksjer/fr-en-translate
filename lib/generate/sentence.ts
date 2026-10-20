@@ -114,6 +114,23 @@ function weakPointsSection(input: GenerateInput) {
     : "";
 }
 
+// The learner's grammar points: a mastered one is never the learning point
+// again, and one to practice again comes back when it fits.
+function pointsSection(input: GenerateInput) {
+  const { mastered = [], practice = [] } = input.points ?? {};
+  return (
+    (mastered.length
+      ? "\n\n## Points mastered\nThe learner got these right twice: never make one of " +
+        `them the learning point again:\n${mastered.join(", ")}`
+      : "") +
+    (practice.length
+      ? "\n\n## Points to practice again\nThe learner missed these or got them right " +
+        "only once. When one fits the learning point, prefer it, in a new sentence:\n" +
+        practice.join(", ")
+      : "")
+  );
+}
+
 export function generateSentence(input: GenerateInput, combination: Combination) {
   const { focus, tense, theme } = combination;
   return generateItem(input, combination, {
@@ -127,6 +144,9 @@ export function generateSentence(input: GenerateInput, combination: Combination)
       `  native speaker would use for this French. It must be the ${tense}: if it isn't`,
       "  natural, change the French, not the tense. Use American words and spelling",
       "  (apartment, color, not flat, colour).",
+      "- point: the English word or structure of the learning point in the reference, in",
+      "  a few words (as soon as, should, did in a question, for + present perfect), or",
+      "  empty if the sentence has no other point than the tense.",
     ],
     task:
       `Write one original French sentence on the theme "${theme}", as long as a line in ` +
@@ -143,6 +163,6 @@ export function generateSentence(input: GenerateInput, combination: Combination)
       VARIETY +
       PRIORITY,
     // Weak points only matter when the code picked no grammar point.
-    sections: focus ? "" : weakPointsSection(input),
+    sections: pointsSection(input) + (focus ? "" : weakPointsSection(input)),
   });
 }

@@ -28,6 +28,8 @@ export const correctInputSchema = z.object({
   // What the item practices: the kind of word, or the grammar point of a sentence.
   kind: z.enum(WORD_KINDS).optional().catch(undefined),
   focus: z.enum(SENTENCE_FOCUSES).optional().catch(undefined),
+  // The exact point of a sentence (as soon as), to tell whether the learner got it.
+  point: z.string().trim().max(60).optional().catch(undefined),
   // A good translation from generation, used as one correct answer among others.
   reference: z.string().trim().max(MAX_TEXT_LENGTH).optional(),
   // A French sentence the learner sees under a verb, showing its meaning.
@@ -68,6 +70,8 @@ export type Correction = {
   isCorrect: boolean;
   // The first remark of a wrong answer, kept in the history.
   remark?: string;
+  // Whether the learner got the sentence's grammar point right.
+  pointRight?: boolean;
 };
 
 // A mistake in these always makes the answer wrong, whatever the model says.
@@ -93,6 +97,10 @@ export const correctionSchema = z.object({
   alternative: z.string(),
 });
 
+// A sentence with a grammar point also says whether the learner got it right,
+// whatever the rest of the answer.
+export const pointCorrectionSchema = correctionSchema.extend({ pointRight: z.boolean() });
+
 // A word or a verb has no "more natural version": the context sentence in
 // English shows it in use, and similar words show the nuances.
 export const wordCorrectionSchema = correctionSchema.omit({ alternative: true }).extend({
@@ -112,7 +120,8 @@ export const verbCorrectionSchema = wordCorrectionSchema.extend({
 
 type CorrectionOutput = Omit<z.infer<typeof correctionSchema>, "alternative"> &
   Partial<Pick<z.infer<typeof correctionSchema>, "alternative">> &
-  Partial<z.infer<typeof verbCorrectionSchema>>;
+  Partial<z.infer<typeof verbCorrectionSchema>> &
+  Partial<Pick<z.infer<typeof pointCorrectionSchema>, "pointRight">>;
 
 // Words and verbs share one rule; each adds what is its own.
 const WORD_RULE =
@@ -237,7 +246,9 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
           ? verbCorrectionSchema
           : wordMode
             ? wordCorrectionSchema
-            : correctionSchema) as z.ZodType<CorrectionOutput>,
+            : input.point
+              ? pointCorrectionSchema
+              : correctionSchema) as z.ZodType<CorrectionOutput>,
       }),
       system: [
         "You are an American English teacher for a French speaker who learns with an app.",
@@ -378,6 +389,13 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
               "- alternative: another correct and natural American English version in common,",
               "  everyday words, with the same meaning as the correction and different from",
               "  both it and the learner's translation.",
+              ...(input.point
+                ? [
+                    `- pointRight: true if the translation expresses « ${input.point} » correctly`,
+                    "  (it or another correct way to say the same thing), false if this point has",
+                    "  a mistake or is missing.",
+                  ]
+                : []),
             ]),
         "",
         "## Categories",
@@ -474,5 +492,7 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
     perfect: isCorrect && mistakes.length === 0,
     isCorrect,
     remark: output.translated ? main?.remark : undefined,
+    ...(input.point &&
+      output.pointRight !== undefined && { pointRight: output.translated && output.pointRight }),
   };
 }
