@@ -1,6 +1,6 @@
 "use client";
 
-import { LEVELS, MODES, TENSES, THEMES, VERB_TYPES } from "@/lib/options";
+import { MODES, TENSES, THEMES, VERB_TYPES, WORD_TYPES } from "@/lib/options";
 import { settingApplies, type Settings } from "@/lib/settings";
 
 type Props = {
@@ -17,13 +17,15 @@ export function SettingsPanel({ settings, onChange }: Props) {
         selected={settings.modes ?? []}
         onChange={(modes) => onChange({ ...settings, modes })}
       />
-      <ChipGroup
-        label="Levels"
-        options={LEVELS}
-        selected={settings.levels ?? []}
-        onChange={(levels) => onChange({ ...settings, levels })}
-      />
       {/* Mode-specific settings only show when a selected mode uses them. */}
+      {settingApplies(settings, "wordType") && (
+        <ChipGroup
+          label="Word types"
+          options={WORD_TYPES}
+          selected={settings.wordTypes ?? []}
+          onChange={(wordTypes) => onChange({ ...settings, wordTypes })}
+        />
+      )}
       {settingApplies(settings, "verbType") && (
         <ChipGroup
           label="Verbs (in English)"

@@ -1,7 +1,7 @@
 // One French sentence whose translation needs the English tense from the settings.
 import { ERROR_TAG_DEFINITIONS, ERROR_TAGS, type ErrorTag } from "@/lib/error-tags";
-import { generateItem, type GenerateInput } from "@/lib/generate/shared";
-import { TENSE_GUIDES, type Level } from "@/lib/options";
+import { COMMON_ENGLISH, generateItem, type GenerateInput } from "@/lib/generate/shared";
+import { TENSE_GUIDES, type SentenceFocus } from "@/lib/options";
 import type { Combination } from "@/lib/settings";
 
 // The text field. "As people speak it today" gave slang and negations
@@ -14,28 +14,43 @@ const SENTENCE_TEXT_FIELD = [
   "  and no translation or explanation. Check the spelling and accents of every word.",
 ];
 
-// Sentences get the same frequency lists as words, so they use useful English.
-function sentenceVocabulary(level: Level) {
-  return (
-    "\nIts American English translation uses common words (Oxford 5000, COCA) at or " +
-    `below CEFR ${level}.`
-  );
-}
+// Sentences get the same rule as words, so they use useful English.
+const SENTENCE_VOCABULARY = `\nIts American English translation uses only words ${COMMON_ENGLISH}.`;
+
+// What each grammar point means in a sentence, so the French needs it.
+const FOCUS_GUIDES: Record<SentenceFocus, string> = {
+  auxiliary:
+    "an English auxiliary the French doesn't show word for word: do, does or did in a " +
+    "question or a negation, have in a perfect tense, be in a continuous tense, or will",
+  modal: "an English modal (can, could, should, must, might, would, have to)",
+  preposition:
+    "an English preposition that French speakers often get wrong (on Monday, at night, " +
+    "for two years, depend on, wait for, in the car)",
+  conjunction:
+    "an English conjunction or linking word (although, unless, while, as soon as, so, " +
+    "because, whereas)",
+  adverb:
+    "a common English adverb and its place in the sentence (already, still, yet, ever, " +
+    "always, just, almost)",
+};
 
 // One learning point besides the tense: a sentence with several difficulties
-// is hard to learn from, and the correction mixes them up. A recent mistake
-// comes first, since it is more precise than a weak point's category, and
-// weak points are almost always there.
-function learningPoint(level: Level) {
-  return (
-    "\n\n## Learning point\nThe tense is the main point of the sentence. Add at most " +
-    "one other point, the first of these that fits the tense, without pointing it out:\n" +
-    "1. the difficulty of a wrong item marked (recent) in the history, when its remark " +
-    "names it;\n" +
-    "2. else one of the weak points below, if any;\n" +
-    `3. else one word or phrase that learners usually learn at CEFR ${level}.\n` +
-    "Never more than one: a sentence with several difficulties is hard to learn from."
-  );
+// is hard to learn from, and the correction mixes them up. The code picks a
+// grammar point for most sentences; the others practice a recent mistake
+// (more precise than a weak point's category) or a weak point.
+function learningPoint(focus?: SentenceFocus) {
+  return focus
+    ? "\n\n## Learning point\nThe tense is the main point of the sentence. Its natural " +
+        `translation must also need ${FOCUS_GUIDES[focus]}, without pointing it out. ` +
+        "Never more than this one other point: a sentence with several difficulties is " +
+        "hard to learn from."
+    : "\n\n## Learning point\nThe tense is the main point of the sentence. Add at most " +
+        "one other point, the first of these that fits the tense, without pointing it out:\n" +
+        "1. the difficulty of a wrong item marked (recent) in the history, when its remark " +
+        "names it;\n" +
+        "2. else one of the weak points below, if any;\n" +
+        "3. else one common word or phrase that French speakers often get wrong.\n" +
+        "Never more than one: a sentence with several difficulties is hard to learn from.";
 }
 
 // The model invents the situation itself; this keeps it from always falling
@@ -51,7 +66,7 @@ const VARIETY =
 
 const PRIORITY =
   "\n\n## Priority\nIf two instructions conflict, the tense and the theme come first, " +
-  "then the level, then the learning point, then the variety.";
+  "then common words, then the learning point, then the variety.";
 
 // Spelling, punctuation and "anything else" can't be built into a sentence.
 const UNPRACTICED_TAGS: ErrorTag[] = ["spelling", "punctuation", "other"];
@@ -82,7 +97,7 @@ function weakPointsSection(input: GenerateInput) {
 }
 
 export function generateSentence(input: GenerateInput, combination: Combination) {
-  const { level, tense, theme } = combination;
+  const { focus, tense, theme } = combination;
   return generateItem(input, combination, {
     // Planning the verb first keeps the tense right.
     fields: [
@@ -96,17 +111,19 @@ export function generateSentence(input: GenerateInput, combination: Combination)
       "  (apartment, color, not flat, colour).",
     ],
     task:
-      `Write one original French sentence on the theme "${theme}", of a length typical ` +
-      `of CEFR ${level}, whose natural American English translation is in the ${tense}: ` +
+      `Write one original French sentence on the theme "${theme}", as long as a line in ` +
+      "a conversation, a video or a news story, whose natural American English " +
+      `translation is in the ${tense}: ` +
       `${tense && TENSE_GUIDES[tense].english}. ` +
       `To get it, use ${tense && TENSE_GUIDES[tense].french}. ` +
       "Choose the person of the main verb (je, tu, il, elle, on, nous, vous, ils or " +
       "elles) and the sentence type (statement, question or negation; an exclamation only " +
       "when the situation calls for one)." +
-      sentenceVocabulary(level) +
-      learningPoint(level) +
+      SENTENCE_VOCABULARY +
+      learningPoint(focus) +
       VARIETY +
       PRIORITY,
-    sections: weakPointsSection(input),
+    // Weak points only matter when the code picked no grammar point.
+    sections: focus ? "" : weakPointsSection(input),
   });
 }

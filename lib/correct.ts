@@ -10,7 +10,6 @@ import {
 import {
   englishKey,
   isWordMode,
-  LEVELS,
   MAX_PAST_MISTAKES,
   MAX_TEXT_LENGTH,
   MODES,
@@ -23,7 +22,6 @@ export const correctInputSchema = z.object({
   mode: z.enum(MODES).default("sentence"),
   text: z.string().trim().min(1).max(MAX_TEXT_LENGTH),
   translation: z.string().trim().min(1).max(MAX_TEXT_LENGTH),
-  level: z.enum(LEVELS).optional(),
   tense: z.enum(TENSES).optional(),
   // A good translation from generation, used as one correct answer among others.
   reference: z.string().trim().max(MAX_TEXT_LENGTH).optional(),
@@ -276,9 +274,6 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
               "  perfect with no finished time (I have eaten) is right too, with no mistake. A",
               '  tense that changes the meaning or is ungrammatical ("I live here since 2010",',
               '  "when he will arrive") is wrong.',
-              ...(input.level === "A1" || input.level === "A2"
-                ? ["- At this level, accept a simple but correct phrasing."]
-                : []),
             ]),
         "- Be fair: never leave out a real mistake to be nice. Keep the remarks short.",
         "",
@@ -357,7 +352,7 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
               "- inContext: the French context sentence translated into natural American",
               "  English, with the English word of the correction wrapped in ** **",
               '  (e.g. "The **leaves** turn red in the fall."). If no context is given, write',
-              "  one short, natural sentence at the learner's level that uses it instead.",
+              "  one short, natural everyday sentence that uses it instead.",
               "- similar: up to 4 other English words close in meaning to the correction, or",
               "  often confused with it, the most useful first (e.g. for « venir »: arrive,",
               "  get here), or an empty list if no word is really close. Include the reference",
@@ -373,8 +368,8 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
                 : []),
             ]
           : [
-              "- alternative: another correct and natural American English version at the",
-              "  learner's level, with the same meaning as the correction and different from",
+              "- alternative: another correct and natural American English version in common,",
+              "  everyday words, with the same meaning as the correction and different from",
               "  both it and the learner's translation.",
             ]),
         "",
@@ -407,7 +402,6 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
         "the French as added meaning.",
       ].join("\n"),
       prompt: [
-        input.level && `CEFR level: ${input.level}`,
         input.tense &&
           `Expected English tense: the ${input.tense} (${TENSE_GUIDES[input.tense].english})`,
         `<french>${untagged(input.text)}</french>`,

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ErrorTag } from "@/lib/error-tags";
-import { englishKey, isWordMode, MAX_TEXT_LENGTH } from "@/lib/options";
+import { englishKey, isWordMode, MAX_TEXT_LENGTH, type Frequency } from "@/lib/options";
 import type { Combination } from "@/lib/settings";
 import {
   readKnown,
@@ -24,6 +24,8 @@ type Exercise = Combination & {
   context?: string;
   // A missed word or verb given again.
   review?: boolean;
+  // How common the model says the English word or verb is.
+  frequency?: Frequency;
 };
 
 type Correction = {
@@ -121,7 +123,7 @@ export function Trainer() {
         review: { word: toReview(seen, known, "word"), verb: toReview(seen, known, "verb") },
       });
       setExercise(next);
-      rememberSeen(next.text, next.mode);
+      rememberSeen(next.text, next.mode, next.frequency);
       setTranslation("");
       setResult(null);
     } catch (e) {
@@ -140,7 +142,6 @@ export function Trainer() {
         mode: exercise.mode,
         text: exercise.text,
         translation,
-        level: exercise.level,
         tense: exercise.tense,
         reference: exercise.reference,
         context: exercise.context,
@@ -185,7 +186,8 @@ export function Trainer() {
   const tags = [
     exercise?.mode,
     exercise?.review ? "review" : undefined,
-    exercise?.level,
+    exercise?.kind,
+    exercise?.focus && `focus: ${exercise.focus}`,
     exercise?.verbType && `${exercise.verbType} verb`,
     exercise?.tense,
     exercise?.theme,

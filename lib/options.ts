@@ -2,8 +2,6 @@
 
 export const MODES = ["word", "verb", "sentence"] as const;
 
-export const LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
-
 // The longest item or answer, in characters. The answer box, the generated item
 // and the correction share it, so anything generated can be corrected.
 export const MAX_TEXT_LENGTH = 1000;
@@ -104,20 +102,6 @@ export const TENSE_GUIDES: Record<
   },
 };
 
-// The lowest English level each tense fits. Only used when the learner selects
-// no tense: a tense they select is always used.
-export const TENSE_LEVELS: Record<
-  (typeof TENSES)[number],
-  (typeof LEVELS)[number]
-> = {
-  present: "A1",
-  past: "A2",
-  "present perfect": "A2",
-  future: "A2",
-  conditional: "B1",
-  "past perfect": "B1",
-};
-
 // Regular or irregular in English, since that's what the learner must produce.
 export const VERB_TYPES = ["regular", "irregular"] as const;
 
@@ -132,7 +116,38 @@ export const THEMES = [
   "technology",
   "nature",
   "culture",
+  "news",
+  "cars and EVs",
+  "movies and TV shows",
 ] as const;
+
+// The kinds of words the learner practices. A word item is one of them, except
+// an auxiliary, which has no French word of its own; a sentence needs one of
+// the grammar ones.
+export const WORD_TYPES = [
+  "noun",
+  "adjective",
+  "adverb",
+  "modal",
+  "preposition",
+  "conjunction",
+  "auxiliary",
+] as const;
+export const WORD_KINDS = [
+  "noun",
+  "adjective",
+  "adverb",
+  "modal",
+  "preposition",
+  "conjunction",
+] as const satisfies readonly WordType[];
+export const SENTENCE_FOCUSES = [
+  "auxiliary",
+  "modal",
+  "preposition",
+  "conjunction",
+  "adverb",
+] as const satisfies readonly WordType[];
 
 export type Mode = (typeof MODES)[number];
 
@@ -140,14 +155,23 @@ export type Mode = (typeof MODES)[number];
 export function isWordMode(mode: Mode) {
   return mode === "word" || mode === "verb";
 }
-export type Level = (typeof LEVELS)[number];
 export type Tense = (typeof TENSES)[number];
 export type VerbType = (typeof VERB_TYPES)[number];
 export type Theme = (typeof THEMES)[number];
 
+// How common the model says an English word or verb is, stored with the item.
+export const FREQUENCIES = ["everyday", "sometimes", "rare"] as const;
+export type Frequency = (typeof FREQUENCIES)[number];
+export type WordType = (typeof WORD_TYPES)[number];
+export type WordKind = (typeof WORD_KINDS)[number];
+export type SentenceFocus = (typeof SENTENCE_FOCUSES)[number];
+
 // Which settings apply to each mode; the others are ignored for that mode.
 export const MODE_USES = {
-  word: { tense: false, verbType: false, theme: true },
-  verb: { tense: false, verbType: true, theme: true },
-  sentence: { tense: true, verbType: false, theme: true },
-} satisfies Record<Mode, { tense: boolean; verbType: boolean; theme: boolean }>;
+  word: { tense: false, verbType: false, theme: true, wordType: true },
+  verb: { tense: false, verbType: true, theme: true, wordType: false },
+  sentence: { tense: true, verbType: false, theme: true, wordType: true },
+} satisfies Record<
+  Mode,
+  { tense: boolean; verbType: boolean; theme: boolean; wordType: boolean }
+>;

@@ -1,17 +1,19 @@
 import { z } from "zod";
 import {
-  LEVELS,
   MODE_USES,
   MODES,
-  TENSE_LEVELS,
+  SENTENCE_FOCUSES,
   TENSES,
   THEMES,
   VERB_TYPES,
-  type Level,
+  WORD_KINDS,
+  WORD_TYPES,
   type Mode,
+  type SentenceFocus,
   type Tense,
   type Theme,
   type VerbType,
+  type WordKind,
 } from "@/lib/options";
 
 // The learner's settings (stored in localStorage).
@@ -21,20 +23,24 @@ import {
 // .max() keeps the payload small since the lists can't hold more than the options.
 export const settingsSchema = z.object({
   modes: z.array(z.enum(MODES)).max(MODES.length).optional(),
-  levels: z.array(z.enum(LEVELS)).max(LEVELS.length).optional(),
   tenses: z.array(z.enum(TENSES)).max(TENSES.length).optional(),
   verbTypes: z.array(z.enum(VERB_TYPES)).max(VERB_TYPES.length).optional(),
   themes: z.array(z.enum(THEMES)).max(THEMES.length).optional(),
+  wordTypes: z.array(z.enum(WORD_TYPES)).max(WORD_TYPES.length).optional(),
 });
 
 export type Settings = z.infer<typeof settingsSchema>;
 
 export type Combination = {
   mode: Mode;
-  level: Level;
   tense?: Tense;
   verbType?: VerbType;
   theme?: Theme;
+  // The kind of word of a word item.
+  kind?: WordKind;
+  // The grammar point a sentence needs. None for about 1 in 4 sentences, which
+  // practice a recent mistake or a weak point instead.
+  focus?: SentenceFocus;
 };
 
 function pick<T>(selected: readonly T[] | undefined, all: readonly T[]): T {
@@ -42,28 +48,32 @@ function pick<T>(selected: readonly T[] | undefined, all: readonly T[]): T {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
-// With no tense selected, only the tenses whose English fits the level.
-function tensesFor(level: Level) {
-  return TENSES.filter(
-    (tense) => LEVELS.indexOf(TENSE_LEVELS[tense]) <= LEVELS.indexOf(level),
-  );
+// The selected word types that fit the mode; pick takes all of them if none does.
+function typesFor<T extends string>(selected: readonly string[] | undefined, all: readonly T[]) {
+  return all.filter((type) => selected?.includes(type));
 }
+
+// About 1 in 4 sentences practice the learner's own mistakes instead.
+const MISTAKE_SENTENCE_CHANCE = 0.25;
 
 // One random value of each setting the mode uses.
 export function pickCombination(settings: Settings): Combination {
   const mode = pick(settings.modes, MODES);
-  const level = pick(settings.levels, LEVELS);
   const uses = MODE_USES[mode];
   return {
     mode,
-    level,
-    ...(uses.tense && {
-      tense: pick(settings.tenses, tensesFor(level)),
-    }),
+    ...(uses.tense && { tense: pick(settings.tenses, TENSES) }),
     ...(uses.verbType && {
       verbType: pick(settings.verbTypes, VERB_TYPES),
     }),
     ...(uses.theme && { theme: pick(settings.themes, THEMES) }),
+    ...(mode === "word" && {
+      kind: pick(typesFor(settings.wordTypes, WORD_KINDS), WORD_KINDS),
+    }),
+    ...(mode === "sentence" &&
+      Math.random() >= MISTAKE_SENTENCE_CHANCE && {
+        focus: pick(typesFor(settings.wordTypes, SENTENCE_FOCUSES), SENTENCE_FOCUSES),
+      }),
   };
 }
 

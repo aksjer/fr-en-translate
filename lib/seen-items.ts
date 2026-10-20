@@ -3,6 +3,7 @@ import {
   MAX_KNOWN,
   MAX_PAST_MISTAKES,
   MAX_REVIEW,
+  type Frequency,
   type Mode,
 } from "@/lib/options";
 
@@ -28,6 +29,8 @@ export type SeenItem = {
   ok?: boolean;
   tag?: string;
   remark?: string;
+  // How common the model said the English word or verb is.
+  frequency?: Frequency;
 };
 
 export function readSeen(): SeenItem[] {
@@ -88,8 +91,8 @@ function writeSeen(items: SeenItem[]) {
   changed();
 }
 
-export function rememberSeen(text: string, mode: Mode) {
-  writeSeen([...readSeen(), { text: text.trim(), mode }]);
+export function rememberSeen(text: string, mode: Mode, frequency?: Frequency) {
+  writeSeen([...readSeen(), { text: text.trim(), mode, ...(frequency && { frequency }) }]);
 }
 
 // Adds the result to the last time this item was shown.

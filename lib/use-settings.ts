@@ -6,7 +6,7 @@ import { settingsSchema, type Settings } from "@/lib/settings";
 const STORAGE_KEY = "fr-en-translate:settings";
 const EMPTY: Settings = {
   modes: [],
-  levels: [],
+  wordTypes: [],
   tenses: [],
   verbTypes: [],
   themes: [],

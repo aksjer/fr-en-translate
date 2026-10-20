@@ -7,6 +7,7 @@ import {
   CANDIDATES,
   chooseAnswer,
   commonAt,
+  FREQUENCY_FIELD,
   GOAL,
   history,
   historySection,
@@ -26,7 +27,7 @@ import {
   retryIfInvalid,
   thinkingFor,
 } from "@/lib/model";
-import { MAX_TEXT_LENGTH, type VerbType } from "@/lib/options";
+import { FREQUENCIES, MAX_TEXT_LENGTH, type VerbType } from "@/lib/options";
 import type { Combination } from "@/lib/settings";
 
 // A verb gets its own fields: the English verb first, then its forms, then
@@ -37,6 +38,7 @@ export const verbSchema = z.object({
   participle: z.string(),
   text: z.string(),
   context: z.string(),
+  frequency: z.enum(FREQUENCIES),
 });
 
 // A regular verb's past and participle are the same -ed form built on it
@@ -86,6 +88,7 @@ function checkedVerb(output: z.infer<typeof verbSchema>, verbType?: VerbType) {
     verbType: (regular ? "regular" : "irregular") as VerbType,
     text: withApostrophes(text),
     context: withApostrophes(context),
+    frequency: output.frequency,
   };
 }
 
@@ -97,7 +100,7 @@ export async function generateVerb(
   input: GenerateInput,
   combination: Combination,
 ): Promise<Exercise> {
-  const { level, theme } = combination;
+  const { theme } = combination;
   const verbType = combination.verbType ?? "regular";
   const { known, recent } = history(input, "verb");
   const review = reviewFor(input, "verb");
@@ -137,18 +140,19 @@ export async function generateVerb(
         "  infinitive, so it must leave only this meaning possible (e.g. « Nous louons un",
         "  appartement près de la plage. » for rent, since louer can also mean to praise).",
         "  Check its spelling and accents.",
+        ...FREQUENCY_FIELD,
       ].join("\n"),
       prompt:
         GOAL +
         "\n\n" +
-        learner("verb", level) +
+        learner("verb") +
         "\n\n## Task\n" +
         (review
           ? reviewTask(review, "verb", theme)
           : `Choose ${CANDIDATES} different verbs. Each one is ` +
-            `${commonAt(level, `${verbType} verb`)}, useful when talking about ` +
+            `${commonAt(`${verbType} verb`)}, useful when talking about ` +
             `"${theme}". The theme is only a direction: if no verb fits it and every other ` +
-            "rule, choose one loosely related to it rather than one at another level. " +
+            "rule, choose one loosely related to it rather than a less common verb. " +
             "Never a verb that looks like its French translation (decide → décider), or one " +
             "whose look-alike French verb means something else (to attend is « assister à », " +
             "not « attendre »). " +
@@ -196,6 +200,7 @@ export async function generateVerb(
     context: verb.context,
     ...combination,
     verbType: verb.verbType,
+    frequency: verb.frequency,
     // A review whose answer isn't a listed verb is a new verb.
     ...(review && verb.fits && { review: true }),
   };

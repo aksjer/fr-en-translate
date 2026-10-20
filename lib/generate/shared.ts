@@ -17,8 +17,9 @@ import {
   MAX_KNOWN,
   MAX_REVIEW,
   MAX_TEXT_LENGTH,
+  FREQUENCIES,
   MODES,
-  type Level,
+  type Frequency,
   type Mode,
 } from "@/lib/options";
 import { settingsSchema, type Combination } from "@/lib/settings";
@@ -88,6 +89,8 @@ export type Exercise = Combination & {
   context?: string;
   // A missed word or verb given again.
   review?: boolean;
+  // How common the model says the English word or verb is.
+  frequency?: Frequency;
 };
 
 // What the app is for: with it, the model can choose well in cases no rule covers.
@@ -95,27 +98,37 @@ export const GOAL =
   "## Goal\n" +
   "The app helps a French speaker learn the most useful American English they don't know " +
   "yet. They translate your item into American English, and another teacher grades it. " +
-  "Each item should teach them something new and useful at their level, or something " +
-  "they got wrong before.";
+  "Each item should teach them something new and useful in everyday American English, " +
+  "or something they got wrong before.";
 
-// The level is the learner's English level: any French is easy for them, so what
-// matters is the English the translation needs.
-export function learner(mode: Mode, level: Level) {
-  const intro = `## Learner\nA native French speaker learning American English, at CEFR ${level} in English.`;
+// Any French is easy for the learner: what matters is the English the
+// translation needs.
+export function learner(mode: Mode) {
+  const intro =
+    "## Learner\nA native French speaker learning American English. They want the English " +
+    "used every day: in conversations, videos, TV shows, movies and the news.";
   if (isWordMode(mode)) return intro;
   return `${intro} The French is never the difficulty: the English needed to translate it is.`;
 }
 
-// The learner wants the most useful English: words from the Oxford 5000, which
-// gives a CEFR level to each word up to C1. "A C1 learner should know" gave
-// basic words such as lose at every level.
-export function commonAt(level: Level, kind: string) {
-  return level === "C2"
-    ? `an advanced ${kind}, beyond the Oxford 5000, that learners usually learn at CEFR C2`
-    : `${/^[aeiou]/.test(kind) ? "an" : "a"} ${kind} common in American English (COCA) ` +
-        `from the Oxford 5000 that learners usually learn at CEFR ${level}, not at an ` +
-        "easier level";
+// The learner wants only the most common English, whatever their level: a
+// small model knows the Oxford 3000 list, but it can't count frequency ranks.
+export const COMMON_ENGLISH =
+  "among the most common words of everyday American English (the Oxford 3000, the top " +
+  "of COCA): words heard every week in conversations, videos, TV shows and the news " +
+  "(until, should, although, already, tired, kitchen), never a rare or specialized " +
+  "word (craftsmanship, journey for « périple », to reap)";
+
+export function commonAt(kind: string) {
+  return `${/^[aeiou]/.test(kind) ? "an" : "a"} ${kind} ${COMMON_ENGLISH}`;
 }
+
+// The model rates each word, so the history shows how common the words it
+// gives are. Nothing is asked again for a rare one.
+export const FREQUENCY_FIELD = [
+  "- frequency: how often an American hears this English word: everyday (every day or",
+  "  every week), sometimes, or rare.",
+];
 
 // Gemini sometimes drops the apostrophe of l' (« dans l avion »): the code adds
 // it back. Only l', since a lone d or j can be a letter (la vitamine D, le jour J).
@@ -285,9 +298,13 @@ const wordExerciseSchema = z.object({
   text: z.string(),
   context: z.string(),
   reference: z.string(),
+  frequency: z.enum(FREQUENCIES),
 });
 
-type ItemAnswer = z.infer<typeof exerciseSchema> & { context?: string };
+type ItemAnswer = z.infer<typeof exerciseSchema> & {
+  context?: string;
+  frequency?: Frequency;
+};
 
 // Checks one answer in code, and cleans it up for the page.
 function checkedItem(output: ItemAnswer, mode: Mode) {
@@ -323,6 +340,7 @@ function checkedItem(output: ItemAnswer, mode: Mode) {
     reference,
     english: englishKey(reference),
     ...(context && { context }),
+    ...(output.frequency && { frequency: output.frequency }),
   };
 }
 
@@ -354,7 +372,7 @@ export async function generateItem(
     review?: ReviewItem[];
   },
 ): Promise<Exercise> {
-  const { mode, level } = combination;
+  const { mode } = combination;
   const { known, recent } = history(input, mode);
   const several = isWordMode(mode) && !prompt.review;
   const schema = isWordMode(mode) ? wordExerciseSchema : exerciseSchema;
@@ -386,11 +404,12 @@ export async function generateItem(
             ]
           : []),
         ...prompt.fields,
+        ...(isWordMode(mode) ? FREQUENCY_FIELD : []),
       ].join("\n"),
       prompt:
         GOAL +
         "\n\n" +
-        learner(mode, level) +
+        learner(mode) +
         "\n\n## Task\n" +
         prompt.task +
         // A review only gives a listed item again: the history would contradict it.
@@ -425,6 +444,7 @@ export async function generateItem(
     text: item.text,
     reference: item.reference,
     ...(item.context && { context: item.context }),
+    ...("frequency" in item && item.frequency && { frequency: item.frequency }),
     ...combination,
     // A review whose answer isn't a listed item is a new word.
     ...(prompt.review && item.fits && { review: true }),
