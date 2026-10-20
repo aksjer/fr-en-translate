@@ -123,6 +123,8 @@ export function Trainer() {
   const [result, setResult] = useState<Correction | null>(null);
   // The remarks the model has written so far, shown while it corrects.
   const [draftRemarks, setDraftRemarks] = useState<string[]>([]);
+  // The microphone is writing the answer.
+  const [listening, setListening] = useState(false);
   const [loading, setLoading] = useState<"generate" | "correct" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -198,7 +200,7 @@ export function Trainer() {
   }
 
   async function correct() {
-    if (!exercise || !translation.trim()) return;
+    if (!exercise || !translation.trim() || listening) return;
     setLoading("correct");
     setError(null);
     setDraftRemarks([]);
@@ -358,12 +360,14 @@ export function Trainer() {
                   }
                 }}
                 disabled={loading !== null || result !== null}
+                readOnly={listening}
                 className="min-w-0 flex-1 rounded-xl border border-zinc-300 bg-transparent p-3 text-lg outline-none focus-visible:ring-2 focus-visible:ring-blue-600 dark:border-zinc-700"
               />
               <MicButton
                 value={translation}
                 onChange={setTranslation}
                 disabled={loading !== null || result !== null}
+                onListeningChange={setListening}
               />
             </div>
 

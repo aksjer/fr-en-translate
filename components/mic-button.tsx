@@ -7,6 +7,9 @@ type Props = {
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
+  // While listening, the page keeps the answer as it is: typing or checking
+  // would race the words still coming in.
+  onListeningChange?: (listening: boolean) => void;
 };
 
 // The browser's own speech recognition (Chrome, Edge, Safari); none in Firefox.
@@ -19,14 +22,20 @@ const noSubscribe = () => () => {};
 // A microphone icon: the learner says the answer in English, and the words
 // are written in the answer field, to check before sending. Hidden where the
 // browser can't recognize speech.
-export function MicButton({ value, onChange, disabled = false }: Props) {
+export function MicButton({
+  value,
+  onChange,
+  disabled = false,
+  onListeningChange,
+}: Props) {
   const supported = useSyncExternalStore(
     noSubscribe,
     () => recognitionClass() !== undefined,
     () => false,
   );
   const [listening, setListening] = useState(false);
-  const [failed, setFailed] = useState(false);
+  // Why the last try failed: a blocked microphone needs the browser settings.
+  const [failed, setFailed] = useState<"blocked" | "error" | null>(null);
   const recognition = useRef<SpeechRecognition | null>(null);
 
   // Leaving the exercise stops listening.
@@ -34,6 +43,11 @@ export function MicButton({ value, onChange, disabled = false }: Props) {
   useEffect(() => {
     if (disabled) recognition.current?.abort();
   }, [disabled]);
+  // The page hears when listening starts and stops, and when the button goes.
+  useEffect(() => {
+    onListeningChange?.(listening);
+    return () => onListeningChange?.(false);
+  }, [listening]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!supported) return null;
 
@@ -57,19 +71,35 @@ export function MicButton({ value, onChange, disabled = false }: Props) {
     };
     listener.onerror = (event) => {
       // Silence or a stop isn't a failure.
-      if (event.error !== "no-speech" && event.error !== "aborted") setFailed(true);
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        setFailed("blocked");
+      } else if (event.error !== "no-speech" && event.error !== "aborted") {
+        setFailed("error");
+      }
     };
     listener.onend = () => {
       setListening(false);
       recognition.current = null;
     };
+    try {
+      listener.start();
+    } catch {
+      // Some browsers throw at once when the microphone is blocked.
+      setFailed("blocked");
+      return;
+    }
     recognition.current = listener;
-    setFailed(false);
+    setFailed(null);
     setListening(true);
-    listener.start();
   }
 
-  const label = listening ? "Stop listening" : failed ? "Microphone unavailable. Try again" : "Speak your answer";
+  const label = listening
+    ? "Stop listening"
+    : failed === "blocked"
+      ? "Microphone blocked. Allow it in your browser settings"
+      : failed === "error"
+        ? "Microphone unavailable. Try again"
+        : "Speak your answer";
   return (
     <button
       type="button"
