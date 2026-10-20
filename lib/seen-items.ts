@@ -328,7 +328,8 @@ export function masteredPoints(points: Record<string, PointProgress>) {
 // The points missed or right only once, the most recent first.
 export function pointsToPractice(points: Record<string, PointProgress>) {
   return Object.keys(points)
-    .filter((key) => points[key].right < POINT_MASTERY)
+    // One right today waits for tomorrow: a second right answer today wouldn't count.
+    .filter((key) => points[key].right < POINT_MASTERY && points[key].lastRight !== today())
     .reverse()
     .slice(0, MAX_POINTS_TO_PRACTICE);
 }

@@ -174,10 +174,15 @@ export function Trainer() {
         pastMistakes: pastMistakes(readSeen(), exercise.mode),
       });
       setResult(correction);
-      const english =
+      const expected =
         isWordMode(exercise.mode) && exercise.reference
           ? englishKey(exercise.reference)
           : undefined;
+      // A right synonym (sofa for couch) is the word learned, and the one the
+      // history keeps: the expected word, shown among the similar words, can
+      // then come back as an item. Its correction fixes a slip (colour).
+      const own = englishKey(correction.correction.replaceAll("**", "").replace(/[.!?]+$/, ""));
+      const english = expected && correction.isCorrect && own ? own : expected;
       const answer = translation.trim().slice(0, 300);
       rememberResult(exercise.text, {
         english,
@@ -197,14 +202,8 @@ export function Trainer() {
       if (exercise.point && correction.pointResult) {
         rememberPoint(exercise.point, correction.pointResult);
       }
-      // A word or verb answered right never comes back. Only the word the
-      // learner wrote is learned (its correction fixes a slip such as colour):
-      // a right synonym doesn't teach the expected word, which the correction
-      // shows among the similar words, so it can come back as an item.
-      if (english && correction.isCorrect) {
-        const own = englishKey(correction.correction.replaceAll("**", "").replace(/[.!?]+$/, ""));
-        rememberKnown(exercise.mode, own || english);
-      }
+      // A word or verb answered right never comes back.
+      if (english && correction.isCorrect) rememberKnown(exercise.mode, english);
     } catch (e) {
       setError((e as Error).message);
     } finally {

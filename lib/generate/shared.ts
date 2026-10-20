@@ -1,7 +1,6 @@
 // What every mode's prompt shares: the request from the page, the learner,
 // their history, and the call for the modes that return an item and its reference.
 import { generateText, Output } from "ai";
-import { decodeHTML } from "entities";
 import { z } from "zod";
 import {
   InvalidAnswerError,
@@ -9,6 +8,7 @@ import {
   model,
   retryIfInvalid,
   thinkingFor,
+  withoutEntities,
 } from "@/lib/model";
 import {
   englishKey,
@@ -197,10 +197,10 @@ export const FREQUENCY_FIELD = [
 // Gemini sometimes drops accented letters, leaving a space in their place
 // (« je suis tr s occup . »). French never puts a space before a period or a
 // comma, so that space shows a broken text; the item is asked again.
-// Gemini also writes accents as HTML entities (« malgr&eacute; »): decodeHTML
-// turns them into letters, and one left over shows a broken text too.
+// An HTML entity left over after withoutEntities shows a broken text too; a
+// lone & (AT&T, H&M) is fine.
 export function hasDroppedLetters(text: string) {
-  return /\s[.,]/.test(text) || /&#?[a-z0-9]/i.test(text);
+  return /\s[.,]/.test(text) || /&(#\d+|#x[0-9a-f]+|[a-z]+);/i.test(text);
 }
 
 // Gemini sometimes drops the apostrophe of l' (« dans l avion »): the code adds
@@ -227,14 +227,16 @@ export function history(input: GenerateInput, mode: Mode) {
 
 // The code decides when a word or verb is a review of a missed one: left to
 // the model, missed items came back too often or never. One missed today
-// always comes back (the page only sends it a few items later); older ones
-// come back by chance.
+// comes back for sure (the page only sends it a few items later), but never
+// twice in a row, so new items still come; older ones come back by chance.
 const REVIEW_CHANCE = 0.25;
 
 export function reviewFor(input: GenerateInput, mode: "word" | "verb") {
   const items = input.review?.[mode] ?? [];
   if (!items.length) return undefined;
-  return items[0].today || Math.random() < REVIEW_CHANCE ? items : undefined;
+  const last = input.history?.filter((item) => item.mode === mode).at(-1);
+  const due = items[0].today && !last?.review;
+  return due || Math.random() < REVIEW_CHANCE ? items : undefined;
 }
 
 // The task of a review: one of the missed items, as is, with a new context.
@@ -361,6 +363,7 @@ export function tryAgainSection(answers: Choice[], review: boolean) {
 // vary its choices and test a missed point again.
 export function historySection(items: HistoryItem[], mode: Mode) {
   if (!items.length) return "";
+  const lastRetest = items.findLastIndex((item) => item.retest);
   const lines = items.map((item, index) => {
     const date = item.at ? `${item.at.slice(0, 10)} ` : "";
     const context = item.context ? ` (context: « ${item.context} »)` : "";
@@ -390,9 +393,12 @@ export function historySection(items: HistoryItem[], mode: Mode) {
     const remarks = item.mistakes?.length
       ? item.mistakes.map((mistake) => mistake.remark).join(" / ")
       : item.remark;
-    // The last 5 sentences can give the next one its extra learning point.
+    // The last 5 sentences can give the next one its extra learning point,
+    // unless a retest already practiced their mistake.
     const recent =
-      !isWordMode(mode) && items.length - index <= 5 ? " (recent)" : "";
+      !isWordMode(mode) && items.length - index <= 5 && index > lastRetest
+        ? " (recent)"
+        : "";
     const result =
       item.ok === undefined
         ? "unanswered"
@@ -467,14 +473,14 @@ type ItemAnswer = z.infer<typeof exerciseSchema> & {
 // Checks one answer in code, and cleans it up for the page.
 function checkedItem(output: ItemAnswer, mode: Mode) {
   // The situation only helps the model think; the page doesn't need it.
-  const raw = decodeHTML(output.text.trim());
+  const raw = output.text.trim();
   const text = withApostrophes(raw);
   if (text !== raw) console.warn("Added a missing apostrophe:", raw);
-  const reference = decodeHTML(output.reference.trim());
+  const reference = output.reference.trim();
   const context =
     output.context === undefined
       ? undefined
-      : withApostrophes(decodeHTML(output.context.trim()));
+      : withApostrophes(output.context.trim());
   if (!text || !reference || context === "") {
     throw new InvalidAnswerError("Empty item, context or reference");
   }
@@ -542,6 +548,8 @@ export async function generateItem(
 
   let attempt = 0;
   let tryAgain = "";
+  // A usable first answer, kept if the one asked again is broken.
+  let fallback: (ReturnType<typeof checkedItem> & { fits: boolean }) | undefined;
   const item = await retryIfInvalid(async () => {
     attempt++;
     const { output } = await generateText({
@@ -582,9 +590,11 @@ export async function generateItem(
         tryAgain,
     });
 
-    const answers = several
-      ? (output as { items: ItemAnswer[] }).items.slice(0, CANDIDATES)
-      : [output as ItemAnswer];
+    const answers = withoutEntities(
+      several
+        ? (output as { items: ItemAnswer[] }).items.slice(0, CANDIDATES)
+        : [output as ItemAnswer],
+    );
     const usable = usableAnswers(answers, (answer) =>
       checkedItem(answer, mode),
     );
@@ -593,6 +603,7 @@ export async function generateItem(
       // A mastered point is never the target again: the model is asked once more.
       const point = usable[0].point;
       if (attempt === 1 && point && mastered.has(point)) {
+        fallback = { ...usable[0], fits: true };
         tryAgain =
           `\n\n## Try again\nThe learner already mastered « ${point} ». Choose another ` +
           "learning point, not in Points mastered.";
@@ -606,11 +617,18 @@ export async function generateItem(
       review: prompt.review,
     });
     if (chosen) return { ...chosen, fits: true };
-    if (attempt > 1) return { ...usable[0], fits: false };
+    // A review the model ignored twice gives a new item, which still mustn't
+    // be learned or recent.
+    const fresh = prompt.review ? chooseAnswer(usable, { known, recent }) : undefined;
+    if (attempt > 1) return { ...(fresh ?? usable[0]), fits: false };
+    fallback = { ...(fresh ?? usable[0]), fits: false };
     tryAgain = tryAgainSection(usable, Boolean(prompt.review));
     throw new InvalidAnswerError(
       `No fitting item: ${usable.map((answer) => answer.english).join(", ")}`,
     );
+  }).catch((error) => {
+    if (fallback && isInvalidAnswer(error)) return fallback;
+    throw error;
   });
 
   return {

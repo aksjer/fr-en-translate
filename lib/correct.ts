@@ -6,6 +6,7 @@ import {
   model,
   retryIfInvalid,
   thinkingFor,
+  withoutEntities,
 } from "@/lib/model";
 import {
   englishKey,
@@ -240,7 +241,7 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
   let attempt = 0;
   const output = await retryIfInvalid(async () => {
     attempt += 1;
-    const { output } = await generateText({
+    const { output: raw } = await generateText({
       model,
       providerOptions: thinkingFor("correct"),
       maxRetries: 1,
@@ -456,6 +457,7 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
         .filter(Boolean)
         .join("\n"),
     });
+    const output = withoutEntities(raw);
     if (!output.correction.trim()) {
       throw new InvalidAnswerError("Empty correction");
     }

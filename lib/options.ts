@@ -45,12 +45,17 @@ export function pointName(point: string) {
 }
 
 // The English an item is known by: "to wear" → wear, "the couch" → couch,
-// without the context in parentheses.
+// "you should have" → should have, without the context in parentheses.
 export function englishKey(reference: string) {
   return reference
     .toLowerCase()
     .replace(/\([^)]*\)/g, " ")
     .replace(/^\s*(to|the|a|an)\s+/, "")
+    // A modal answered with its subject (« tu aurais dû »).
+    .replace(
+      /^(i|you|he|she|it|we|they)\s+(?=(can|could|should|must|might|may|will|would|ought|need|have|has|had|don't|doesn't|didn't|can't|couldn't|shouldn't|won't|wouldn't|mustn't)\b)/,
+      "",
+    )
     .replace(/\s+/g, " ")
     .trim();
 }

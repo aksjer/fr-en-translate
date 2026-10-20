@@ -1,4 +1,5 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { decodeHTML } from "entities";
 import {
   NoObjectGeneratedError,
   NoOutputGeneratedError,
@@ -43,4 +44,17 @@ export async function retryIfInvalid<T>(call: () => Promise<T>): Promise<T> {
     console.warn("Unusable model answer, trying again:", (error as Error).message);
     return call();
   }
+}
+
+// Gemini sometimes writes accents as HTML entities (« malgr&eacute; »): every
+// text of an answer, at any depth, gets its letters back.
+export function withoutEntities<T>(value: T): T {
+  if (typeof value === "string") return decodeHTML(value) as T;
+  if (Array.isArray(value)) return value.map(withoutEntities) as T;
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, field]) => [key, withoutEntities(field)]),
+    ) as T;
+  }
+  return value;
 }

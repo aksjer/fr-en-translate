@@ -66,7 +66,15 @@ const OTHER_THAN_TENSE =
 // is hard to learn from, and the correction mixes them up. The code picks a
 // grammar point for most sentences; the others practice a recent mistake
 // (more precise than a weak point's category) or a weak point.
-function learningPoint(focus?: SentenceFocus) {
+function learningPoint(focus?: SentenceFocus, retest?: boolean) {
+  if (retest) {
+    return (
+      "\n\n## Learning point\nThe tense is the main point of the sentence. This " +
+      "sentence retests the learner's last wrong sentence (the last wrong line of the history): " +
+      "its natural translation must need the same difficulty as that mistake again, in " +
+      "a new situation, without pointing it out. Never more than this one other point."
+    );
+  }
   return focus
     ? "\n\n## Learning point\nThe tense is the main point of the sentence. Its natural " +
         `translation must also need ${FOCUS_GUIDES[focus]}, without pointing it out. ` +
@@ -201,7 +209,7 @@ export function generateSentence(input: GenerateInput, combination: Combination)
       "when the situation calls for one)." +
       SENTENCE_VOCABULARY +
       (theme && THEME_STYLES[theme] ? ` ${THEME_STYLES[theme]}` : "") +
-      learningPoint(focus) +
+      learningPoint(focus, combination.retest) +
       VARIETY +
       PRIORITY,
     // Weak points only matter when the code picked no grammar point.

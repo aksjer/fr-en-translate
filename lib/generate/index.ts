@@ -15,14 +15,15 @@ const GENERATORS = {
 };
 
 export function generateExercise(input: GenerateInput): Promise<Exercise> {
-  const lastSentence = (input.history ?? [])
-    .filter((item) => item.mode === "sentence" && item.ok !== undefined)
-    .at(-1);
+  // The last answered sentence, if wrong, gets one retest: none if it was a
+  // retest itself or if a retest came after it, even one left unanswered.
+  const sentences = (input.history ?? []).filter((item) => item.mode === "sentence");
+  const lastIndex = sentences.findLastIndex((item) => item.ok !== undefined);
+  const last = sentences[lastIndex];
+  const retested = sentences.slice(lastIndex).some((item) => item.retest);
   const combination = pickCombination(
     input,
-    lastSentence?.ok === false && !lastSentence.retest
-      ? { tense: lastSentence.tense }
-      : undefined,
+    last?.ok === false && !retested ? { tense: last.tense } : undefined,
   );
   return GENERATORS[combination.mode](input, combination);
 }

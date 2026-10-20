@@ -2,7 +2,6 @@
 // and a French sentence that shows its meaning. It has its own fields: with one
 // free "text" field, models kept writing a sentence instead of a verb.
 import { generateText, Output } from "ai";
-import { decodeHTML } from "entities";
 import { z } from "zod";
 import {
   CANDIDATES,
@@ -26,9 +25,11 @@ import {
 } from "@/lib/generate/shared";
 import {
   InvalidAnswerError,
+  isInvalidAnswer,
   model,
   retryIfInvalid,
   thinkingFor,
+  withoutEntities,
 } from "@/lib/model";
 import { FREQUENCIES, MAX_TEXT_LENGTH, type VerbType } from "@/lib/options";
 import type { Combination } from "@/lib/settings";
@@ -64,8 +65,8 @@ function checkedVerb(output: z.infer<typeof verbSchema>, verbType?: VerbType) {
     .replace(/^to\s+/, "");
   const past = output.past.trim().toLowerCase();
   const participle = output.participle.trim().toLowerCase();
-  const text = decodeHTML(output.text.trim());
-  const context = decodeHTML(output.context.trim());
+  const text = output.text.trim();
+  const context = output.context.trim();
   if (!/^[a-z]+$/.test(base) || !past || !participle || !text || !context) {
     throw new InvalidAnswerError(`Not a verb: ${base}`);
   }
@@ -112,6 +113,8 @@ export async function generateVerb(
   const review = reviewFor(input, "verb");
   let attempt = 0;
   let tryAgain = "";
+  // A usable first verb, kept if the one asked again is broken.
+  let fallback: (ReturnType<typeof checkedVerb> & { fits: boolean }) | undefined;
   const verb = await retryIfInvalid(async () => {
     attempt++;
     const { output } = await generateText({
@@ -174,12 +177,11 @@ export async function generateVerb(
             similarSection(input, "verb")) +
         tryAgain,
     });
-    const answers = review
-      ? [output as z.infer<typeof verbSchema>]
-      : (output as { verbs: z.infer<typeof verbSchema>[] }).verbs.slice(
-          0,
-          CANDIDATES,
-        );
+    const answers = withoutEntities(
+      review
+        ? [output as z.infer<typeof verbSchema>]
+        : (output as { verbs: z.infer<typeof verbSchema>[] }).verbs.slice(0, CANDIDATES),
+    );
     let usable = usableAnswers(answers, (answer) =>
       checkedVerb(answer, review ? undefined : verbType),
     );
@@ -196,11 +198,18 @@ export async function generateVerb(
     }
     const chosen = chooseAnswer(usable, { known, recent, review });
     if (chosen) return { ...chosen, fits: true };
-    if (attempt > 1) return { ...usable[0], fits: false };
+    // A review the model ignored twice gives a new verb, which still mustn't
+    // be learned or recent.
+    const fresh = review ? chooseAnswer(usable, { known, recent }) : undefined;
+    if (attempt > 1) return { ...(fresh ?? usable[0]), fits: false };
+    fallback = { ...(fresh ?? usable[0]), fits: false };
     tryAgain = tryAgainSection(usable, Boolean(review));
     throw new InvalidAnswerError(
       `No fitting verb: ${usable.map((answer) => answer.english).join(", ")}`,
     );
+  }).catch((error) => {
+    if (fallback && isInvalidAnswer(error)) return fallback;
+    throw error;
   });
 
   return {
