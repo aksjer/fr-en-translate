@@ -427,6 +427,7 @@ export function Trainer() {
 
       {(exercise || error) && (
         <ReportButton
+          key={exercise ? `${exercise.text}|${exercise.reference}` : error}
           context={{
             exercise,
             answer: translation.trim() || undefined,
