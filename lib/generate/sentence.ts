@@ -231,7 +231,8 @@ export function generateSentence(input: GenerateInput, combination: Combination)
       "  explanation, parentheses or + (as soon as, should, should have, couldn't, during,",
       "  already, did), or empty if the sentence has no other point than the tense. When",
       "  the task names a kind of point (an auxiliary, a preposition…), point is a word of",
-      "  that kind, as it appears in the reference, never another word of the sentence.",
+      "  that kind taken from the reference (did, into, unless), never another word of the",
+      "  sentence.",
     ],
     task:
       `Write one original French sentence on the theme "${theme}", as long as a line in ` +

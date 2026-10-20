@@ -146,8 +146,10 @@ const MODE_RULES: Record<Mode, string> = {
     "Accept any translation that is faithful to the meaning, grammatically correct and " +
     "natural in American English, even if it differs from the reference. American English " +
     "often uses the simple past with already, yet, just or ever (She already paid, Did you " +
-    "eat yet?): it is right, never a tense mistake, even when the reference has the present " +
-    "perfect.",
+    "eat yet?): it is right, even when the reference has the present perfect, except with " +
+    "a duration (for or since: depuis, ça fait … que), which needs the present perfect. " +
+    "When the exercise practices the present perfect, add a remark (grammar) that shows " +
+    "it (has already paid), but the answer stays right.",
 };
 
 // Full answers that show the expected quality. They only show the format and
