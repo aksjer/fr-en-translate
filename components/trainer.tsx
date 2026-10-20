@@ -143,6 +143,8 @@ export function Trainer() {
         text: exercise.text,
         translation,
         tense: exercise.tense,
+        kind: exercise.kind,
+        focus: exercise.focus,
         reference: exercise.reference,
         context: exercise.context,
         pastMistakes: pastMistakes(readSeen(), exercise.mode, exercise.text),

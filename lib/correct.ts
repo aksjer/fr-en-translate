@@ -13,8 +13,10 @@ import {
   MAX_PAST_MISTAKES,
   MAX_TEXT_LENGTH,
   MODES,
+  SENTENCE_FOCUSES,
   TENSE_GUIDES,
   TENSES,
+  WORD_KINDS,
   type Mode,
 } from "@/lib/options";
 
@@ -23,6 +25,9 @@ export const correctInputSchema = z.object({
   text: z.string().trim().min(1).max(MAX_TEXT_LENGTH),
   translation: z.string().trim().min(1).max(MAX_TEXT_LENGTH),
   tense: z.enum(TENSES).optional(),
+  // What the item practices: the kind of word, or the grammar point of a sentence.
+  kind: z.enum(WORD_KINDS).optional().catch(undefined),
+  focus: z.enum(SENTENCE_FOCUSES).optional().catch(undefined),
   // A good translation from generation, used as one correct answer among others.
   reference: z.string().trim().max(MAX_TEXT_LENGTH).optional(),
   // A French sentence the learner sees under a verb, showing its meaning.
@@ -115,7 +120,9 @@ const WORD_RULE =
   'equivalent that keeps the whole meaning, with or without "to" or an article. ' +
   "Another common word with the same meaning in this context is right, even if the " +
   "reference is more precise (begin or start for « commencer », taste for « goûter »): " +
-  "the learner gives one word, so never ask for an object or extra words. ";
+  "the learner gives one word, so never ask for an object or extra words. When the " +
+  "item has a subject (« tu devrais »), the answer is right with or without it " +
+  "(should, you should). ";
 
 const MODE_RULES: Record<Mode, string> = {
   word: WORD_RULE,
@@ -402,6 +409,9 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
         "the French as added meaning.",
       ].join("\n"),
       prompt: [
+        input.kind && `Kind of word practiced: ${input.kind}`,
+        input.focus &&
+          `Grammar point practiced besides the tense: ${input.focus}. Check it first, and file a mistake on it under the right category.`,
         input.tense &&
           `Expected English tense: the ${input.tense} (${TENSE_GUIDES[input.tense].english})`,
         `<french>${untagged(input.text)}</french>`,

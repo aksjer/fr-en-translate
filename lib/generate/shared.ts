@@ -113,15 +113,34 @@ export function learner(mode: Mode) {
 
 // The learner wants only the most common English, whatever their level: a
 // small model knows the Oxford 3000 list, but it can't count frequency ranks.
-export const COMMON_ENGLISH =
+// News words count too: the learner reads the news.
+const COMMON_RULE =
   "among the most common words of everyday American English (the Oxford 3000, the top " +
-  "of COCA): words heard every week in conversations, videos, TV shows and the news " +
-  "(until, should, although, already, tired, kitchen), or found in almost every news " +
-  "article (amid, despite, according to, expected to, announce), never a rare or " +
-  "specialized word (craftsmanship, journey for « périple », to reap)";
+  "of COCA): words heard every week in conversations, videos, TV shows and the news, " +
+  "or found in almost every news article (amid, despite, according to), never a rare " +
+  "or specialized word (craftsmanship, journey for « périple », to reap)";
+
+export const COMMON_ENGLISH = `${COMMON_RULE}.`;
+
+// Examples of the kind asked for, so a verb isn't modeled on kitchen or until.
+const COMMON_EXAMPLES: Record<string, string> = {
+  noun: "bill, neighbor, deal, kitchen",
+  adjective: "tired, busy, cheap, worth it",
+  adverb: "already, still, almost, anyway",
+  modal: "should, could, might, have to",
+  preposition: "during, until, instead of, because of",
+  conjunction: "although, unless, as soon as, as well as, as long as, even though",
+  "regular verb": "need, try, wait, happen",
+  "irregular verb": "get, keep, bring, find",
+};
 
 export function commonAt(kind: string) {
-  return `${/^[aeiou]/.test(kind) ? "an" : "a"} ${kind} ${COMMON_ENGLISH}`;
+  const examples = COMMON_EXAMPLES[kind];
+  return (
+    `${/^[aeiou]/.test(kind) ? "an" : "a"} ${kind} ` +
+    (examples ? `(like ${examples}, only as examples) ` : "") +
+    COMMON_RULE
+  );
 }
 
 // The model rates each word, so the history shows how common the words it

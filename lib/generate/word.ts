@@ -16,12 +16,14 @@ import type { Combination } from "@/lib/settings";
 const KIND_GUIDES: Record<WordKind, string> = {
   noun: "Give it with its article (le, la, l', un, une). ",
   adjective: "",
-  adverb: "Kind of word you want: « déjà » → already, « souvent » → often. ",
+  adverb: "For example « déjà » → already, « presque » → almost. ",
   modal:
     "The text is the French verb form as it appears in the context sentence (« tu " +
     "devrais » → should, « on pourrait » → could, « il faut » → have to). ",
-  preposition: "Kind of word you want: « pendant » → during, « jusqu'à » → until. ",
-  conjunction: "Kind of word you want: « bien que » → although, « dès que » → as soon as. ",
+  preposition: "For example « pendant » → during, « au lieu de » → instead of. ",
+  conjunction:
+    "Linking expressions of several words count too (« dès que » → as soon as, « ainsi " +
+    "que » → as well as, « tant que » → as long as). ",
 };
 
 export function generateWord(input: GenerateInput, combination: Combination) {

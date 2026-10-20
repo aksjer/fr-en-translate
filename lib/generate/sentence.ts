@@ -15,7 +15,7 @@ const SENTENCE_TEXT_FIELD = [
 ];
 
 // Sentences get the same rule as words, so they use useful English.
-const SENTENCE_VOCABULARY = `\nIts American English translation uses only words ${COMMON_ENGLISH}.`;
+const SENTENCE_VOCABULARY = `\nIts American English translation uses only words ${COMMON_ENGLISH}`;
 
 // What each grammar point means in a sentence, so the French needs it.
 const FOCUS_GUIDES: Record<SentenceFocus, string> = {
@@ -27,8 +27,8 @@ const FOCUS_GUIDES: Record<SentenceFocus, string> = {
     "an English preposition that French speakers often get wrong (on Monday, at night, " +
     "for two years, depend on, wait for, in the car)",
   conjunction:
-    "an English conjunction or linking word (although, unless, while, as soon as, so, " +
-    "because, whereas)",
+    "an English conjunction or linking expression (although, unless, while, as soon " +
+    "as, as well as, as long as, even though, so that, whereas)",
   adverb:
     "a common English adverb and its place in the sentence (already, still, yet, ever, " +
     "always, just, almost)",
@@ -44,9 +44,9 @@ const THEME_STYLES: Partial<Record<Theme, string>> = {
     "what is expected next.",
   "cars and EVs":
     "Write it like a line from a first-person car review or a talk between drivers: " +
-    "casual, in everyday words, often with a common expression (« Je n'ai pas pu " +
-    "m'empêcher de… », « Ça n'a pas vraiment marché », « L'autonomie a largement " +
-    "dépassé… »), about driving, charging, range, the battery or the price.",
+    "casual, in everyday words, often with a common expression (such as « ne pas " +
+    "pouvoir s'empêcher de », « dépasser largement », « ne pas vraiment marcher ») " +
+    "put in the tense asked for, about driving, charging, range, the battery or the price.",
   "movies and TV shows":
     "Write it like a line of dialogue from a movie or a TV show, or what a friend says " +
     "about one: short and natural.",
