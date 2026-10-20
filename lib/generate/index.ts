@@ -20,7 +20,9 @@ export function generateExercise(input: GenerateInput): Promise<Exercise> {
     .at(-1);
   const combination = pickCombination(
     input,
-    lastSentence?.ok === false ? { tense: lastSentence.tense } : undefined,
+    lastSentence?.ok === false && !lastSentence.retest
+      ? { tense: lastSentence.tense }
+      : undefined,
   );
   return GENERATORS[combination.mode](input, combination);
 }

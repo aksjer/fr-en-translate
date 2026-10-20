@@ -52,8 +52,10 @@ export type SeenItem = {
   tense?: Tense;
   theme?: Theme;
   verbType?: VerbType;
-  // A missed word or verb given again.
+  // A missed word or verb given again, or a sentence that practices the
+  // mistake of the one before.
   review?: boolean;
+  retest?: boolean;
   // The French sentence that showed the meaning of a word or verb.
   context?: string;
   // The expected English of a sentence, and the learner's sentence corrected.
@@ -79,6 +81,7 @@ export type ShownItem = Pick<
   | "theme"
   | "verbType"
   | "review"
+  | "retest"
   | "context"
   | "reference"
 >;
@@ -171,12 +174,14 @@ export function recentHistory(items: SeenItem[]) {
 }
 
 // The learner's last wrong answers in a mode, with their remark, for the
-// correction. The item being corrected is left out.
-export function pastMistakes(items: SeenItem[], mode: Mode, current: string) {
+// correction. Earlier misses of the item being corrected count too: a review
+// can then say the learner made the same mistake again. The item being
+// corrected has no result yet, so it isn't in the list.
+export function pastMistakes(items: SeenItem[], mode: Mode) {
   return items
     .filter(
       (item): item is SeenItem & { remark: string } =>
-        item.mode === mode && item.ok === false && Boolean(item.remark) && item.text !== current,
+        item.mode === mode && item.ok === false && Boolean(item.remark),
     )
     .slice(-MAX_PAST_MISTAKES)
     .map(({ text, remark }) => ({ text, remark }));
@@ -191,6 +196,8 @@ export type ReviewItem = {
   misses: number;
   // The kind of word of a word item.
   kind?: WordKind;
+  // Missed or left unanswered today: always given again soon.
+  today?: boolean;
 };
 
 // The words or verbs missed or left unanswered and not learned since: a review
@@ -217,12 +224,13 @@ export function toReview(items: SeenItem[], known: KnownItems, mode: "word" | "v
   return [...due.filter(isToday).reverse(), ...due.filter((item) => !isToday(item))]
     .slice(0, MAX_REVIEW)
     .map(
-      ({ text, english, context, kind }): ReviewItem => ({
-        text,
-        ...(english && { english }),
-        ...(context && { context }),
-        ...(kind && { kind }),
-        misses: misses.get(text) ?? 0,
+      (item): ReviewItem => ({
+        text: item.text,
+        ...(item.english && { english: item.english }),
+        ...(item.context && { context: item.context }),
+        ...(item.kind && { kind: item.kind }),
+        ...(isToday(item) && { today: true }),
+        misses: misses.get(item.text) ?? 0,
       }),
     );
 }

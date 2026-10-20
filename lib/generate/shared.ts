@@ -61,6 +61,7 @@ const historyItemSchema = z.object({
   theme: z.enum(THEMES).optional().catch(undefined),
   verbType: z.enum(VERB_TYPES).optional().catch(undefined),
   review: z.boolean().optional().catch(undefined),
+  retest: z.boolean().optional().catch(undefined),
   context: clipped(300).optional().catch(undefined),
   reference: clipped(300).optional().catch(undefined),
   correction: clipped(300).optional().catch(undefined),
@@ -78,6 +79,7 @@ const reviewItemSchema = z.object({
   context: clipped(300).optional().catch(undefined),
   misses: z.number().int().min(0).optional().catch(undefined),
   kind: z.enum(WORD_KINDS).optional().catch(undefined),
+  today: z.boolean().optional().catch(undefined),
 });
 
 export type ReviewItem = z.infer<typeof reviewItemSchema>;
@@ -225,12 +227,15 @@ export function history(input: GenerateInput, mode: Mode) {
 }
 
 // The code decides when a word or verb is a review of a missed one: left to
-// the model, missed items came back too often or never.
+// the model, missed items came back too often or never. One missed today
+// always comes back (the page only sends it a few items later); older ones
+// come back by chance.
 const REVIEW_CHANCE = 0.25;
 
 export function reviewFor(input: GenerateInput, mode: "word" | "verb") {
   const items = input.review?.[mode] ?? [];
-  return items.length && Math.random() < REVIEW_CHANCE ? items : undefined;
+  if (!items.length) return undefined;
+  return items[0].today || Math.random() < REVIEW_CHANCE ? items : undefined;
 }
 
 // The task of a review: one of the missed items, as is, with a new context.
@@ -336,8 +341,9 @@ export function similarSection(input: GenerateInput, mode: "word" | "verb") {
   return (
     "\n\n## Seen in corrections\nThe corrections showed the learner these English " +
     `${mode}s, close to or often confused with ones they practiced, the last first. ` +
-    `When one fits the ${mode === "word" ? "kind" : "type"} asked for and every other ` +
-    `rule, prefer it as one of your items:\n${words.join(", ")}`
+    "Some are British or rare: skip them. When one is common American English and " +
+    `fits the ${mode === "word" ? "kind" : "type"} asked for and every other rule, ` +
+    `prefer it as one of your items:\n${words.join(", ")}`
   );
 }
 
@@ -369,6 +375,7 @@ export function historySection(items: HistoryItem[], mode: Mode) {
         : "";
     const practiced = [
       item.review && "review",
+      item.retest && "retest of the mistake before",
       item.kind,
       item.verbType && `${item.verbType} verb`,
       item.tense,
@@ -532,6 +539,7 @@ export async function generateItem(
   const { known, recent } = history(input, mode);
   const several = isWordMode(mode) && !prompt.review;
   const schema = isWordMode(mode) ? wordExerciseSchema : sentenceExerciseSchema;
+  const mastered = new Set((input.points?.mastered ?? []).map(pointName));
 
   let attempt = 0;
   let tryAgain = "";
@@ -582,7 +590,17 @@ export async function generateItem(
       checkedItem(answer, mode),
     );
     if (!usable.length) throw new InvalidAnswerError("No usable item");
-    if (!isWordMode(mode)) return { ...usable[0], fits: true };
+    if (!isWordMode(mode)) {
+      // A mastered point is never the target again: the model is asked once more.
+      const point = usable[0].point;
+      if (attempt === 1 && point && mastered.has(point)) {
+        tryAgain =
+          `\n\n## Try again\nThe learner already mastered « ${point} ». Choose another ` +
+          "learning point, not in Points mastered.";
+        throw new InvalidAnswerError(`Mastered point: ${point}`);
+      }
+      return { ...usable[0], fits: true };
+    }
     const chosen = chooseAnswer(usable, {
       known,
       recent,

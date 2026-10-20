@@ -344,7 +344,7 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
               "  → it costs an arm and a leg, or it's very expensive);",
               "- quand, dès que or tant que + futur → when, as soon as or as long as + simple",
         "  present (not when he will arrive);",
-        "- depuis → for or since + present perfect (after a negative, in works too: I",
+        "- depuis → for or since + present perfect (after a negative, « in » works too: I",
               "  haven't seen her in years); il y a + a time → ago, but il y a or ça fait + a",
               "  time + que → for + present perfect;",
               "- déjà in a question: ever for an experience (Have you ever seen…?), yet for",
@@ -403,9 +403,9 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
               ...(input.point
                 ? [
                     `- pointResult: right if the translation uses « ${untagged(input.point)} » correctly (in`,
-                    "  any of its forms); wrong if it tries it with a mistake, or gets its meaning",
-                    "  wrong or leaves it out; avoided if it says the same thing correctly in",
-                    "  another way.",
+                    "  any of its forms); wrong if it uses it with a mistake, or if the meaning it",
+                    "  carries is wrong or lost; avoided if it doesn't use it but still says the",
+                    "  same thing correctly.",
                   ]
                 : []),
             ]),
@@ -444,7 +444,7 @@ export async function correctTranslation(rawInput: CorrectInput): Promise<Correc
           "Grammar point practiced besides the tense: " +
             (input.point ? `« ${untagged(input.point)} »` : "") +
             (input.point && input.focus ? ` (${input.focus})` : (input.focus ?? "")) +
-            ". Check it first, and file a mistake on it under the right category.",
+            ". Check it first; if it has a mistake, file it under the right category.",
         input.tense &&
           `Expected English tense: the ${input.tense} (${TENSE_GUIDES[input.tense].english})`,
         `<french>${untagged(input.text)}</french>`,

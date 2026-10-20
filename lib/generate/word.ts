@@ -1,5 +1,5 @@
-// A single French word: a noun, an adjective, an adverb, a modal, a preposition
-// or a conjunction, with a sentence that shows its meaning.
+// A single French word or short expression: a noun, an adjective, an adverb, a
+// modal, a preposition or a conjunction, with a sentence that shows its meaning.
 import {
   CANDIDATES,
   commonAt,
@@ -18,8 +18,9 @@ import type { Combination } from "@/lib/settings";
 // examples: the history keeps the model from giving the same ones again.
 const KIND_GUIDES: Record<WordKind, string> = {
   noun: "Give it with its article (le, la, l', un, une). ",
-  adjective: "",
-  adverb: "",
+  // Many of the most useful ones are expressions (anyway, worth it).
+  adjective: "Expressions of several words count too (« ça vaut le coup » → worth it). ",
+  adverb: "Expressions of several words count too (« de toute façon », « en fait »). ",
   // Few modals exist: their other forms keep the kind from running out.
   modal:
     "The text is the French verb form as it appears in the context sentence, and other " +
@@ -61,8 +62,8 @@ export async function generateWord(
     task: review
       ? reviewTask(review, "word", theme)
       : `Give ${CANDIDATES} items, ${CANDIDATES} different English words. Each one is a ` +
-        "single French word (or a short expression for a modal, a preposition or a " +
-        `conjunction) whose American English translation is ${commonAt(kind)}, with a ` +
+        "single French word, or a short expression except for a noun, whose American " +
+        `English translation is ${commonAt(kind)}, with a ` +
         `context sentence on the theme "${theme}". ` +
         KIND_GUIDES[kind] +
         "Pick a word whose American English translation looks different from the French " +

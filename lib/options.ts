@@ -29,12 +29,14 @@ export const POINT_MASTERY = 2;
 export const MAX_POINTS = 500;
 export const MAX_POINTS_TO_PRACTICE = 30;
 
-// A grammar point's name, the same whatever the model adds: "Should (advice)"
-// and "should." are both should.
+// A grammar point's name, the same whatever the model adds: "Should (advice)",
+// "should + verb" and "should." are all should.
 export function pointName(point: string) {
   return point
     .toLowerCase()
     .replace(/\([^)]*\)/g, " ")
+    // "as soon as + present" is as soon as.
+    .replace(/\s*\+.*$/, "")
     .replace(/["«»“”]/g, "")
     .replace(/[.,;:!?]+\s*$/, "")
     .replace(/\s+/g, " ")

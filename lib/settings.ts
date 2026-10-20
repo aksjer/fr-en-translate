@@ -41,6 +41,8 @@ export type Combination = {
   // The grammar point a sentence needs. None for about 1 in 4 sentences, which
   // practice a recent mistake or a weak point instead.
   focus?: SentenceFocus;
+  // A sentence that practices the mistake of the wrong sentence just before.
+  retest?: boolean;
 };
 
 function pick<T>(selected: readonly T[] | undefined, all: readonly T[]): T {
@@ -58,7 +60,8 @@ const MISTAKE_SENTENCE_CHANCE = 0.25;
 
 // One random value of each setting the mode uses. A sentence right after a
 // wrong one practices its mistake again, while it is fresh, in the same tense
-// if the settings still allow it.
+// if the settings still allow it: once, so a missed retest doesn't lead to
+// another one.
 export function pickCombination(
   settings: Settings,
   wrongSentence?: { tense?: Tense },
@@ -74,6 +77,7 @@ export function pickCombination(
       : undefined;
   return {
     mode,
+    ...(retest && { retest: true }),
     ...(uses.tense && { tense: sameTense ?? pick(settings.tenses, TENSES) }),
     ...(uses.verbType && {
       verbType: pick(settings.verbTypes, VERB_TYPES),

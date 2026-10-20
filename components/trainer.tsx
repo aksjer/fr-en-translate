@@ -142,6 +142,7 @@ export function Trainer() {
         theme: next.theme,
         verbType: next.verbType,
         review: next.review,
+        retest: next.retest,
         context: next.context,
         // A word's or verb's English is kept as english, after the answer.
         reference: isWordMode(next.mode) ? undefined : next.reference,
@@ -170,7 +171,7 @@ export function Trainer() {
         point: exercise.point,
         reference: exercise.reference,
         context: exercise.context,
-        pastMistakes: pastMistakes(readSeen(), exercise.mode, exercise.text),
+        pastMistakes: pastMistakes(readSeen(), exercise.mode),
       });
       setResult(correction);
       const english =
@@ -196,12 +197,13 @@ export function Trainer() {
       if (exercise.point && correction.pointResult) {
         rememberPoint(exercise.point, correction.pointResult);
       }
-      // A word or verb answered right never comes back.
+      // A word or verb answered right never comes back. Only the word the
+      // learner wrote is learned (its correction fixes a slip such as colour):
+      // a right synonym doesn't teach the expected word, which the correction
+      // shows among the similar words, so it can come back as an item.
       if (english && correction.isCorrect) {
-        rememberKnown(exercise.mode, english);
-        // A right answer other than the expected one is learned too.
-        const own = englishKey(answer);
-        if (own && own !== english) rememberKnown(exercise.mode, own);
+        const own = englishKey(correction.correction.replaceAll("**", "").replace(/[.!?]+$/, ""));
+        rememberKnown(exercise.mode, own || english);
       }
     } catch (e) {
       setError((e as Error).message);
@@ -222,6 +224,7 @@ export function Trainer() {
   const tags = [
     exercise?.mode,
     exercise?.review ? "review" : undefined,
+    exercise?.retest ? "retest" : undefined,
     exercise?.kind,
     exercise?.focus && `focus: ${exercise.focus}`,
     exercise?.verbType && `${exercise.verbType} verb`,

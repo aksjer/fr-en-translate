@@ -22,7 +22,7 @@ const FOCUS_GUIDES: Record<SentenceFocus, string> = {
   auxiliary:
     "an English auxiliary the French doesn't show word for word: do, does or did in a " +
     "question or a negation, a short answer (Yes, I have) or a question tag (didn't you?)",
-  modal: "an English modal (can, could, should, must, might, would, have to)",
+  modal: "an English modal (can, could, should, must, might, have to)",
   preposition:
     "an English preposition that French speakers often get wrong (on Monday, at night, " +
     "for two years, depend on, wait for, in the car)",
@@ -55,11 +55,12 @@ const THEME_STYLES: Partial<Record<Theme, string>> = {
 // The point is never the word the tense already needs: with the future, will
 // gave no other point.
 const OTHER_THAN_TENSE =
-  "The point is another word than the one the tense itself needs (will for the " +
+  "The point is never the plain auxiliary the tense itself needs (will for the " +
   "future, would for the conditional, have or had for a perfect tense, be in a " +
-  "continuous tense). Combine it with the tense in its natural form (will have to, " +
-  "could have, had to); if a point doesn't fit the tense, choose another one of the " +
-  "same kind.";
+  "continuous tense), though a question tag or a short answer may use it (haven't " +
+  "you?, Yes, I will). Combine the point with the tense in its natural form (will " +
+  "have to, has had to, hasn't been able to); if a point doesn't fit the tense, " +
+  "choose another one of the same kind.";
 
 // One learning point besides the tense: a sentence with several difficulties
 // is hard to learn from, and the correction mixes them up. The code picks a
