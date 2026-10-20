@@ -1,7 +1,7 @@
 // One French sentence whose translation needs the English tense from the settings.
 import { ERROR_TAG_DEFINITIONS, ERROR_TAGS, type ErrorTag } from "@/lib/error-tags";
 import { COMMON_ENGLISH, generateItem, type GenerateInput } from "@/lib/generate/shared";
-import { TENSE_GUIDES, type SentenceFocus } from "@/lib/options";
+import { TENSE_GUIDES, type SentenceFocus, type Theme } from "@/lib/options";
 import type { Combination } from "@/lib/settings";
 
 // The text field. "As people speak it today" gave slang and negations
@@ -32,6 +32,22 @@ const FOCUS_GUIDES: Record<SentenceFocus, string> = {
   adverb:
     "a common English adverb and its place in the sentence (already, still, yet, ever, " +
     "always, just, almost)",
+};
+
+// How a sentence on these themes sounds, from what the learner reads and
+// watches. The words stay everyday ones: the learner wants to speak, not to
+// write articles.
+const THEME_STYLES: Partial<Record<Theme, string>> = {
+  news:
+    "Write it like a short line from a news story, in everyday words: a fact, often " +
+    "with someone reporting it (« Le maire a dit que… », « Selon la police… ») or with " +
+    "what is expected next.",
+  "cars and EVs":
+    "Write it like a short line from a car news site or a talk between drivers, in " +
+    "everyday words (charge, range, battery, drive, price, fast).",
+  "movies and TV shows":
+    "Write it like a line of dialogue from a movie or a TV show, or what a friend says " +
+    "about one: short and natural.",
 };
 
 // One learning point besides the tense: a sentence with several difficulties
@@ -120,6 +136,7 @@ export function generateSentence(input: GenerateInput, combination: Combination)
       "elles) and the sentence type (statement, question or negation; an exclamation only " +
       "when the situation calls for one)." +
       SENTENCE_VOCABULARY +
+      (theme && THEME_STYLES[theme] ? ` ${THEME_STYLES[theme]}` : "") +
       learningPoint(focus) +
       VARIETY +
       PRIORITY,
