@@ -116,8 +116,9 @@ export function learner(mode: Mode) {
 export const COMMON_ENGLISH =
   "among the most common words of everyday American English (the Oxford 3000, the top " +
   "of COCA): words heard every week in conversations, videos, TV shows and the news " +
-  "(until, should, although, already, tired, kitchen), never a rare or specialized " +
-  "word (craftsmanship, journey for « périple », to reap)";
+  "(until, should, although, already, tired, kitchen), or found in almost every news " +
+  "article (amid, despite, according to, expected to, announce), never a rare or " +
+  "specialized word (craftsmanship, journey for « périple », to reap)";
 
 export function commonAt(kind: string) {
   return `${/^[aeiou]/.test(kind) ? "an" : "a"} ${kind} ${COMMON_ENGLISH}`;
