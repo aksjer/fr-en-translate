@@ -18,6 +18,7 @@ import {
   reviewTask,
   similarSection,
   wordExerciseSchema,
+  type BatchPlan,
   type Exercise,
   type GenerateInput,
   type ReviewItem,
@@ -100,10 +101,13 @@ function reviewed(review: ReviewItem, combination: Combination, raw: WordItem): 
   };
 }
 
-export async function generateWords(
-  input: GenerateInput,
-  combinations: Combination[],
-): Promise<Exercise[]> {
+export async function generateWords(input: GenerateInput, combinations: Combination[]) {
+  const { batch, finish } = wordBatch(input, combinations);
+  return finish(await generateBatch(input, batch));
+}
+
+// The call for a batch of words, without sending it.
+export function wordBatch(input: GenerateInput, combinations: Combination[]): BatchPlan<WordItem> {
   const reviews = reviewSlots(input, "word", combinations.length);
   const fresh = freshness(input, "word");
   const { known, recent } = history(input, "word");
@@ -128,14 +132,16 @@ export async function generateWords(
           },
         };
   });
-  const results = await generateBatch(input, {
-    mode: "word",
-    fields: FIELDS,
-    schema: wordItemSchema,
-    slots,
-    sections: historySection(recent, "word") + knownSection(known, "word") + similarSection(input, "word"),
-    tokensPerItem: 1500,
-  });
-  return keptItems(results, reviews);
+  return {
+    batch: {
+      mode: "word",
+      fields: FIELDS,
+      schema: wordItemSchema,
+      slots,
+      sections: historySection(recent, "word") + knownSection(known, "word") + similarSection(input, "word"),
+      tokensPerItem: 1500,
+    },
+    finish: (results) => keptItems(results, reviews),
+  };
 }
 

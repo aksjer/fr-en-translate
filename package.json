@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "eval": "node --env-file-if-exists=.env.local --import tsx evals/correction.mts"
+    "eval": "node --env-file-if-exists=.env.local --import tsx evals/run.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.93",

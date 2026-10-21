@@ -8,6 +8,7 @@ import {
   historySection,
   inReference,
   sentenceExerciseSchema,
+  type BatchPlan,
   type Exercise,
   type GenerateInput,
   type ItemAnswer,
@@ -215,17 +216,23 @@ function checked(
   };
 }
 
-export async function generateSentences(
+export async function generateSentences(input: GenerateInput, combinations: Combination[]) {
+  const { batch, finish } = sentenceBatch(input, combinations);
+  return finish(await generateBatch(input, batch));
+}
+
+// The call for a batch of sentences, without sending it.
+export function sentenceBatch(
   input: GenerateInput,
   combinations: Combination[],
-): Promise<Exercise[]> {
+): BatchPlan<ItemAnswer> {
   const mastered = new Set((input.points?.mastered ?? []).map(pointName));
   const { recent } = history(input, "sentence");
   // Weak points only matter for a sentence whose point the model picks;
   // mastered and practice points for one that isn't a retest or a habit.
   const free = combinations.filter((combination) => !combination.retest && !combination.target);
-  const results = await generateBatch(input, {
-    mode: "sentence",
+  const batch = {
+    mode: "sentence" as const,
     fields: FIELDS,
     schema: sentenceExerciseSchema,
     slots: combinations.map((combination) => ({
@@ -246,10 +253,15 @@ export async function generateSentences(
       historySection(recent, "sentence") +
       wordsSection(input),
     tokensPerItem: 2000,
-  });
-  const kept = results.filter((item): item is Exercise => Boolean(item));
-  // A retest left out is tried again in the next batch.
-  return combinations[0].retest && !results[0]
-    ? [{ ...kept[0], retestMissed: true }, ...kept.slice(1)]
-    : kept;
+  };
+  return {
+    batch,
+    finish: (results) => {
+      const kept = results.filter((item): item is Exercise => Boolean(item));
+      // A retest left out is tried again in the next batch.
+      return combinations[0].retest && !results[0]
+        ? [{ ...kept[0], retestMissed: true }, ...kept.slice(1)]
+        : kept;
+    },
+  };
 }

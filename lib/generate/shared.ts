@@ -612,23 +612,44 @@ export type Slot<Raw> = {
 // minute but only 500 calls a day, so each call gives several exercises.
 export const BATCH_SIZE = 3;
 
+// What one call of a mode asks: built by each mode's file, sent by
+// generateBatch (the evals send several in one request).
+export type Batch<Raw> = {
+  mode: Mode;
+  // The fields of one item, as lines of the system prompt.
+  fields: string[];
+  schema: z.ZodType<Raw>;
+  slots: Slot<Raw>[];
+  // The sections after the tasks: history, words learned…
+  sections: string;
+  // Room for one item's thinking and JSON.
+  tokensPerItem: number;
+};
+
+// A mode's batch, and what turns its checked items into the exercises sent
+// to the page.
+export type BatchPlan<Raw> = {
+  batch: Batch<Raw>;
+  finish: (results: (Exercise | undefined)[]) => Exercise[];
+};
+
+export const GENERATE_ROLE = [
+  "You are an American English teacher for a French speaker. You write items in",
+  "natural, correct French that the learner will translate into American English.",
+];
+
+// What the model knows before the tasks: the app's goal and the learner.
+export function batchContext(mode: Mode) {
+  return `${GOAL}\n\n${learner(mode)}`;
+}
+
 // Asks the model for one item per slot in a single call, and checks each one
 // in code. Items that fail are asked again once, in one more call for the
 // whole batch; those still failing are left out (undefined), and the call
 // fails only if none is usable.
 export async function generateBatch<Raw>(
   input: GenerateInput,
-  batch: {
-    mode: Mode;
-    // The fields of one item, as lines of the system prompt.
-    fields: string[];
-    schema: z.ZodType<Raw>;
-    slots: Slot<Raw>[];
-    // The sections after the tasks: history, words learned…
-    sections: string;
-    // Room for one item's thinking and JSON.
-    tokensPerItem: number;
-  },
+  batch: Batch<Raw>,
 ): Promise<(Exercise | undefined)[]> {
   const { mode, slots } = batch;
   const results: (Exercise | undefined)[] = slots.map(() => undefined);
@@ -642,17 +663,14 @@ export async function generateBatch<Raw>(
         maxRetries: 1,
         output: Output.object({ schema: z.object({ items: z.array(batch.schema) }) }),
         system: [
-          "You are an American English teacher for a French speaker. You write items in",
-          "natural, correct French that the learner will translate into American English.",
+          ...GENERATE_ROLE,
           "",
           "## Fields, in this order",
           `items: ${slots.length} items, one for each task below, in the same order, each with:`,
           ...batch.fields,
         ].join("\n"),
         prompt:
-          GOAL +
-          "\n\n" +
-          learner(mode) +
+          batchContext(mode) +
           "\n\n## Tasks\n" +
           slots.map((slot, index) => `Item ${index + 1}: ${slot.task}`).join("\n\n") +
           batch.sections +

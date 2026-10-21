@@ -18,6 +18,7 @@ import {
   reviewTask,
   similarSection,
   withApostrophes,
+  type BatchPlan,
   type Exercise,
   type GenerateInput,
   type ReviewItem,
@@ -156,10 +157,13 @@ function reviewed(review: ReviewItem, combination: Combination, raw: VerbItem): 
   };
 }
 
-export async function generateVerbs(
-  input: GenerateInput,
-  combinations: Combination[],
-): Promise<Exercise[]> {
+export async function generateVerbs(input: GenerateInput, combinations: Combination[]) {
+  const { batch, finish } = verbBatch(input, combinations);
+  return finish(await generateBatch(input, batch));
+}
+
+// The call for a batch of verbs, without sending it.
+export function verbBatch(input: GenerateInput, combinations: Combination[]): BatchPlan<VerbItem> {
   const reviews = reviewSlots(input, "verb", combinations.length);
   const fresh = freshness(input, "verb");
   const { known, recent } = history(input, "verb");
@@ -184,13 +188,15 @@ export async function generateVerbs(
             ),
         };
   });
-  const results = await generateBatch(input, {
-    mode: "verb",
-    fields: FIELDS,
-    schema: verbItemSchema,
-    slots,
-    sections: historySection(recent, "verb") + knownSection(known, "verb") + similarSection(input, "verb"),
-    tokensPerItem: 1500,
-  });
-  return keptItems(results, reviews);
+  return {
+    batch: {
+      mode: "verb",
+      fields: FIELDS,
+      schema: verbItemSchema,
+      slots,
+      sections: historySection(recent, "verb") + knownSection(known, "verb") + similarSection(input, "verb"),
+      tokensPerItem: 1500,
+    },
+    finish: (results) => keptItems(results, reviews),
+  };
 }
