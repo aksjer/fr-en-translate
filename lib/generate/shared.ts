@@ -64,6 +64,7 @@ const historyItemSchema = z.object({
   verbType: z.enum(VERB_TYPES).optional().catch(undefined),
   review: z.boolean().optional().catch(undefined),
   retest: z.boolean().optional().catch(undefined),
+  retestMissed: z.boolean().optional().catch(undefined),
   context: clipped(300).optional().catch(undefined),
   reference: clipped(300).optional().catch(undefined),
   correction: clipped(300).optional().catch(undefined),
@@ -140,9 +141,11 @@ export type Exercise = Combination & {
   frequency?: Frequency;
   // The grammar point a sentence practices (as soon as, should).
   point?: string;
-  // The French of a stored review whose context couldn't be written: this
-  // new item replaces it, and it isn't due again today.
-  reviewSkipped?: string;
+  // The French of the stored reviews whose context couldn't be written: the
+  // batch replaces them, and they aren't due again today.
+  reviewSkipped?: string[];
+  // The batch's retest couldn't be written: the next batch tries it again.
+  retestMissed?: boolean;
 };
 
 // What the app is for: with it, the model can choose well in cases no rule covers.
@@ -683,10 +686,13 @@ export async function generateBatch<Raw>(
   return results;
 }
 
-// The usable items of a batch. A review left out (its context failed twice)
-// is named on the first item, so the page doesn't make it due again today.
+// The usable items of a batch. The reviews left out (their context failed
+// twice) are named on the first item, so the page doesn't make them due again
+// today.
 export function keptItems(results: (Exercise | undefined)[], reviews: (ReviewItem | undefined)[]) {
   const kept = results.filter((item): item is Exercise => Boolean(item));
-  const skipped = reviews.find((review, index) => review && !results[index]);
-  return skipped ? [{ ...kept[0], reviewSkipped: skipped.text }, ...kept.slice(1)] : kept;
+  const skipped = reviews.flatMap((review, index) =>
+    review && !results[index] ? [review.text] : [],
+  );
+  return skipped.length ? [{ ...kept[0], reviewSkipped: skipped }, ...kept.slice(1)] : kept;
 }

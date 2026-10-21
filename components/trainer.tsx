@@ -34,7 +34,8 @@ type Exercise = Combination & {
   frequency?: Frequency;
   // The grammar point a sentence practices (as soon as, should).
   point?: string;
-  reviewSkipped?: string;
+  reviewSkipped?: string[];
+  retestMissed?: boolean;
 };
 
 type Correction = {
@@ -125,12 +126,16 @@ export function Trainer() {
   // The batch being fetched, shared so a second request never starts.
   const pending = useRef<Promise<Exercise[]> | null>(null);
   const busy = useRef(false);
-  const settingsKey = JSON.stringify(settings);
+  // The efforts only change how the model thinks: they keep the queue.
+  const { generateEffort, correctEffort, ...choices } = settings; // eslint-disable-line @typescript-eslint/no-unused-vars
+  const settingsKey = JSON.stringify(choices);
   const current = useRef({ settings, settingsKey });
   useEffect(() => {
     current.current = { settings, settingsKey };
-    queue.current = [];
   }, [settings, settingsKey]);
+  useEffect(() => {
+    queue.current = [];
+  }, [settingsKey]);
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [translation, setTranslation] = useState("");
   const [result, setResult] = useState<Correction | null>(null);
@@ -229,6 +234,7 @@ export function Trainer() {
           isWordMode(next.mode) && next.reference ? englishKey(next.reference) : undefined,
         forms: next.forms,
         reviewSkipped: next.reviewSkipped,
+        retestMissed: next.retestMissed,
       });
       setTranslation("");
       setResult(null);

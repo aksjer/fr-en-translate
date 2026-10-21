@@ -95,7 +95,8 @@ export function pickCombination(
   // The learner's recurring mistakes, and the point of their last sentence,
   // which isn't practiced twice in a row.
   mistakes: CommonMistake[] = [],
-  lastPoint?: string,
+  // Points no habit target may have: the last sentence's, the batch's others.
+  usedPoints: (string | undefined)[] = [],
   // The mode of the batch, when another item of it already has one.
   batchMode?: Mode,
 ): Combination {
@@ -104,7 +105,10 @@ export function pickCombination(
   const retest = mode === "sentence" && wrongSentence !== undefined;
   const targets = mistakes
     .slice(0, TARGET_CHOICES + 1)
-    .filter((mistake) => pointName(mistake.right) !== (lastPoint && pointName(lastPoint)))
+    .filter(
+      (mistake) =>
+        !usedPoints.some((point) => point && pointName(point) === pointName(mistake.right)),
+    )
     .slice(0, TARGET_CHOICES);
   const target =
     mode === "sentence" && !retest && targets.length && Math.random() < TARGET_CHANCE

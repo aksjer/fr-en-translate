@@ -247,5 +247,9 @@ export async function generateSentences(
       wordsSection(input),
     tokensPerItem: 2000,
   });
-  return results.filter((item): item is Exercise => Boolean(item));
+  const kept = results.filter((item): item is Exercise => Boolean(item));
+  // A retest left out is tried again in the next batch.
+  return combinations[0].retest && !results[0]
+    ? [{ ...kept[0], retestMissed: true }, ...kept.slice(1)]
+    : kept;
 }

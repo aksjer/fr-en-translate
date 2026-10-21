@@ -19,11 +19,16 @@ const GENERATORS = {
 // prompt and fields; each item has its own other settings.
 export function generateExercises(input: GenerateInput): Promise<Exercise[]> {
   // The last answered sentence, if wrong, gets one retest: none if it was a
-  // retest itself or if a retest came after it, even one left unanswered.
+  // retest itself or if a retest came after it, even one left unanswered. A
+  // retest the model couldn't write leaves a mark on the batch's first item:
+  // the wrong sentence before it is still due, whatever came after.
   const sentences = (input.history ?? []).filter((item) => item.mode === "sentence");
   const lastIndex = sentences.findLastIndex((item) => item.ok !== undefined);
-  const last = sentences[lastIndex];
-  const retested = sentences.slice(lastIndex).some((item) => item.retest);
+  const wrongIndex = sentences.findLastIndex((item) => item.ok === false);
+  const missed = sentences.findLastIndex((item) => item.retestMissed);
+  const dueIndex = wrongIndex === lastIndex || missed > wrongIndex ? wrongIndex : -1;
+  const last = sentences[dueIndex];
+  const retested = sentences.slice(dueIndex).some((item) => item.retest);
   const retest = last?.ok === false && !retested;
   // The page asks for a new batch right after a wrong sentence, so its retest
   // comes first, while the mistake is fresh, if the settings allow sentences.
@@ -41,19 +46,21 @@ export function generateExercises(input: GenerateInput): Promise<Exercise[]> {
           }
         : undefined,
       mistakes,
-      sentences.at(-1)?.point,
+      [sentences.at(-1)?.point],
       retest && sentenceAllowed ? "sentence" : undefined,
     ),
   ];
-  // The other items practice no retest, and never the habit of the item before.
+  // The other items practice no retest, and never a habit another item has.
   while (combinations.length < BATCH_SIZE) {
-    const previous = combinations[combinations.length - 1];
     combinations.push(
       pickCombination(
         input,
         undefined,
         mistakes,
-        previous.target?.right ?? previous.retestPoint ?? sentences.at(-1)?.point,
+        [
+          sentences.at(-1)?.point,
+          ...combinations.map((combination) => combination.target?.right ?? combination.retestPoint),
+        ],
         combinations[0].mode,
       ),
     );

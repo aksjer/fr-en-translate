@@ -64,9 +64,12 @@ export type SeenItem = {
   // A missed word or verb given again, or a sentence that practices the
   // mistake of the one before.
   review?: boolean;
-  // The French of a review this item replaced, its context having failed: not
-  // due again the same day.
-  reviewSkipped?: string;
+  // The French of the reviews this item's batch replaced, their context having
+  // failed: not due again the same day. One text in items stored before it was
+  // a list.
+  reviewSkipped?: string[] | string;
+  // The retest of this item's batch couldn't be written: tried again later.
+  retestMissed?: boolean;
   retest?: boolean;
   // The French sentence that showed the meaning of a word or verb.
   context?: string;
@@ -100,6 +103,7 @@ export type ShownItem = Pick<
   | "english"
   | "forms"
   | "reviewSkipped"
+  | "retestMissed"
 >;
 
 // Items stored before accepted existed kept the learner's right synonym as
@@ -251,7 +255,7 @@ export function toReview(items: SeenItem[], known: KnownItems, mode: "word" | "v
     item.at !== undefined && new Date(item.at).toLocaleDateString("en-CA") === today();
   const skipped = new Set(
     ofMode.flatMap((item) =>
-      item.reviewSkipped && isToday(item) ? [sameText(item.reviewSkipped)] : [],
+      item.reviewSkipped && isToday(item) ? [item.reviewSkipped].flat().map(sameText) : [],
     ),
   );
   const due = ofMode.filter(
