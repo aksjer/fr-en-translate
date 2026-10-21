@@ -2,13 +2,15 @@
 // check the correction prompt at the cost of a single call:
 //   npm run eval                  (effort low)
 //   npm run eval -- --effort medium
+// It also writes every case with the model's full answer to
+// evals/results/<date>-<effort>.json, to share or compare runs.
 // It reads GEMINI_API_KEY from .env.local, and sends the app's own correction
 // prompts (correctionRequest) and applies its own code checks after the model
 // (finishCorrection), so each verdict is the one the page would show.
 // Caveat: the app grades one answer per request; here the model reads all the
 // cases at once, which can change a few verdicts. A mismatch is worth
 // checking in the app before changing a prompt.
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { generateText, Output } from "ai";
 import { z } from "zod";
@@ -85,6 +87,7 @@ const { output } = await generateText({
 const items = withoutEntities(output.items);
 let matches = 0;
 let invalid = 0;
+const results: object[] = [];
 console.log("case  mode      expected  got     note");
 cases.forEach((item, index) => {
   const answer = items.find((candidate) => candidate.case === index + 1);
@@ -96,6 +99,7 @@ cases.forEach((item, index) => {
     (answer.translated && !answer.right && !answer.mistakes.length);
   const correction = answer && finishCorrection(inputs[index], answer);
   const got = retried ? "invalid" : correction?.isCorrect ? "right" : "wrong";
+  results.push({ case: index + 1, ...item, got, model: answer ?? null, result: correction ?? null });
   if (retried) invalid++;
   else if (got === item.expected) matches++;
   console.log(
@@ -114,4 +118,11 @@ console.log(
   `\n${matches}/${cases.length} verdicts match, ${mismatches} mismatches, ${invalid} invalid ` +
     `outputs (effort ${effort})`,
 );
+mkdirSync("evals/results", { recursive: true });
+const file = `evals/results/${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}-${effort}.json`;
+writeFileSync(
+  file,
+  JSON.stringify({ effort, model: model.modelId, matches, mismatches, invalid, results }, null, 2),
+);
+console.log(`Full results: ${file}`);
 process.exitCode = matches === cases.length ? 0 : 1;
