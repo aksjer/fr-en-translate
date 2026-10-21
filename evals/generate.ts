@@ -247,6 +247,9 @@ type Group = {
   labels: string[];
   special?: string;
   situation?: string;
+  // The point each sentence was asked for, even one with no word for its
+  // tense (it then has no focus).
+  asked?: (string | undefined)[];
 };
 
 function groups(): Group[] {
@@ -299,6 +302,7 @@ function groups(): Group[] {
       input: base,
       combinations: sentences,
       labels: sentences.map((combination, index) => label(combination, asked[index])),
+      asked,
     },
     ...Object.entries(SITUATIONS).map(([name, special]) => ({
       name,
@@ -357,6 +361,7 @@ export async function runGeneration(effort: Effort) {
         slot,
         combination: group.combinations[index],
         label: group.labels[index],
+        asked: group.asked?.[index],
       }));
     }),
   ).flat();
@@ -438,9 +443,14 @@ export async function runGeneration(effort: Effort) {
       kind: combination.kind,
       verbType: combination.verbType,
       tense: combination.tense,
+      // The point asked, in its own bucket when no word of it fits the tense.
       focus:
         combination.mode === "sentence" && !item.group.special
-          ? (combination.focus ?? "none")
+          ? combination.focusWord
+            ? combination.focus
+            : item.asked
+              ? `${item.asked} (no word)`
+              : "none"
           : undefined,
       focusWord: combination.focusWord,
       special: item.group.special,
