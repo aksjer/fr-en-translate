@@ -154,8 +154,6 @@ const MODE_RULES: Record<"word" | "sentence", string[]> = {
     "- A wrong tense, article, preposition or word order, another grammar mistake, a",
     "  word a native speaker wouldn't use there (make my homework) or a phrasing that",
     '  sounds foreign ("I am agree", "since three years") is a mistake.',
-    "- American English often uses the simple past with already, yet, just or ever (She",
-    "  already paid): no mistake for a present perfect, except with for or since.",
   ],
 };
 
@@ -350,13 +348,15 @@ export function correctionRequest(input: z.infer<typeof correctInputSchema>) {
         ? []
         : [
             "- The tense given is the tense of the exercise, and the reference uses it: another",
-            "  tense is a mistake (tense), except the simple past below.",
+            "  tense is a mistake (tense), except the simple past for a present perfect.",
           ]),
       "",
       "## Mistakes and tips",
-      "A mistake is what a native US speaker wouldn't say or write with this meaning; a",
-      "tip is a small remark on what they would say too. A wrong or missing meaning, or a",
-      "false friend, is always a mistake.",
+      "Only flag what an American teacher would correct: any wording Americans use in",
+      "everyday speech is right, such as the simple past where the reference has a present",
+      "perfect. A mistake is what they would correct; a tip is a small remark on what they",
+      "would leave as is. A wrong or missing meaning, or a false friend, is always a",
+      "mistake.",
       ...MODE_RULES[wordMode ? "word" : "sentence"],
       "- Never leave out a real mistake to be nice.",
       "",
