@@ -10,7 +10,6 @@ import {
   withoutEntities,
 } from "@/lib/model";
 import {
-  EFFORTS,
   englishKey,
   isWordMode,
   MAX_PAST_MISTAKES,
@@ -28,8 +27,6 @@ export const correctInputSchema = z.object({
   text: z.string().trim().min(1).max(MAX_TEXT_LENGTH),
   translation: z.string().trim().min(1).max(MAX_TEXT_LENGTH),
   tense: z.enum(TENSES).optional(),
-  // The thinking level from the settings; none is the default.
-  effort: z.enum(EFFORTS).optional().catch(undefined),
   // What the item practices: the kind of word, or the grammar point of a sentence.
   kind: z.enum(WORD_KINDS).optional().catch(undefined),
   focus: z.enum(SENTENCE_FOCUSES).optional().catch(undefined),
@@ -500,7 +497,7 @@ export async function correctTranslation(
       },
       model,
       // Room for the thinking and the remarks on a long sentence.
-      ...thinking("correct", input.effort, 8000),
+      ...thinking(8000),
       maxRetries: 1,
       output: Output.object({ schema: request.schema }),
       system: request.system,

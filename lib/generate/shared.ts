@@ -638,7 +638,7 @@ export async function generateBatch<Raw>(
     try {
       const { output } = await generateText({
         model,
-        ...thinking("generate", input.generateEffort, 1000 + batch.tokensPerItem * slots.length),
+        ...thinking(1000 + batch.tokensPerItem * slots.length),
         maxRetries: 1,
         output: Output.object({ schema: z.object({ items: z.array(batch.schema) }) }),
         system: [

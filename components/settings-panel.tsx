@@ -1,14 +1,11 @@
 "use client";
 
 import {
-  DEFAULT_EFFORT,
-  EFFORTS,
   MODES,
   TENSES,
   THEMES,
   VERB_TYPES,
   WORD_TYPES,
-  type Effort,
 } from "@/lib/options";
 import { settingApplies, type Settings } from "@/lib/settings";
 
@@ -59,16 +56,6 @@ export function SettingsPanel({ settings, onChange }: Props) {
           onChange={(themes) => onChange({ ...settings, themes })}
         />
       )}
-      <EffortGroup
-        label="Generation effort"
-        selected={settings.generateEffort ?? DEFAULT_EFFORT.generate}
-        onChange={(generateEffort) => onChange({ ...settings, generateEffort })}
-      />
-      <EffortGroup
-        label="Correction effort"
-        selected={settings.correctEffort ?? DEFAULT_EFFORT.correct}
-        onChange={(correctEffort) => onChange({ ...settings, correctEffort })}
-      />
     </div>
   );
 }
@@ -79,36 +66,6 @@ const chip = (active: boolean) =>
       ? "border-blue-600 bg-blue-600 text-white"
       : "border-zinc-300 hover:border-zinc-500 dark:border-zinc-700 dark:hover:border-zinc-500"
   }`;
-
-// One thinking level: a longer one may answer better, but more slowly.
-function EffortGroup({
-  label,
-  selected,
-  onChange,
-}: {
-  label: string;
-  selected: Effort;
-  onChange: (effort: Effort) => void;
-}) {
-  return (
-    <fieldset>
-      <legend className="mb-2 text-sm font-medium">{label}</legend>
-      <div className="flex flex-wrap gap-2">
-        {EFFORTS.map((effort) => (
-          <button
-            key={effort}
-            type="button"
-            aria-pressed={effort === selected}
-            onClick={() => onChange(effort)}
-            className={chip(effort === selected)}
-          >
-            {effort}
-          </button>
-        ))}
-      </div>
-    </fieldset>
-  );
-}
 
 type ChipGroupProps<T extends string> = {
   label: string;

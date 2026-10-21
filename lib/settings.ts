@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { focusWeights, type CommonMistake } from "@/lib/common-mistakes";
 import {
-  EFFORTS,
   MODE_USES,
   MODES,
   SENTENCE_FOCUSES,
@@ -30,9 +29,6 @@ export const settingsSchema = z.object({
   verbTypes: z.array(z.enum(VERB_TYPES)).max(VERB_TYPES.length).optional(),
   themes: z.array(z.enum(THEMES)).max(THEMES.length).optional(),
   wordTypes: z.array(z.enum(WORD_TYPES)).max(WORD_TYPES.length).optional(),
-  // None means the default level.
-  generateEffort: z.enum(EFFORTS).optional().catch(undefined),
-  correctEffort: z.enum(EFFORTS).optional().catch(undefined),
 });
 
 export type Settings = z.infer<typeof settingsSchema>;

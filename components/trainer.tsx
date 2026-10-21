@@ -126,9 +126,7 @@ export function Trainer() {
   // The batch being fetched, shared so a second request never starts.
   const pending = useRef<Promise<Exercise[]> | null>(null);
   const busy = useRef(false);
-  // The efforts only change how the model thinks: they keep the queue.
-  const { generateEffort, correctEffort, ...choices } = settings; // eslint-disable-line @typescript-eslint/no-unused-vars
-  const settingsKey = JSON.stringify(choices);
+  const settingsKey = JSON.stringify(settings);
   const current = useRef({ settings, settingsKey });
   useEffect(() => {
     current.current = { settings, settingsKey };
@@ -264,7 +262,6 @@ export function Trainer() {
           reference: exercise.reference,
           context: exercise.context,
           pastMistakes: pastMistakes(readSeen(), exercise.mode),
-          effort: settings.correctEffort,
         },
         setDraftRemarks,
       );

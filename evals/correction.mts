@@ -1,6 +1,6 @@
 // Grades every case of correction-cases.json with Gemini in ONE request, to
 // check the correction prompt at the cost of a single call:
-//   npm run eval                  (effort low)
+//   npm run eval                  (effort minimal, as in the app)
 //   npm run eval -- --effort medium
 // It also writes every case with the model's full answer to
 // evals/results/<date>-<effort>.json, to share or compare runs.
@@ -66,7 +66,7 @@ const itemSchema = wordCorrectionSchema.extend({
   pointResult: pointCorrectionSchema.shape.pointResult,
 });
 
-const { values } = parseArgs({ options: { effort: { type: "string", default: "low" } } });
+const { values } = parseArgs({ options: { effort: { type: "string", default: "minimal" } } });
 const effort = z.enum(EFFORTS).parse(values.effort);
 if (!process.env.GEMINI_API_KEY) {
   console.error("GEMINI_API_KEY is missing: put it in .env.local.");
@@ -95,7 +95,7 @@ let cutOff = false;
 try {
   const { output } = await generateText({
     model,
-    providerOptions: thinking("correct", effort, MAX_OUTPUT_TOKENS).providerOptions,
+    providerOptions: thinking(MAX_OUTPUT_TOKENS, effort).providerOptions,
     maxOutputTokens: MAX_OUTPUT_TOKENS,
     maxRetries: 1,
     output: Output.object({ schema: answerSchema }),
