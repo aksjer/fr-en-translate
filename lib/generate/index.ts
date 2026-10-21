@@ -48,9 +48,10 @@ export function generateExercises(input: GenerateInput): Promise<Exercise[]> {
       mistakes,
       [sentences.at(-1)?.point],
       retest && sentenceAllowed ? "sentence" : undefined,
+      input.points,
     ),
   ];
-  // The other items practice no retest, and never a habit another item has.
+  // The other items practice no retest, and never a point another item has.
   while (combinations.length < BATCH_SIZE) {
     combinations.push(
       pickCombination(
@@ -59,9 +60,13 @@ export function generateExercises(input: GenerateInput): Promise<Exercise[]> {
         mistakes,
         [
           sentences.at(-1)?.point,
-          ...combinations.map((combination) => combination.target?.right ?? combination.retestPoint),
+          ...combinations.map(
+            (combination) =>
+              combination.target?.right ?? combination.retestPoint ?? combination.focusWord,
+          ),
         ],
         combinations[0].mode,
+        input.points,
       ),
     );
   }

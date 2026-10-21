@@ -14,25 +14,18 @@ import {
   type ItemAnswer,
 } from "@/lib/generate/shared";
 import { InvalidAnswerError } from "@/lib/model";
-import { pointName, TENSE_GUIDES, type SentenceFocus, type Theme } from "@/lib/options";
+import { hasTenseForm } from "@/lib/english-verbs";
+import { pointName, sameText, TENSE_GUIDES, type SentenceFocus, type Theme } from "@/lib/options";
 import { untagged } from "@/lib/correct";
 import type { Combination } from "@/lib/settings";
 
-// What each grammar point means in a sentence, so the French needs it.
+// How the word of each grammar point is practiced, so the French needs it.
 const FOCUS_GUIDES: Record<SentenceFocus, string> = {
-  auxiliary:
-    "an English auxiliary the French doesn't show word for word: do, does or did in a " +
-    "question or a negation, a short answer (Yes, I have) or a question tag (didn't you?)",
-  modal: "an English modal (can, could, should, must, might, have to)",
-  preposition:
-    "an English preposition that French speakers often get wrong (on Monday, at night, " +
-    "for two years, depend on, wait for, in the car)",
-  conjunction:
-    "an English conjunction or linking expression (although, unless, while, as soon " +
-    "as, as well as, as long as, even though, so that, whereas)",
-  adverb:
-    "a common English adverb and its place in the sentence (already, still, yet, ever, " +
-    "always, just, almost)",
+  auxiliary: "in a question, a negation or a short answer, which the French doesn't show word for word",
+  modal: "",
+  preposition: "where French speakers often use another one",
+  conjunction: "linking two parts of the sentence",
+  adverb: "in its natural place in the sentence",
 };
 
 // How a sentence on these themes sounds, from what the learner reads and
@@ -41,7 +34,7 @@ const FOCUS_GUIDES: Record<SentenceFocus, string> = {
 const THEME_STYLES: Partial<Record<Theme, string>> = {
   news:
     "Write it like a short line from a news story, in everyday words: a fact, often " +
-    "with its source (« Selon la police… ») or with what is expected next.",
+    "with its source or with what is expected next.",
   "cars and EVs":
     "Write it like a line from a first-person car review or a talk between drivers: " +
     "casual, about driving, charging, range, the battery or the price.",
@@ -55,9 +48,9 @@ const THEME_STYLES: Partial<Record<Theme, string>> = {
 // code picks it: a habit, a retest of the last mistake, a grammar point, or
 // else the model's choice among the learner's mistakes.
 function learningPoint(combination: Combination) {
-  const { focus, retest, retestPoint, retestMistake, target } = combination;
+  const { focus, focusWord, retest, retestPoint, retestMistake, target } = combination;
   const right = target && untagged(target.right);
-  const point = right ?? retestPoint;
+  const point = right ?? retestPoint ?? focusWord;
   const what = target
     ? `« ${right} », in a situation where a French speaker would write « ` +
       `${untagged(target.wrong)} » as the learner did ${target.count} times`
@@ -69,8 +62,8 @@ function learningPoint(combination: Combination) {
           "tense, the tense is the point and point is empty"
         : retest
           ? "the difficulty of the learner's last wrong sentence in the history again"
-          : focus
-            ? FOCUS_GUIDES[focus]
+          : focus && focusWord
+            ? `the English ${focus} « ${focusWord} »${FOCUS_GUIDES[focus] ? ` ${FOCUS_GUIDES[focus]}` : ""}`
             : "one difficulty for French speakers: the mistake of a wrong (recent) item " +
               "of the history, else a weak point below, else a common word French " +
               "speakers get wrong";
@@ -131,7 +124,10 @@ function weakPointsSection(input: GenerateInput) {
   return top.length
     ? "\n\n## Weak points\nThe kinds of mistakes the learner made most in their recent " +
         "sentences:\n" +
-        top.map(([tag, count]) => `- ${ERROR_TAG_DEFINITIONS[tag]}: ${count} times`).join("\n")
+        top
+          // Without the definitions' examples, which the model would copy.
+          .map(([tag, count]) => `- ${ERROR_TAG_DEFINITIONS[tag].replace(/\s*\([^)]*\)/g, "")}: ${count} times`)
+          .join("\n")
     : "";
 }
 
@@ -165,9 +161,9 @@ const FIELDS = [
   "  words and spelling, every word where a native speaker puts it, and in the present",
   "  the simple present unless the action is going on right now.",
   "- point: the English word or words of the learning point as the reference has",
-  "  them, lowercase (as soon as, should have, did), or empty.",
+  "  them, lowercase, or empty.",
   "- pointInReference: the words of reference that carry the point, copied exactly",
-  "  as written there (had to for have to), or empty.",
+  "  as written there, in any form, or empty.",
 ];
 
 function task(combination: Combination) {
@@ -176,7 +172,7 @@ function task(combination: Combination) {
   return (
     `one original French sentence on the theme "${theme}", as long as a line in a ` +
     `conversation, a video or the news. Its natural American English translation is in ` +
-    `the ${tense}: ${guide?.english}; to get it, use ${guide?.french}.` +
+    `the ${tense}: ${guide?.forms}; to get it, use ${guide?.french}.` +
     (theme && THEME_STYLES[theme] ? ` ${THEME_STYLES[theme]}` : "") +
     learningPoint(combination)
   );
@@ -187,19 +183,31 @@ function checked(
   raw: ItemAnswer,
   combination: Combination,
   mastered: Set<string>,
+  seen: Set<string>,
   final: boolean,
 ): Exercise {
   const answer = checkedItem(raw, "sentence");
-  // A habit or a retest of a point keeps it under its own name, whatever the
-  // model calls it: its right answers then make it mastered.
-  const forced = combination.target?.right ?? combination.retestPoint;
+  // A sentence of the history again (the wrong one of a retest) teaches
+  // nothing new; nor does one in another tense than asked. Both are left out.
+  if (seen.has(sameText(answer.text))) {
+    throw new InvalidAnswerError(`« ${answer.text} » is in the history; write a new sentence`);
+  }
+  if (combination.tense && !hasTenseForm(answer.reference, combination.tense)) {
+    throw new InvalidAnswerError(
+      `the reference « ${answer.reference} » isn't in the ${combination.tense}; write one that is`,
+    );
+  }
+  // A habit, a retest or a word the code picked keeps its point under its own
+  // name, whatever the model calls it: its right answers then make it mastered.
+  const forced = combination.target?.right ?? combination.retestPoint ?? combination.focusWord;
   const point = forced ? pointName(forced) : answer.point;
   // The point must be in the reference, or the sentence doesn't practice it:
   // asked once more, then the sentence is kept without its point.
   const missing = Boolean(point && !inReference(point, answer.pointInReference ?? "", answer.reference));
   // A mastered point is never the target again, except in a retest or a
   // habit, which practice a mistake whatever was mastered; asked once more.
-  const mastery = point && mastered.has(point) && !combination.retest && !combination.target;
+  // The code never picks a mastered word.
+  const mastery = point && mastered.has(point) && !forced;
   if (!final && missing) {
     throw new InvalidAnswerError(
       `the reference « ${answer.reference} » doesn't use the point « ${point} »; write one that does`,
@@ -228,23 +236,26 @@ export function sentenceBatch(
 ): BatchPlan<ItemAnswer> {
   const mastered = new Set((input.points?.mastered ?? []).map(pointName));
   const { recent } = history(input, "sentence");
-  // Weak points only matter for a sentence whose point the model picks;
-  // mastered and practice points for one that isn't a retest or a habit.
-  const free = combinations.filter((combination) => !combination.retest && !combination.target);
+  const seen = new Set(recent.map((item) => sameText(item.text)));
+  // Weak points and the learner's points only matter for a sentence whose
+  // point the model picks: not a retest, a habit or a word the code picked.
+  const free = combinations.filter(
+    (combination) => !combination.retest && !combination.target && !combination.focusWord,
+  );
   const batch = {
     mode: "sentence" as const,
     fields: FIELDS,
     schema: sentenceExerciseSchema,
     slots: combinations.map((combination) => ({
       task: task(combination),
-      check: (raw: ItemAnswer, final: boolean) => checked(raw, combination, mastered, final),
+      check: (raw: ItemAnswer, final: boolean) => checked(raw, combination, mastered, seen, final),
     })),
     sections:
       (free.length ? pointsSection(input) : "") +
       (free.some((combination) => !combination.focus) ? weakPointsSection(input) : "") +
       "\n\n## Every sentence\nOne learning point besides the tense, never a second, and " +
-      "never the plain auxiliary the tense needs (will, would, have, be); combine the " +
-      "point with the tense in its natural form (will have to, hasn't been able to). " +
+      "never the plain auxiliary the tense needs; combine the point with the tense in " +
+      "its natural form. " +
       "Invent concrete, realistic situations, not the most obvious ones " +
       "for the theme, each with another person, structure and sentence type than the " +
       "others and the last sentences of the history. Every word of the translations is " +

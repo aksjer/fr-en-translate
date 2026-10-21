@@ -28,20 +28,19 @@ import type { WordKind } from "@/lib/options";
 import type { Combination } from "@/lib/settings";
 import { InvalidAnswerError } from "@/lib/model";
 
-// What a word of each kind looks like, besides the examples of commonAt. Only
-// examples: the history keeps the model from giving the same ones again.
+// What a word of each kind looks like. No examples: the model gave them
+// back as items.
 const KIND_GUIDES: Record<WordKind, string> = {
   noun: "",
-  // Many of the most useful ones are expressions (anyway, worth it).
-  adjective: "Expressions of several words count too (« ça vaut le coup » → worth it). ",
-  adverb: "Expressions of several words count too (« de toute façon », « en fait »). ",
+  // Many of the most useful ones are expressions.
+  adjective: "Expressions of several words count too. ",
+  adverb: "Expressions of several words count too. ",
   // Few modals exist: their other forms keep the kind from running out.
   modal:
     "The text is the French verb form as it appears in the context sentence, and other " +
-    "forms of a modal count as other words (« tu aurais dû » → should have, « je n'ai " +
-    "pas pu » → couldn't, « tu n'es pas obligé » → don't have to). ",
-  preposition: "Expressions of several words count too (« au lieu de », « grâce à »). ",
-  conjunction: "Linking expressions of several words count too (« dès que », « ainsi que »). ",
+    "forms of a modal (past, negative, conditional) count as other words. ",
+  preposition: "Expressions of several words count too. ",
+  conjunction: "Linking expressions of several words count too. ",
 };
 
 // One item: a few choices for a new word, the code keeping the first new
@@ -50,21 +49,19 @@ const wordItemSchema = z.object({ choices: z.array(wordExerciseSchema) });
 type WordItem = z.infer<typeof wordItemSchema>;
 
 // The English comes first, since the learner works on their English: starting
-// from the French gave loose translations (un périple → an ordeal). The
-// example describes its context instead of giving one, so it can't be copied.
+// from the French gave loose translations. No examples: the model copied them.
 const FIELDS = [
   `- choices: ${CHOICES} different words for this task, best first (just one for a`,
   "  review), each with:",
-  "  - situation: one short line in English: the English word and its meaning here",
-  "    (e.g. leaf: part of a tree).",
-  "  - text: the French word or short expression only, with its article for a noun",
-  "    (la feuille). Check its spelling and accents.",
+  "  - situation: one short line in English: the English word and its meaning here.",
+  "  - text: the French word or short expression only, with its article for a noun.",
+  "    Check its spelling and accents.",
   "  - context: one short, everyday French sentence that uses text in this meaning",
-  "    only (for la feuille → leaf, a sentence about a tree, never about paper).",
+  "    only, never in another meaning of text.",
   "  - itemInContext: the words of context that translate text, copied exactly as",
-  "    written there, in any form (les feuilles).",
+  "    written there, in any form.",
   "  - reference: the most natural American English translation of text alone, never",
-  "    of the context, in American words and spelling (apartment, color).",
+  "    of the context, in American words and spelling.",
   "  - frequency: how often an American hears this English word: everyday (every day",
   "    or every week), sometimes, or rare.",
 ];
@@ -76,7 +73,7 @@ function newTask({ kind = "noun", theme }: Combination) {
     `on the theme "${theme}" (only a direction: a common word loosely related to it ` +
     "beats a rare one). " +
     KIND_GUIDES[kind] +
-    "Its English looks different from the French (not « généreux » → generous). The " +
+    "Its English looks different from the French, never a look-alike of it. The " +
     "French is the word a French speaker really uses for this English, so seeing text " +
     "and context they would answer with your reference. When the most common words of " +
     "this kind are learned, take another common form or use of one."
@@ -139,7 +136,7 @@ export function wordBatch(input: GenerateInput, combinations: Combination[]): Ba
       schema: wordItemSchema,
       slots,
       sections: historySection(recent, "word") + knownSection(known, "word") + similarSection(input, "word"),
-      tokensPerItem: 1500,
+      tokensPerItem: 3000,
     },
     finish: (results) => keptItems(results, reviews),
   };

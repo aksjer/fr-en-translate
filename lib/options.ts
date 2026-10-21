@@ -85,14 +85,16 @@ export const TENSES = [
   "conditional",
 ] as const;
 
-// What each English tense looks like, for both prompts, and the French that
-// leads to it, for generation only.
+// What each English tense looks like: with examples for the correction
+// (english), as forms only for the generation (forms), so it has no
+// sentence to copy; and the French that leads to it, for the generation.
 export const TENSE_GUIDES: Record<
   (typeof TENSES)[number],
-  { english: string; french: string }
+  { english: string; forms: string; french: string }
 > = {
   present: {
     english: "simple present or present continuous (I work, I'm working)",
+    forms: "the simple present, or the present continuous for an action going on now",
     french: "a présent without depuis (with depuis, English needs the present perfect)",
   },
   past: {
@@ -100,30 +102,31 @@ export const TENSE_GUIDES: Record<
       "simple past or past continuous (I worked, I was working), or used to for a past " +
       "habit; American English also uses the simple past for a recent result and with " +
       "already or yet (I lost my keys, I already ate, Did you eat yet?)",
+    forms:
+      "the simple past, the past continuous for an action in progress, or used to + verb " +
+      "for a past habit",
     french:
-      "a passé composé of a finished action, often with a finished time (hier, en 2010), " +
-      "or an imparfait: of an action in progress for the past continuous, of a habit for " +
-      "the simple past or used to (je jouais au foot le dimanche → I used to play soccer " +
-      "on Sundays)",
+      "a passé composé of a finished action, often with a finished time, or an " +
+      "imparfait: of an action in progress for the past continuous, of a habit for the " +
+      "simple past or used to",
   },
   "present perfect": {
     english:
       "have + past participle (I have worked), or have been + -ing for an ongoing " +
       "activity (I've been waiting for an hour)",
+    forms: "have or has + past participle, or have been + -ing for an ongoing activity",
     french:
-      "a présent with depuis, ça fait … que or il y a + a duration + que (j'habite ici " +
-      "depuis 2010 → I have lived here since 2010; ça fait une heure que j'attends → I've " +
-      "been waiting for an hour), or a passé composé with jamais, plusieurs fois, pas " +
-      "encore, or déjà meaning once in one's life (j'ai déjà été à New York → I've been " +
-      "to New York; as-tu déjà vu… ? → have you ever seen…?), with no finished time (hier, " +
-      "la semaine dernière, en 2020), which makes it a simple past. Not déjà meaning " +
-      "already: j'ai déjà mangé is often I already ate in American English. Without such a word, a passé " +
-      "composé is a simple past (j'ai mangé une pomme → I ate an apple), so never use one alone",
+      "a présent with depuis, ça fait … que or il y a + a duration + que, or a passé " +
+      "composé with jamais, plusieurs fois, pas encore, or déjà meaning once in one's " +
+      "life, with no finished time, which makes it a simple past. Not déjà meaning " +
+      "already, often a simple past in American English. Without such a word, a passé " +
+      "composé is a simple past, so never use one alone",
   },
   "past perfect": {
     english:
       "had + past participle (I had worked); the simple past is also natural when after " +
       "or before already shows the order (after he left)",
+    forms: "had + past participle",
     french:
       "a plus-que-parfait, in a sentence where the order of two past events matters and " +
       "no après or avant shows it",
@@ -132,13 +135,15 @@ export const TENSE_GUIDES: Record<
     english:
       "will or be going to + verb (I will work, I'm going to work), with a simple present " +
       "after when, as soon as or until (when he arrives, not when he will arrive)",
-    french: "a futur simple or futur proche (quand il arrivera → when he arrives)",
+    forms: "will or be going to + verb, with a simple present after when, as soon as or until",
+    french: "a futur simple or futur proche; English puts a futur after quand in the present",
   },
   conditional: {
     english:
       "would + verb (I would work; could, should), with a simple past after if (if I had " +
       "time, I would go)",
-    french: "a conditionnel présent (could for pouvoir, should for devoir)",
+    forms: "would, could or should + verb, with a simple past after if",
+    french: "a conditionnel présent; pouvoir gives could and devoir gives should",
   },
 };
 

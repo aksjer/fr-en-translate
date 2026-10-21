@@ -32,6 +32,7 @@ import {
   type Frequency,
   type Mode,
 } from "@/lib/options";
+import { verbForms } from "@/lib/english-verbs";
 import { settingsSchema, type Combination } from "@/lib/settings";
 
 // Cuts a text from the page instead of rejecting it: items stored in the
@@ -167,33 +168,16 @@ export function learner(mode: Mode) {
 
 // The learner wants only the most common English, whatever their level: a
 // small model knows the Oxford 3000 list, but it can't count frequency ranks.
-// News words count too: the learner reads the news.
+// News words count too: the learner reads the news. No example words: the
+// model gave them back as items.
 const COMMON_RULE =
   "among the most common words of everyday American English (the Oxford 3000, the top " +
-  "of COCA, news words such as despite or according to), never a rare or specialized " +
-  "word (craftsmanship, to reap)";
+  "of COCA, the words of the news included), never a rare or specialized word";
 
 export const COMMON_ENGLISH = `${COMMON_RULE}.`;
 
-// Examples of the kind asked for, so a verb isn't modeled on kitchen or until.
-const COMMON_EXAMPLES: Record<string, string> = {
-  noun: "bill, neighbor, deal, kitchen",
-  adjective: "tired, busy, cheap, worth it",
-  adverb: "already, still, almost, anyway",
-  modal: "should, could, might, have to",
-  preposition: "during, until, instead of, because of",
-  conjunction: "although, unless, as soon as, as well as, as long as, even though",
-  "regular verb": "need, try, wait, happen",
-  "irregular verb": "get, keep, bring, find",
-};
-
 export function commonAt(kind: string) {
-  const examples = COMMON_EXAMPLES[kind];
-  return (
-    `${/^[aeiou]/.test(kind) ? "an" : "a"} ${kind} ` +
-    (examples ? `(like ${examples}, only as examples) ` : "") +
-    COMMON_RULE
-  );
+  return `${/^[aeiou]/.test(kind) ? "an" : "a"} ${kind} ${COMMON_RULE}`;
 }
 
 // The model rates each word, so the history shows how common the words it
@@ -334,11 +318,36 @@ export function checkedContext(
   return context;
 }
 
+// Whether the words of a point come in the text in their order, each one
+// whole or in another form of its verb (explained for explain, kept for
+// keep), with at most a few words between two of them: "explain to me" is
+// in "he explained the problem to me".
+const MAX_GAP = 3;
+
+function inOrder(point: string, text: string) {
+  const words = (value: string) => folded(expanded(value)).trim().split(" ").filter(Boolean);
+  const wanted = words(point);
+  const found = words(text);
+  const matches = (own: string, word: string) =>
+    word === own || verbForms(own).has(word) || (own.length >= 3 && word.startsWith(own));
+  const from = (index: number, start: number, first: boolean): boolean => {
+    if (index === wanted.length) return true;
+    const end = first ? found.length : Math.min(found.length, start + MAX_GAP + 1);
+    for (let at = start; at < end; at++) {
+      if (matches(wanted[index], found[at]) && from(index + 1, at + 1, false)) return true;
+    }
+    return false;
+  };
+  return wanted.length > 0 && from(0, 0, true);
+}
+
 // Whether a reference uses the point of its sentence: the words the model
 // quoted (had to for have to, hasn't … yet for not … yet) must be in the
 // reference, every part of them, and share a word with the point, whole or
-// inflected (depends for depend).
+// inflected (depends for depend); or the point's own words must come in it
+// in their order, a few words apart at most.
 export function inReference(point: string, quote: string, reference: string) {
+  if (inOrder(point, reference)) return true;
   const words = (text: string) => folded(text).trim().split(" ");
   const pointWords = words(expanded(point));
   // The quote as written and in full; 'd and 's can stand for two words
@@ -358,9 +367,9 @@ export function inReference(point: string, quote: string, reference: string) {
 }
 
 // The number of choices asked for each new word or verb: the code keeps the
-// first one the learner neither learned nor saw recently, so a repeat rarely
-// costs another call.
-export const CHOICES = 2;
+// first one the learner neither learned nor saw recently, so a learner who
+// knows many words rarely costs another call.
+export const CHOICES = 5;
 
 type Choice = { text: string; english: string };
 

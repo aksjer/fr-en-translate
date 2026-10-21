@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { focusWeights, type CommonMistake } from "@/lib/common-mistakes";
+import { focusWordsFor } from "@/lib/focus-words";
 import {
   MODE_USES,
   MODES,
@@ -40,9 +41,11 @@ export type Combination = {
   theme?: Theme;
   // The kind of word of a word item.
   kind?: WordKind;
-  // The grammar point a sentence needs. None for about 1 in 4 sentences, which
-  // practice a recent mistake or a weak point instead.
+  // The grammar point a sentence needs, and the word of it the code picked
+  // for the tense. None for about 1 in 4 sentences, which practice a recent
+  // mistake or a weak point instead, and when no word of a point fits.
   focus?: SentenceFocus;
+  focusWord?: string;
   // A sentence that practices the mistake of the wrong sentence just before.
   retest?: boolean;
   // The learning point of that wrong sentence, practiced again by the retest.
@@ -69,6 +72,8 @@ const MISTAKE_SENTENCE_CHANCE = 0.25;
 // picked among the most frequent.
 const TARGET_CHANCE = 0.5;
 const TARGET_CHOICES = 3;
+// A point to practice again comes back this often when it fits the tense.
+const PRACTICE_CHANCE = 0.5;
 
 // A random value, each one as likely as its weight (1 at least).
 function weightedPick<T>(values: readonly T[], weights: Map<T, number>): T {
@@ -79,6 +84,31 @@ function weightedPick<T>(values: readonly T[], weights: Map<T, number>): T {
     if (draw < 0) return value;
   }
   return values[values.length - 1];
+}
+
+// The grammar point of a sentence and its word, which must fit the tense:
+// never a mastered one, nor one another item of the batch practices. None
+// when no point has a word left.
+function pickFocusWord(
+  focuses: readonly SentenceFocus[],
+  tense: Tense | undefined,
+  mistakes: CommonMistake[],
+  points: { mastered?: string[]; practice?: string[] },
+  usedPoints: (string | undefined)[],
+) {
+  const done = new Set(
+    [...(points.mastered ?? []), ...usedPoints.filter((point) => point !== undefined)].map(pointName),
+  );
+  const wordsOf = (focus: SentenceFocus) =>
+    focusWordsFor(focus, tense).filter((word) => !done.has(pointName(word)));
+  const open = focuses.filter((focus) => wordsOf(focus).length > 0);
+  if (!open.length) return undefined;
+  const focus = weightedPick(open, focusWeights(mistakes));
+  const words = wordsOf(focus);
+  const practice = new Set((points.practice ?? []).map(pointName));
+  const again = words.filter((word) => practice.has(pointName(word)));
+  const pool = again.length && Math.random() < PRACTICE_CHANCE ? again : words;
+  return { focus, focusWord: pool[Math.floor(Math.random() * pool.length)] };
 }
 
 // One random value of each setting the mode uses. A sentence right after a
@@ -95,6 +125,8 @@ export function pickCombination(
   usedPoints: (string | undefined)[] = [],
   // The mode of the batch, when another item of it already has one.
   batchMode?: Mode,
+  // The learner's grammar points: a mastered one is never picked again.
+  points: { mastered?: string[]; practice?: string[] } = {},
 ): Combination {
   const mode = batchMode ?? pick(settings.modes, MODES);
   const uses = MODE_USES[mode];
@@ -118,6 +150,12 @@ export function pickCombination(
     (!settings.tenses?.length || settings.tenses.includes(wrongSentence.tense))
       ? wrongSentence.tense
       : undefined;
+  // The tense first, then a point whose word fits it.
+  const tense = uses.tense ? (sameTense ?? pick(settings.tenses, TENSES)) : undefined;
+  const focus =
+    mode === "sentence" && !retest && !target && Math.random() >= MISTAKE_SENTENCE_CHANCE
+      ? pickFocusWord(focuses, tense, mistakes, points, usedPoints)
+      : undefined;
   return {
     mode,
     ...(retest && { retest: true }),
@@ -125,7 +163,7 @@ export function pickCombination(
     ...(retest &&
       !wrongSentence.point &&
       wrongSentence.mistake && { retestMistake: wrongSentence.mistake }),
-    ...(uses.tense && { tense: sameTense ?? pick(settings.tenses, TENSES) }),
+    ...(tense && { tense }),
     ...(uses.verbType && {
       verbType: pick(settings.verbTypes, VERB_TYPES),
     }),
@@ -134,12 +172,7 @@ export function pickCombination(
       kind: pick(typesFor(settings.wordTypes, WORD_KINDS), WORD_KINDS),
     }),
     ...(target && { target }),
-    ...(mode === "sentence" &&
-      !retest &&
-      !target &&
-      Math.random() >= MISTAKE_SENTENCE_CHANCE && {
-        focus: weightedPick(focuses, focusWeights(mistakes)),
-      }),
+    ...focus,
   };
 }
 

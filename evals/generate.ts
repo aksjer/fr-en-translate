@@ -29,6 +29,7 @@ import {
   type Effort,
   type Mode,
 } from "@/lib/options";
+import { focusWordsFor } from "@/lib/focus-words";
 import type { Combination } from "@/lib/settings";
 import {
   askAll,
@@ -201,29 +202,47 @@ function groups(): Group[] {
       (theme): Combination => ({ mode: "verb", verbType, theme }),
     ),
   );
+  // Each point gets a word that fits the tense, as the app picks it, but in
+  // turn rather than at random, so both runs ask the same; a point with no
+  // word for the tense gives a sentence without one.
   const sentences = TENSES.flatMap((tense) =>
     [...SENTENCE_FOCUSES, undefined].map((focus) => ({ tense, focus })),
-  ).map(({ tense, focus }, index): Combination => ({
-    mode: "sentence",
-    tense,
-    ...(focus && { focus }),
-    theme: THEMES[index % THEMES.length],
-  }));
-  const label = (combination: Combination) =>
+  ).map(({ tense, focus }, index): Combination => {
+    const words = focus ? focusWordsFor(focus, tense) : [];
+    const focusWord = words[index % Math.max(words.length, 1)];
+    return {
+      mode: "sentence",
+      tense,
+      ...(focus && focusWord && { focus, focusWord }),
+      theme: THEMES[index % THEMES.length],
+    };
+  });
+  const asked = TENSES.flatMap(() => [...SENTENCE_FOCUSES, undefined]);
+  const label = (combination: Combination, asked?: string) =>
     [
       combination.mode,
       combination.kind,
       combination.verbType,
       combination.tense,
-      combination.mode === "sentence" && `focus ${combination.focus ?? "none"}`,
+      combination.mode === "sentence" &&
+        (combination.focusWord
+          ? `focus ${combination.focus} « ${combination.focusWord} »`
+          : asked
+            ? `focus ${asked} (no word fits the tense)`
+            : "focus none"),
       combination.theme,
     ]
       .filter(Boolean)
       .join(", ");
   return [
-    { name: "words", input: base, combinations: words, labels: words.map(label) },
-    { name: "verbs", input: base, combinations: verbs, labels: verbs.map(label) },
-    { name: "sentences", input: base, combinations: sentences, labels: sentences.map(label) },
+    { name: "words", input: base, combinations: words, labels: words.map((combination) => label(combination)) },
+    { name: "verbs", input: base, combinations: verbs, labels: verbs.map((combination) => label(combination)) },
+    {
+      name: "sentences",
+      input: base,
+      combinations: sentences,
+      labels: sentences.map((combination, index) => label(combination, asked[index])),
+    },
     ...Object.entries(SPECIALS).map(([name, special]) => ({
       name,
       input: generateInputSchema.parse(special.input),
@@ -269,8 +288,9 @@ function copiedExample(exercise: Exercise, examples: Set<string>) {
 export async function runGeneration(effort: Effort) {
   // Each run builds its own calls, so a run doesn't count the other's items
   // as already given.
+  const planned = groups();
   const cases = Array.from({ length: RUNS }, (_, run) =>
-    groups().flatMap((group) => {
+    planned.flatMap((group) => {
       const { batch } = plan(group);
       return batch.slots.map((slot, index) => ({
         run: run + 1,
@@ -349,7 +369,11 @@ export async function runGeneration(effort: Effort) {
       kind: combination.kind,
       verbType: combination.verbType,
       tense: combination.tense,
-      focus: combination.mode === "sentence" && !item.group.special ? (combination.focus ?? "none") : undefined,
+      focus:
+        combination.mode === "sentence" && !item.group.special
+          ? (combination.focus ?? "none")
+          : undefined,
+      focusWord: combination.focusWord,
       special: item.group.special,
       outcome,
       invalidNote: answer ? undefined : missingNote,

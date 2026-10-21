@@ -103,13 +103,13 @@ const FIELDS = [
   '  - english: the verb in its base form, one word, without "to".',
   "  - past, participle: its simple past and past participle in American English",
   "    (gotten, not got).",
-  "  - text: the most common French infinitive for this verb, only the infinitive",
-  "    (« conduire » for drive). Check its spelling and accents.",
+  "  - text: the most common French infinitive for this verb, only the infinitive.",
+  "    Check its spelling and accents.",
   "  - context: one short, everyday French sentence that uses text, conjugated, in",
-  "    this meaning only (for louer → rent, a sentence about a home or a car, never",
-  "    about praise). Check its spelling and accents.",
+  "    this meaning only, never in another meaning of text. Check its spelling and",
+  "    accents.",
   "  - itemInContext: the words of context that translate the verb, copied exactly",
-  "    as written there (nous louons).",
+  "    as written there.",
   "  - frequency: how often an American hears this English verb: everyday (every day",
   "    or every week), sometimes, or rare.",
 ];
@@ -118,10 +118,9 @@ function newTask({ theme, verbType = "regular" }: Combination) {
   return (
     `${CHOICES} different verbs. Each one is ${commonAt(`${verbType} verb`)}, useful ` +
     `when talking about "${theme}" (only a direction: a common verb loosely related to ` +
-    "it beats a rare one). Its French translation looks different from it (not decide " +
-    "→ décider), and has no look-alike with another meaning (attend is « assister à », " +
-    "not « attendre »). A French speaker who sees text and context would answer with " +
-    "this verb, not another one (« confondre » is confuse or mix up, not mistake)."
+    "it beats a rare one). Its French translation looks different from it, and has no " +
+    "French look-alike with another meaning. A French speaker who sees text and context " +
+    "would answer with this verb, not another one."
   );
 }
 
@@ -195,7 +194,7 @@ export function verbBatch(input: GenerateInput, combinations: Combination[]): Ba
       schema: verbItemSchema,
       slots,
       sections: historySection(recent, "verb") + knownSection(known, "verb") + similarSection(input, "verb"),
-      tokensPerItem: 1500,
+      tokensPerItem: 3000,
     },
     finish: (results) => keptItems(results, reviews),
   };
