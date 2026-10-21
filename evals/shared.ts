@@ -29,7 +29,7 @@ export async function askAll<L extends Lists>(
   lists: L,
   request: { system: string; prompt: string },
   effort: Effort,
-): Promise<{ answers: Answers<L>; cutOff: boolean; problem?: string }> {
+): Promise<{ answers: Answers<L>; cutOff: boolean; problem?: string; outputTokens?: number }> {
   const schema = z.object(
     Object.fromEntries(Object.entries(lists).map(([key, item]) => [key, z.array(item)])),
   );
@@ -47,7 +47,7 @@ export async function askAll<L extends Lists>(
   // The finish reason, also when no output came back: the error has none.
   let finishReason: string | undefined;
   try {
-    const { output } = await generateText({
+    const { output, usage } = await generateText({
       model,
       providerOptions: thinking(MAX_OUTPUT_TOKENS, effort).providerOptions,
       maxOutputTokens: MAX_OUTPUT_TOKENS,
@@ -58,7 +58,7 @@ export async function askAll<L extends Lists>(
       },
       ...request,
     });
-    return { answers: keep(withoutEntities(output)), cutOff: false };
+    return { answers: keep(withoutEntities(output)), cutOff: false, outputTokens: usage.outputTokens };
   } catch (error) {
     const noObject = NoObjectGeneratedError.isInstance(error);
     if (!noObject && !NoOutputGeneratedError.isInstance(error)) throw error;

@@ -1,8 +1,11 @@
-// The generation eval: asks Gemini in ONE request for 120 items covering every
-// option, each combination twice (runs 1 and 2), with the app's own prompts
+// The generation eval: asks Gemini in ONE request for 75 cases covering every
+// option, each twice (runs 1 and 2), 150 items, with the app's own prompts
 // (wordBatch, verbBatch, sentenceBatch) and its own code checks (each slot's
-// check: the context holds the item, the point is in the reference, the verb
-// type, new items only, a review keeps its French and English).
+// check: the context holds the item, the point is in the reference, the
+// tense's form, the verb type, new items only, a review keeps its French and
+// English). The cases: 18 words (6 kinds × 3), 9 verbs (the two types in
+// turn), 36 sentences (6 tenses × 5 points and none; a point with no word
+// for the tense gives a sentence without one) and 12 app situations.
 // Caveat: the app asks 3 items of one mode per request; here the model writes
 // all of them at once and sees run 1 while it writes run 2, so the two runs
 // are not fully independent, and a few items may differ from the app's.
@@ -10,6 +13,7 @@ import { z } from "zod";
 import { sentenceBatch } from "@/lib/generate/sentence";
 import {
   batchContext,
+  CHOICES,
   GENERATE_ROLE,
   generateInputSchema,
   type BatchPlan,
@@ -43,106 +47,151 @@ import {
 
 const RUNS = 2;
 
-// The app situations, each with the learner data it needs: fake but
-// realistic history, known items and reviews.
-const SPECIALS: Record<string, { input: unknown; combination: Combination }> = {
-  "review of a missed word": {
-    input: {
-      history: [
-        {
-          mode: "word",
-          text: "le reçu",
-          english: "receipt",
-          context: "Gardez bien le reçu en cas de problème.",
-          answer: "recipe",
-          ok: false,
-          kind: "noun",
-        },
-      ],
-      review: {
-        word: [
-          {
-            text: "le reçu",
-            english: "receipt",
-            reference: "receipt",
-            context: "Gardez bien le reçu en cas de problème.",
-            kind: "noun",
-            misses: 1,
-            today: true,
-          },
-        ],
-      },
+// The answer's size, measured on the eval of 2026-10-21: about 200
+// characters a choice, 3 characters a token. With every case's choices the
+// answer must stay well under the output limit of 65,536 tokens, thoughts
+// included.
+const CHARS_PER_CHOICE = 200;
+const CHARS_PER_TOKEN = 3;
+const MAX_ESTIMATE = 50_000;
+
+// A missed word or verb, as the history and the review list hold it.
+const missedWord = (text: string, english: string, context: string, kind: string, answer: string) => ({
+  history: [{ mode: "word", text, english, context, answer, ok: false, kind }],
+  review: { word: [{ text, english, reference: english, context, kind, misses: 1, today: true }] },
+});
+const missedVerb = (
+  text: string,
+  forms: [string, string, string],
+  context: string,
+  answer: string,
+) => ({
+  history: [{ mode: "verb", text, english: forms[0], context, answer, ok: false }],
+  review: { verb: [{ text, english: forms[0], forms, context, misses: 1, today: true }] },
+});
+
+// The wrong sentence a retest practices again, or the answers that make a habit.
+const wrongSentence = (sentence: {
+  text: string;
+  tense: string;
+  reference: string;
+  point: string;
+  answer: string;
+  remark: string;
+  tag: string;
+}) => ({
+  history: [
+    {
+      mode: "sentence",
+      ...sentence,
+      ok: false,
+      pointResult: "wrong",
+      mistakes: [{ remark: sentence.remark, tag: sentence.tag }],
     },
+  ],
+});
+const habit = (answers: [string, string][], remark: string, tag: string) => ({
+  history: answers.map(([text, answer]) => ({
+    mode: "sentence",
+    text,
+    answer,
+    ok: false,
+    mistakes: [{ remark, tag }],
+  })),
+});
+
+const COMMON_NOUNS =
+  "time, people, way, day, thing, life, child, world, school, family, student, country, " +
+  "problem, hand, place, week, company, question, job, money, night, home, water, room, " +
+  "mother, father, story, month, book, friend, house, car, city, team, idea, kid, door, " +
+  "health, person, party, morning, reason, girl, guy, teacher, doctor, phone, food, dinner, " +
+  "lunch, breakfast, coffee, meal, dish, cup, glass, plate, table, chair, bed, window, " +
+  "street, store, price, bag";
+const COMMON_ADJECTIVES =
+  "good, new, old, big, small, great, little, long, high, young, important, different, " +
+  "large, early, late, hard, easy, happy, sad, nice, bad, real, sure, free, ready, open, " +
+  "full, short, strong, cold, hot, cheap, expensive, beautiful, clean, dirty, safe, quiet, " +
+  "busy, tired, angry, afraid, hungry, sick, rich, poor, funny, kind, serious, simple";
+const IRREGULAR_VERBS =
+  "be, have, do, say, go, get, make, know, think, take, see, come, give, find, tell, " +
+  "become, leave, feel, put, bring, begin, keep, hold, write, stand, hear, let, mean, set, " +
+  "meet, run, pay, sit, speak, lie, lead, read, grow, lose, fall, send, build, understand, " +
+  "break, spend, cut, drive, buy, wear, choose, throw, catch, win, forget, sell, teach, eat, " +
+  "sleep, drink, fly, swim, ride, wake, hide, steal, fight, feed, lend, shoot, hang, quit, bet";
+const REGULAR_VERBS =
+  "want, use, work, call, try, ask, need, seem, help, play, move, live, believe, happen, " +
+  "look, like, start, turn, show, talk, open, walk, change, stay, watch, follow, stop, " +
+  "learn, add, create, wait, love, offer, remember, appear, buy, die, pass, decide, cook, " +
+  "clean, visit, travel, finish, answer, arrive, explain, listen, enjoy, worry, plan";
+
+// The app situations, each with the learner data it needs (fake but
+// realistic history, known items and reviews), two of each for the modes the
+// app has it in: reviews and known items are words and verbs only, retests
+// and habits sentences only.
+const SITUATIONS: Record<string, { situation: string; input: unknown; combination: Combination }> = {
+  "review of a missed noun": {
+    situation: "review",
+    input: missedWord("le reçu", "receipt", "Gardez bien le reçu en cas de problème.", "noun", "recipe"),
     combination: { mode: "word", kind: "adjective", theme: "daily life" },
   },
-  "review of a missed verb": {
-    input: {
-      history: [
-        {
-          mode: "verb",
-          text: "plier",
-          english: "fold",
-          context: "Plie tes vêtements avant de les ranger.",
-          answer: "bend",
-          ok: false,
-          verbType: "regular",
-        },
-      ],
-      review: {
-        verb: [
-          {
-            text: "plier",
-            english: "fold",
-            forms: ["fold", "folded", "folded"],
-            context: "Plie tes vêtements avant de les ranger.",
-            misses: 1,
-            today: true,
-          },
-        ],
-      },
-    },
+  "review of a missed adjective": {
+    situation: "review",
+    input: missedWord("épuisé", "exhausted", "Après le match, j'étais épuisé.", "adjective", "exhausting"),
+    combination: { mode: "word", kind: "noun", theme: "hobbies" },
+  },
+  "review of a missed regular verb": {
+    situation: "review",
+    input: missedVerb("plier", ["fold", "folded", "folded"], "Plie tes vêtements avant de les ranger.", "bend"),
     combination: { mode: "verb", verbType: "irregular", theme: "daily life" },
   },
-  "retest after a wrong sentence": {
-    input: {
-      history: [
-        {
-          mode: "sentence",
-          text: "Je t'appellerai quand je serai rentré à la maison.",
-          tense: "future",
-          reference: "I'll call you when I get home.",
-          point: "when",
-          answer: "I'll call you when I will be home.",
-          ok: false,
-          pointResult: "wrong",
-          remark: "« when I will be home » → « when I get home » : après when, le présent.",
-          mistakes: [
-            {
-              remark: "« when I will be home » → « when I get home » : après when, le présent.",
-              tag: "tense",
-            },
-          ],
-        },
-      ],
-    },
+  "review of a missed irregular verb": {
+    situation: "review",
+    input: missedVerb("tenir", ["hold", "held", "held"], "Tiens la rampe dans l'escalier.", "keep"),
+    combination: { mode: "verb", verbType: "regular", theme: "health" },
+  },
+  "retest of a future sentence": {
+    situation: "retest",
+    input: wrongSentence({
+      text: "Je t'appellerai quand je serai rentré à la maison.",
+      tense: "future",
+      reference: "I'll call you when I get home.",
+      point: "when",
+      answer: "I'll call you when I will be home.",
+      remark: "« when I will be home » → « when I get home » : après when, le présent.",
+      tag: "tense",
+    }),
     combination: { mode: "sentence", tense: "future", retest: true, retestPoint: "when", theme: "work" },
   },
-  "habit target": {
-    input: {
-      history: [
+  "retest of a present perfect sentence": {
+    situation: "retest",
+    input: wrongSentence({
+      text: "Je travaille dans cette entreprise depuis 2019.",
+      tense: "present perfect",
+      reference: "I've worked at this company since 2019.",
+      point: "since",
+      answer: "I work at this company from 2019.",
+      remark: "« work … from 2019 » → « 've worked … since 2019 » : depuis une date, since + present perfect.",
+      tag: "preposition",
+    }),
+    combination: {
+      mode: "sentence",
+      tense: "present perfect",
+      retest: true,
+      retestPoint: "since",
+      theme: "work",
+    },
+  },
+  "habit: explain to me": {
+    situation: "habit",
+    input: habit(
+      [
         ["Tu peux m'expliquer le problème ?", "Can you explain me the problem?"],
         ["Il m'a expliqué la règle du jeu.", "He explained me the rules of the game."],
         ["Explique-moi comment ça marche.", "Explain me how it works."],
-      ].map(([text, answer]) => ({
-        mode: "sentence",
-        text,
-        answer,
-        ok: false,
-        mistakes: [
-          { remark: "« explain me » → « explain to me » : explain se construit avec to.", tag: "preposition" },
-        ],
-      })),
-    },
+      ],
+      "« explain me » → « explain to me » : explain se construit avec to.",
+      "preposition",
+    ),
     combination: {
       mode: "sentence",
       tense: "past",
@@ -150,35 +199,42 @@ const SPECIALS: Record<string, { input: unknown; combination: Combination }> = {
       target: { wrong: "explain me", right: "explain to me", tag: "preposition", count: 3 },
     },
   },
-  "known words to avoid": {
-    input: {
-      known: {
-        word: (
-          "time, people, way, day, thing, life, child, world, school, family, student, " +
-          "country, problem, hand, place, week, company, question, job, money, night, home, " +
-          "water, room, mother, father, story, month, book, friend, house, car, city, team, " +
-          "idea, kid, door, health, person, party, morning, reason, girl, guy, teacher, " +
-          "doctor, phone, food, dinner, lunch, breakfast, coffee, meal, dish, cup, glass, " +
-          "plate, fork, knife, spoon, table, chair, bed, window, street, store, price, bag"
-        ).split(", "),
-      },
+  "habit: listen to music": {
+    situation: "habit",
+    input: habit(
+      [
+        ["J'écoute de la musique en courant.", "I listen music when I run."],
+        ["Elle écoutait la radio le matin.", "She listened the radio in the morning."],
+      ],
+      "« listen music » → « listen to music » : listen se construit avec to.",
+      "preposition",
+    ),
+    combination: {
+      mode: "sentence",
+      tense: "present",
+      theme: "hobbies",
+      target: { wrong: "listen music", right: "listen to music", tag: "preposition", count: 2 },
     },
+  },
+  "known nouns to avoid": {
+    situation: "known",
+    input: { known: { word: COMMON_NOUNS.split(", ") } },
     combination: { mode: "word", kind: "noun", theme: "daily life" },
   },
-  "known verbs to avoid": {
-    input: {
-      known: {
-        verb: (
-          "be, have, do, say, go, get, make, know, think, take, see, come, give, find, tell, " +
-          "become, leave, feel, put, bring, begin, keep, hold, write, stand, hear, let, mean, " +
-          "set, meet, run, pay, sit, speak, lie, lead, read, grow, lose, fall, send, build, " +
-          "understand, break, spend, cut, drive, buy, wear, choose, throw, catch, win, " +
-          "forget, sell, teach, eat, sleep, drink, fly, swim, ride, wake, hide, steal, fight, " +
-          "feed, lend, shoot, hang, quit, bet"
-        ).split(", "),
-      },
-    },
+  "known adjectives to avoid": {
+    situation: "known",
+    input: { known: { word: COMMON_ADJECTIVES.split(", ") } },
+    combination: { mode: "word", kind: "adjective", theme: "daily life" },
+  },
+  "known irregular verbs to avoid": {
+    situation: "known",
+    input: { known: { verb: IRREGULAR_VERBS.split(", ") } },
     combination: { mode: "verb", verbType: "irregular", theme: "travel" },
+  },
+  "known regular verbs to avoid": {
+    situation: "known",
+    input: { known: { verb: REGULAR_VERBS.split(", ") } },
+    combination: { mode: "verb", verbType: "regular", theme: "daily life" },
   },
 };
 
@@ -190,17 +246,18 @@ type Group = {
   // The label of each combination, the same in both runs.
   labels: string[];
   special?: string;
+  situation?: string;
 };
 
 function groups(): Group[] {
   const base = generateInputSchema.parse({});
   const words = WORD_KINDS.flatMap((kind) =>
-    (["travel", "food"] as const).map((theme): Combination => ({ mode: "word", kind, theme })),
+    (["travel", "food", "work"] as const).map((theme): Combination => ({ mode: "word", kind, theme })),
   );
-  const verbs = VERB_TYPES.flatMap((verbType) =>
-    (["health", "technology", "family and friends"] as const).map(
-      (theme): Combination => ({ mode: "verb", verbType, theme }),
-    ),
+  // The app has two verb types; a verb with a preposition (count on) isn't
+  // one it can ask for: 9 verbs, the two types in turn.
+  const verbs = (["health", "technology", "family and friends", "work", "travel", "food", "news", "nature", "culture"] as const).map(
+    (theme, index): Combination => ({ mode: "verb", verbType: VERB_TYPES[index % VERB_TYPES.length], theme }),
   );
   // Each point gets a word that fits the tense, as the app picks it, but in
   // turn rather than at random, so both runs ask the same; a point with no
@@ -243,12 +300,13 @@ function groups(): Group[] {
       combinations: sentences,
       labels: sentences.map((combination, index) => label(combination, asked[index])),
     },
-    ...Object.entries(SPECIALS).map(([name, special]) => ({
+    ...Object.entries(SITUATIONS).map(([name, special]) => ({
       name,
       input: generateInputSchema.parse(special.input),
       combinations: [special.combination],
       labels: [name],
       special: name,
+      situation: special.situation,
     })),
   ];
 }
@@ -314,11 +372,22 @@ export async function runGeneration(effort: Effort) {
     [...distinct, ...cases.map((item) => item.slot.task)].join("\n"),
   );
 
+  const estimate = Math.round(
+    cases.reduce(
+      (sum, item) => sum + (item.batch.mode === "sentence" ? 1 : CHOICES) * CHARS_PER_CHOICE,
+      0,
+    ) / CHARS_PER_TOKEN,
+  );
+  console.log(`Generation: ${cases.length} items, about ${estimate} output tokens.`);
+  if (estimate > MAX_ESTIMATE) {
+    console.warn(`The answer may be cut off: about ${estimate} tokens, over ${MAX_ESTIMATE}.`);
+  }
+
   // Each mode's items have their own fields: the answer has a list per mode.
   const schemaOf = (mode: Mode) =>
     z.object({ case: z.number(), item: cases.find((item) => item.batch.mode === mode)!.batch.schema });
   const lists = { word: schemaOf("word"), verb: schemaOf("verb"), sentence: schemaOf("sentence") };
-  const { answers, cutOff, problem } = await askAll(
+  const { answers, cutOff, problem, outputTokens } = await askAll(
     lists,
     {
       system: [
@@ -375,6 +444,7 @@ export async function runGeneration(effort: Effort) {
           : undefined,
       focusWord: combination.focusWord,
       special: item.group.special,
+      situation: item.group.situation,
       outcome,
       invalidNote: answer ? undefined : missingNote,
       failures,
@@ -427,6 +497,7 @@ export async function runGeneration(effort: Effort) {
     "verb type": byAxis(results, (row) => row.verbType),
     tense: byAxis(results, (row) => (row.special ? undefined : row.tense)),
     focus: byAxis(results, (row) => row.focus),
+    situation: byAxis(results, (row) => row.situation),
     special: byAxis(results, (row) => row.special),
     run: byAxis(results, (row) => `run ${row.run}`),
   };
@@ -451,6 +522,7 @@ export async function runGeneration(effort: Effort) {
   return {
     cutOff,
     problem,
+    tokens: { estimate, output: outputTokens },
     total,
     summary,
     runs: { verdicts, combinations: consistency },
