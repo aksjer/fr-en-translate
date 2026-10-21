@@ -1,14 +1,11 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { commonMistakes } from "@/lib/common-mistakes";
 import {
   historyVersion,
-  masteredPoints,
   readKnown,
-  readPoints,
   readSeen,
-  recentHistory,
+  seenEnglish,
   subscribeHistory,
 } from "@/lib/seen-items";
 import { englishKey } from "@/lib/options";
@@ -16,7 +13,6 @@ import { englishKey } from "@/lib/options";
 const LEARNED_MODES = ["word", "verb"] as const;
 const LEARNED_TITLES = { word: "Words", verb: "Verbs" };
 const RECENT = 30;
-const COMMON_MISTAKES = 5;
 
 // Everything comes from this browser: nothing is sent anywhere.
 export function Progress() {
@@ -26,13 +22,10 @@ export function Progress() {
     useSyncExternalStore(subscribeHistory, historyVersion, () => -1) >= 0;
   const seen = inBrowser ? readSeen() : [];
   const known = inBrowser ? readKnown() : {};
-  const points = inBrowser ? masteredPoints(readPoints()) : [];
-  // From the same recent history the server reads, so these are the ones practiced.
-  const mistakes = commonMistakes(recentHistory(seen), points).slice(0, COMMON_MISTAKES);
 
   if (!inBrowser) return null;
   const answered = seen.filter((item) => item.ok !== undefined);
-  const learned = LEARNED_MODES.some((mode) => known[mode]?.length) || points.length > 0;
+  const learned = LEARNED_MODES.some((mode) => known[mode]?.length);
   if (!answered.length && !learned) {
     return <p className="text-zinc-500">No answers yet.</p>;
   }
@@ -58,32 +51,7 @@ export function Progress() {
             </div>
           );
         })}
-        {/* Grammar points of sentences, right twice on different days. */}
-        <div className="flex flex-col gap-1">
-          <h4 className="text-sm text-zinc-500">Points ({points.length})</h4>
-          {points.length > 0 ? (
-            <p className="text-sm">{[...points].reverse().join(", ")}</p>
-          ) : (
-            <p className="text-sm text-zinc-400">None yet.</p>
-          )}
-        </div>
       </section>
-
-      {/* The same mistakes in several answers: the next sentences practice them. */}
-      {mistakes.length > 0 && (
-        <section className="flex flex-col gap-3">
-          <h3 className="font-medium">Common mistakes</h3>
-          <ul className="flex flex-col gap-1 text-sm">
-            {mistakes.map((mistake) => (
-              <li key={mistake.right}>
-                <span className="text-red-600 line-through">{mistake.wrong}</span> →{" "}
-                <span lang="en-US">{mistake.right}</span>
-                <span className="text-zinc-500"> ({mistake.count} times)</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
 
       {recent.length > 0 && (
         <section className="flex flex-col gap-3">
@@ -96,13 +64,13 @@ export function Progress() {
                 </span>
                 <span>
                   {item.text}
-                  {item.english &&
-                    (item.answer && englishKey(item.answer) !== item.english ? (
+                  {seenEnglish(item) &&
+                    (item.answer && englishKey(item.answer) !== seenEnglish(item) ? (
                       <span className="text-zinc-500">
-                        {" "}→ {item.answer} ({item.english})
+                        {" "}→ {item.answer} ({item.reference ?? item.english})
                       </span>
                     ) : (
-                      <span className="text-zinc-500"> → {item.english}</span>
+                      <span className="text-zinc-500"> → {item.reference ?? item.english}</span>
                     ))}
                   {!item.ok && item.remark && (
                     <span className="block text-zinc-500">{item.remark}</span>

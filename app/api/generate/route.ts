@@ -2,13 +2,8 @@ import { guardRequest, providerErrorResponse } from "@/lib/api";
 import { generateExercises, generateInputSchema } from "@/lib/generate";
 
 export async function POST(request: Request) {
-  const { data, error } = await guardRequest(
-    request,
-    "generate",
-    generateInputSchema,
-  );
+  const { data, error } = await guardRequest(request, "generate", generateInputSchema);
   if (error) return error;
-
   try {
     return Response.json({ exercises: await generateExercises(data) });
   } catch (error) {

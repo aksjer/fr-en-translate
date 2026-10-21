@@ -1,73 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { ErrorTag } from "@/lib/error-tags";
-import { englishKey, isWordMode, MAX_TEXT_LENGTH, type Frequency } from "@/lib/options";
-import type { Combination } from "@/lib/settings";
+import type { Correction } from "@/lib/correct";
+import type { Exercise } from "@/lib/generate";
+import { englishKey, MAX_TEXT_LENGTH } from "@/lib/options";
 import {
-  masteredPoints,
-  pointsToPractice,
-  readKnown,
-  readPoints,
-  pastMistakes,
   readSeen,
-  recentHistory,
+  recentEnglish,
+  toReview,
   rememberKnown,
-  rememberPoint,
   rememberResult,
   rememberSeen,
-  toReview,
 } from "@/lib/seen-items";
 import { useSettings } from "@/lib/use-settings";
-import { ReportButton } from "@/components/report-button";
 import { MicButton } from "@/components/mic-button";
 import { SpeakButton } from "@/components/speak-button";
-
-type Exercise = Combination & {
-  text: string;
-  reference?: string;
-  forms?: [string, string, string];
-  context?: string;
-  // A missed word or verb given again.
-  review?: boolean;
-  // How common the model says the English word or verb is.
-  frequency?: Frequency;
-  // The grammar point a sentence practices (as soon as, should).
-  point?: string;
-  reviewSkipped?: string[];
-  retestMissed?: boolean;
-};
-
-type Correction = {
-  perfect: boolean;
-  isCorrect: boolean;
-  correction: string;
-  points: string[];
-  alternative?: string;
-  inContext?: string;
-  similar?: { word: string; nuance: string }[];
-  meaning?: string;
-  tag?: ErrorTag;
-  remark?: string;
-  mistakes: { remark: string; tag: ErrorTag }[];
-  pointResult?: "right" | "wrong" | "avoided";
-};
-
-// Renders **text** from the API as bold, without using innerHTML.
-function Marked({ text }: { text: string }) {
-  return text.split(/\*\*(.+?)\*\*/).map((part, index) =>
-    index % 2 ? (
-      <strong
-        key={index}
-        className="font-semibold text-blue-700 dark:text-blue-300"
-      >
-        {part}
-      </strong>
-    ) : (
-      part
-    ),
-  );
-}
 
 const primaryButton =
   "rounded-full bg-blue-600 px-5 py-2.5 font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50";
@@ -85,43 +32,10 @@ async function post<T>(url: string, body: unknown): Promise<T> {
   return response.json();
 }
 
-// Reads the correction stream: one JSON object per line, { remarks } while the
-// model writes, then { result } or { error }.
-async function postCorrection(
-  body: unknown,
-  onRemarks: (remarks: string[]) => void,
-): Promise<Correction> {
-  const response = await fetch("/api/correct", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok || !response.body) {
-    const body = await response.json().catch(() => null);
-    throw new Error(body?.error ?? "The service isn't responding. Try again.");
-  }
-  const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
-  let buffer = "";
-  for (;;) {
-    const { value, done } = await reader.read();
-    buffer += value ?? "";
-    const lines = buffer.split("\n");
-    buffer = done ? "" : (lines.pop() ?? "");
-    for (const line of lines.filter(Boolean)) {
-      const message = JSON.parse(line);
-      if (message.error) throw new Error(message.error);
-      if (message.result) return message.result;
-      if (message.remarks) onRemarks(message.remarks);
-    }
-    if (done) throw new Error("The service isn't responding. Try again.");
-  }
-}
-
 export function Trainer() {
   const [settings] = useSettings();
   // One call gives several exercises: the next ones wait here, and are stored
-  // in the history only when shown. New settings drop them; so does a wrong
-  // sentence, so its retest comes right away.
+  // in the history only when shown. New settings drop them.
   const queue = useRef<Exercise[]>([]);
   // The batch being fetched, shared so a second request never starts.
   const pending = useRef<Promise<Exercise[]> | null>(null);
@@ -137,8 +51,6 @@ export function Trainer() {
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [translation, setTranslation] = useState("");
   const [result, setResult] = useState<Correction | null>(null);
-  // The remarks the model has written so far, shown while it corrects.
-  const [draftRemarks, setDraftRemarks] = useState<string[]>([]);
   // The microphone is writing the answer.
   const [listening, setListening] = useState(false);
   const [loading, setLoading] = useState<"generate" | "correct" | null>(null);
@@ -153,13 +65,8 @@ export function Trainer() {
     const shownAt = Date.now();
     function onKeyDown(event: KeyboardEvent) {
       if (event.key !== "Enter" || event.repeat || Date.now() - shownAt < 600) return;
-      // Enter on a focused button (Listen) does that button's job, and Enter
-      // in a text field (a report) is typing.
-      if (
-        event.target instanceof HTMLButtonElement ||
-        event.target instanceof HTMLTextAreaElement
-      )
-        return;
+      // Enter on a focused button (Listen) does that button's job.
+      if (event.target instanceof HTMLButtonElement) return;
       event.preventDefault();
       generate();
     }
@@ -171,22 +78,14 @@ export function Trainer() {
     if (exercise && !result) inputRef.current?.focus();
   }, [exercise]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // The recent exercises and their results, the items already learned and the
-  // missed ones to review: the next batch is chosen from them.
+  // The last English items of each mode, so the batch has new ones, and the
+  // missed ones, which some items practice again.
   async function fetchBatch() {
     const seen = readSeen();
-    const known = readKnown();
-    const points = readPoints();
-    const history = recentHistory(seen).map((item) => ({
-      ...item,
-      text: item.text.slice(0, 300),
-    }));
     const { exercises } = await post<{ exercises: Exercise[] }>("/api/generate", {
       ...current.current.settings,
-      history,
-      known,
-      review: { word: toReview(seen, known, "word"), verb: toReview(seen, known, "verb") },
-      points: { mastered: masteredPoints(points), practice: pointsToPractice(points) },
+      avoid: recentEnglish(seen),
+      review: toReview(seen),
     });
     return exercises;
   }
@@ -215,25 +114,7 @@ export function Trainer() {
     try {
       const next = await nextExercise();
       setExercise(next);
-      // The whole exercise is kept as shown: the expected answer never changes after.
-      rememberSeen(next.text, next.mode, {
-        frequency: next.frequency,
-        point: next.point,
-        kind: next.kind,
-        focus: next.focus,
-        tense: next.tense,
-        theme: next.theme,
-        verbType: next.verbType,
-        review: next.review,
-        retest: next.retest,
-        context: next.context,
-        reference: next.reference,
-        english:
-          isWordMode(next.mode) && next.reference ? englishKey(next.reference) : undefined,
-        forms: next.forms,
-        reviewSkipped: next.reviewSkipped,
-        retestMissed: next.retestMissed,
-      });
+      rememberSeen(next.text, next.mode, next.reference);
       setTranslation("");
       setResult(null);
     } catch (e) {
@@ -248,83 +129,34 @@ export function Trainer() {
     if (!exercise || !translation.trim() || listening) return;
     setLoading("correct");
     setError(null);
-    setDraftRemarks([]);
     try {
-      const correction = await postCorrection(
-        {
-          mode: exercise.mode,
-          text: exercise.text,
-          translation,
-          tense: exercise.tense,
-          kind: exercise.kind,
-          focus: exercise.focus,
-          point: exercise.point,
-          reference: exercise.reference,
-          context: exercise.context,
-          pastMistakes: pastMistakes(readSeen(), exercise.mode),
-        },
-        setDraftRemarks,
-      );
-      setResult(correction);
-      // A wrong sentence gets its retest in the next batch, asked right away.
-      if (exercise.mode === "sentence" && !correction.isCorrect && !exercise.retest) {
-        queue.current = [];
-      }
-      const expected =
-        isWordMode(exercise.mode) && exercise.reference
-          ? englishKey(exercise.reference)
-          : undefined;
-      // A right synonym (sofa for couch) is the word learned, kept apart: the
-      // expected word, shown among the similar words, can then come back as an
-      // item. Its correction fixes a slip (colour).
-      const own = englishKey(correction.correction.replaceAll("**", "").replace(/[.!?]+$/, ""));
-      const accepted =
-        expected && correction.isCorrect && own && own !== expected ? own : undefined;
-      const answer = translation.trim().slice(0, 300);
-      rememberResult(exercise.text, {
-        ...(accepted && { accepted }),
-        answer,
-        ok: correction.isCorrect,
-        tag: correction.isCorrect ? undefined : correction.tag,
-        remark: correction.isCorrect ? undefined : correction.remark,
-        ...(correction.mistakes.length > 0 && { mistakes: correction.mistakes }),
-        // A sentence's correction, when it changed something.
-        ...(!isWordMode(exercise.mode) &&
-          !correction.perfect && {
-            correction: correction.correction,
-          }),
-        ...(correction.pointResult && { pointResult: correction.pointResult }),
-        ...(correction.similar && { similar: correction.similar.map((item) => item.word) }),
+      const correction = await post<Correction>("/api/correct", {
+        mode: exercise.mode,
+        text: exercise.text,
+        reference: exercise.reference,
+        translation,
       });
-      if (exercise.point && correction.pointResult) {
-        rememberPoint(exercise.point, correction.pointResult);
+      setResult(correction);
+      rememberResult(exercise.text, {
+        answer: translation.trim().slice(0, 300),
+        ok: correction.right,
+        remark: correction.explanation || undefined,
+      });
+      // A word or verb answered right is learned.
+      if (exercise.mode !== "sentence" && correction.right) {
+        rememberKnown(exercise.mode, englishKey(exercise.reference));
       }
-      // A word or verb answered right never comes back.
-      const learned = accepted ?? expected;
-      if (learned && correction.isCorrect) rememberKnown(exercise.mode, learned);
     } catch (e) {
       setError((e as Error).message);
     } finally {
-      setDraftRemarks([]);
       setLoading(null);
     }
   }
 
-  // The forms of the exercise's verb, as stored with it: shown only when the
-  // correction uses that verb, not a right synonym (hire for rent).
-  const forms =
-    result &&
-    exercise?.forms?.[0] === englishKey(result.correction.replaceAll("**", "").replace(/[.!?]+$/, ""))
-      ? exercise.forms
-      : undefined;
-
   const tags = [
     exercise?.mode,
     exercise?.review ? "review" : undefined,
-    exercise?.retest ? "retest" : undefined,
-    exercise?.target ? "your mistake" : undefined,
     exercise?.kind,
-    exercise?.focus && `focus: ${exercise.focus}`,
     exercise?.verbType && `${exercise.verbType} verb`,
     exercise?.tense,
     exercise?.theme,
@@ -332,8 +164,7 @@ export function Trainer() {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Always there: before an answer, it also skips the item, which then
-          comes back in a review. */}
+      {/* Always there: before an answer, it also skips the item. */}
       <div className="flex items-center justify-between gap-4">
         {exercise ? (
           <ul className="flex flex-wrap gap-2 text-xs text-zinc-600 dark:text-zinc-400">
@@ -378,7 +209,7 @@ export function Trainer() {
             </p>
             {exercise.context && (
               <p lang="fr" className="text-zinc-500 italic">
-                <Marked text={exercise.context} />
+                {exercise.context}
               </p>
             )}
           </div>
@@ -426,110 +257,67 @@ export function Trainer() {
         </section>
       )}
 
-      {loading === "correct" && draftRemarks.length > 0 && (
-        <ul
-          aria-live="polite"
-          className="flex flex-col gap-1 rounded-2xl border border-zinc-200 p-6 text-sm text-zinc-500 dark:border-zinc-800"
-        >
-          {draftRemarks.map((remark, index) => (
-            <li key={index} lang="fr">
-              {remark}
-            </li>
-          ))}
-        </ul>
-      )}
-
       {result && (
         <section
           aria-live="polite"
           className={`flex flex-col gap-4 rounded-2xl border p-6 ${
-            result.isCorrect
+            result.right
               ? "border-green-600/30 bg-green-50 dark:bg-green-950/30"
               : "border-amber-600/30 bg-amber-50 dark:bg-amber-950/30"
           }`}
         >
-          {/* The frame's color says right or wrong; a title only names the mistake. */}
+          {/* The frame's color says right or wrong. */}
           <div className="flex flex-col gap-1">
-            {!result.perfect && (
+            {englishKey(result.correction) !== englishKey(translation) && (
               <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-                Correction{result.tag && ` · mistake: ${result.tag}`}
+                Correction
               </p>
             )}
             <p className="text-lg">
-              <span lang="en-US">
-                <Marked text={result.correction} />
-              </span>{" "}
+              <span lang="en-US">{result.correction}</span>{" "}
               <SpeakButton text={result.correction} compact />
-              {result.meaning && (
-                <span lang="fr" className="text-zinc-600 dark:text-zinc-400">
-                  {" "}
-                  · {result.meaning}
-                </span>
-              )}
             </p>
           </div>
-          {forms && (
+          {result.forms && (
             <div className="flex flex-col gap-1">
               <p className="flex items-center gap-1 text-xs font-medium tracking-wide text-zinc-500 uppercase">
                 Base · past · past participle
-                <SpeakButton text={forms.join(", ")} compact />
+                <SpeakButton text={result.forms.join(", ")} compact />
               </p>
               <p lang="en-US" className="text-lg font-medium">
-                {forms.join(" · ")}
+                {result.forms.join(" · ")}
               </p>
             </div>
           )}
-          {result.inContext && (
-            <div className="flex flex-col gap-1">
-              <p className="flex items-center gap-1 text-xs font-medium tracking-wide text-zinc-500 uppercase">
-                In context
-                <SpeakButton text={result.inContext} compact />
-              </p>
-              <p lang="en-US" className="text-lg">
-                <Marked text={result.inContext} />
-              </p>
-            </div>
-          )}
-          {result.similar && (
+          {result.variants && (
             <div className="flex flex-col gap-1">
               <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
-                {exercise?.mode === "verb" ? "Similar verbs" : "Similar words"}
+                Other ways to say it
               </p>
-              <ul className="flex flex-col gap-1">
-                {result.similar.map((item) => (
-                  <li key={item.word}>
-                    <span lang="en-US" className="font-medium">
-                      {item.word}
-                    </span>{" "}
-                    <SpeakButton text={item.word} compact />
-                    <span lang="fr" className="text-zinc-600 dark:text-zinc-400">
-                      {" "}
-                      · {item.nuance}
-                    </span>
+              <ul className="flex flex-wrap gap-x-4 gap-y-1">
+                {result.variants.map((variant) => (
+                  <li key={variant} lang="en-US">
+                    {variant} <SpeakButton text={variant} compact />
                   </li>
                 ))}
               </ul>
             </div>
           )}
-          {result.alternative && (
+          {result.natural && (
             <div className="flex flex-col gap-1">
               <p className="flex items-center gap-1 text-xs font-medium tracking-wide text-zinc-500 uppercase">
-                Alternative sentence
-                <SpeakButton text={result.alternative} compact />
+                More natural
+                <SpeakButton text={result.natural} compact />
               </p>
               <p lang="en-US" className="text-lg">
-                {result.alternative}
+                {result.natural}
               </p>
             </div>
           )}
-          {result.points.length > 0 && (
-            <ul className="flex list-disc flex-col gap-2 pl-5 text-zinc-700 dark:text-zinc-300">
-              {result.points.map((point, index) => (
-                <li key={index}>
-                  <Marked text={point} />
-                </li>
-              ))}
-            </ul>
+          {result.explanation && (
+            <p lang="fr" className="text-zinc-700 dark:text-zinc-300">
+              {result.explanation}
+            </p>
           )}
         </section>
       )}
@@ -540,18 +328,6 @@ export function Trainer() {
         </p>
       )}
 
-      {(exercise || error) && (
-        <ReportButton
-          key={exercise ? `${exercise.text}|${exercise.reference}` : error}
-          context={{
-            exercise,
-            answer: translation.trim() || undefined,
-            correction: result ?? undefined,
-            error: error ?? undefined,
-            settings,
-          }}
-        />
-      )}
     </div>
   );
 }
