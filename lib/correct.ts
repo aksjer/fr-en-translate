@@ -72,7 +72,7 @@ export type Correction = {
   isCorrect: boolean;
   // The first remark of a wrong answer, kept in the history.
   remark?: string;
-  // Every mistake kept, with its category.
+  // The faults (not the tips), with their category, kept in the history.
   mistakes: { remark: string; tag: ErrorTag }[];
   // How the learner did on the sentence's grammar point: avoided when they
   // said it another correct way.
@@ -176,6 +176,25 @@ const SENTENCE_EXAMPLE = [
     ],
     correction: "I didn't finish my **homework yet**.",
     alternative: "I haven't finished my homework yet.",
+  }),
+].join("\n");
+
+// A right answer with a tip: a native says it too, so it stays right.
+const TIP_EXAMPLE = [
+  "<french>Elle achète son pain chez le boulanger.</french>",
+  "<reference>She buys her bread at the bakery.</reference>",
+  "<translation>She gets her bread at the bakery.</translation>",
+  JSON.stringify({
+    translated: true,
+    mistakes: [
+      {
+        nativeSaysItToo: true,
+        remark: "« gets » → « buys » : les deux se disent ; buys dit plus précisément acheter.",
+        category: "vocabulary",
+      },
+    ],
+    correction: "She gets her bread at the bakery.",
+    alternative: "She buys her bread at the bakery.",
   }),
 ].join("\n");
 
@@ -368,9 +387,11 @@ export function correctionRequest(input: z.infer<typeof correctInputSchema>) {
       "## Categories",
       ...ERROR_TAGS.map((tag) => `- ${tag}: ${ERROR_TAG_DEFINITIONS[tag]}.`),
       "",
-      "## Example",
-      "One complete answer, for the format and the tone only.",
-      wordMode ? WORD_EXAMPLE : SENTENCE_EXAMPLE,
+      wordMode ? "## Example" : "## Examples",
+      wordMode
+        ? "One complete answer, for the format and the tone only."
+        : "Complete answers, for the format and the tone only.",
+      ...(wordMode ? [WORD_EXAMPLE] : [SENTENCE_EXAMPLE, TIP_EXAMPLE]),
       "",
       ...(input.pastMistakes?.length
         ? [
@@ -484,9 +505,29 @@ export function finishCorrection(
   const written = (sameAsCorrection || sameAsReference ? [] : output.mistakes)
     .map((mistake) => ({ ...mistake, remark: mistake.remark.trim() }))
     .filter((mistake) => mistake.remark);
+  // A remark on words the correction keeps is dropped, but only a tip: a
+  // fault stays, so the verdict always has its remark.
   const mistakes = written.filter(
-    (mistake) => !keptInCorrection(mistake.remark, input.translation, output.correction),
+    (mistake) =>
+      isFault(mistake) ||
+      !keptInCorrection(mistake.remark, input.translation, output.correction),
   );
+  // A word or verb the correction changes with no remark at all is a silent
+  // fix: the change itself is the fault.
+  if (
+    wordMode &&
+    output.translated &&
+    !sameAsCorrection &&
+    !sameAsReference &&
+    mistakes.length === 0
+  ) {
+    mistakes.push({
+      nativeSaysItToo: false,
+      remark: `« ${input.translation.trim()} » → « ${output.correction.replace(/\*\*/g, "").trim()} »`,
+      category: "vocabulary",
+    });
+  }
+  const faults = mistakes.filter(isFault);
   const remarks = mistakes
     .slice(0, MAX_REMARKS)
     .map((mistake) => mistake.remark);
@@ -495,9 +536,9 @@ export function finishCorrection(
   }
   // Right unless a mistake makes it wrong; the tips leave it right.
   const isCorrect =
-    sameAsReference || (output.translated && (sameAsCorrection || !mistakes.some(isFault)));
-  // The tag and remark of a wrong answer: the first wrong-making mistake if any.
-  const main = mistakes.find(isFault) ?? mistakes[0];
+    sameAsReference || (output.translated && (sameAsCorrection || faults.length === 0));
+  // The tag and remark of a wrong answer: always a fault when there is one.
+  const main = faults[0] ?? mistakes[0];
 
   return {
     points: remarks,
@@ -511,7 +552,8 @@ export function finishCorrection(
     perfect: isCorrect && mistakes.length === 0,
     isCorrect,
     remark: output.translated ? main?.remark : undefined,
-    mistakes: mistakes
+    // Only the faults: they become weak points, the tips are only shown.
+    mistakes: faults
       .slice(0, MAX_REMARKS)
       .map((mistake) => ({ remark: mistake.remark, tag: mistake.category })),
     ...(input.point &&

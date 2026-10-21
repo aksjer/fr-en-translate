@@ -293,7 +293,7 @@ export function Trainer() {
         ...(correction.mistakes.length > 0 && { mistakes: correction.mistakes }),
         // A sentence's correction, when it changed something.
         ...(!isWordMode(exercise.mode) &&
-          (!correction.isCorrect || correction.mistakes.length > 0) && {
+          !correction.perfect && {
             correction: correction.correction,
           }),
         ...(correction.pointResult && { pointResult: correction.pointResult }),
