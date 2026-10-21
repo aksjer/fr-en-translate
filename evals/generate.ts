@@ -47,13 +47,13 @@ import {
 
 const RUNS = 2;
 
-// The answer's size, measured on the eval of 2026-10-21: about 200
-// characters a choice, 3 characters a token. With every case's choices the
-// answer must stay well under the output limit of 65,536 tokens, thoughts
-// included.
-const CHARS_PER_CHOICE = 200;
+// The answer's size, measured on the eval of 2026-10-21T14-19-45 (53,459
+// output tokens for 150 items): about 360 characters a choice, 3 characters
+// a token. The answer must stay under the output limit of 65,536 tokens,
+// thoughts included: over the warning level, it may be cut off.
+const CHARS_PER_CHOICE = 360;
 const CHARS_PER_TOKEN = 3;
-const MAX_ESTIMATE = 50_000;
+const MAX_ESTIMATE = 60_000;
 
 // A missed word or verb, as the history and the review list hold it.
 const missedWord = (text: string, english: string, context: string, kind: string, answer: string) => ({
