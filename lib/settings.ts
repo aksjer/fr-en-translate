@@ -96,8 +96,10 @@ export function pickCombination(
   // which isn't practiced twice in a row.
   mistakes: CommonMistake[] = [],
   lastPoint?: string,
+  // The mode of the batch, when another item of it already has one.
+  batchMode?: Mode,
 ): Combination {
-  const mode = pick(settings.modes, MODES);
+  const mode = batchMode ?? pick(settings.modes, MODES);
   const uses = MODE_USES[mode];
   const retest = mode === "sentence" && wrongSentence !== undefined;
   const targets = mistakes

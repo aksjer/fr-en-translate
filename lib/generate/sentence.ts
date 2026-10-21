@@ -1,7 +1,19 @@
 // One French sentence whose translation needs the English tense from the settings.
 import { ERROR_TAG_DEFINITIONS, ERROR_TAGS, type ErrorTag } from "@/lib/error-tags";
-import { COMMON_ENGLISH, generateItem, type GenerateInput } from "@/lib/generate/shared";
-import { TENSE_GUIDES, type SentenceFocus, type Theme } from "@/lib/options";
+import {
+  checkedItem,
+  COMMON_ENGLISH,
+  generateBatch,
+  history,
+  historySection,
+  inReference,
+  sentenceExerciseSchema,
+  type Exercise,
+  type GenerateInput,
+  type ItemAnswer,
+} from "@/lib/generate/shared";
+import { InvalidAnswerError } from "@/lib/model";
+import { pointName, TENSE_GUIDES, type SentenceFocus, type Theme } from "@/lib/options";
 import { untagged } from "@/lib/correct";
 import type { Combination } from "@/lib/settings";
 
@@ -62,12 +74,10 @@ function learningPoint(combination: Combination) {
               "of the history, else a weak point below, else a common word French " +
               "speakers get wrong";
   return (
-    "\n\n## Learning point\nBesides the tense, its natural translation needs " +
+    " Learning point: besides the tense, its natural translation needs " +
     `${what}, in a new situation, without pointing it out` +
     (point ? `; the reference uses « ${point} »` : "") +
-    ". Never a second point, and never the plain auxiliary the tense needs (will, " +
-    "would, have, be); combine the point with the tense in its natural form (will " +
-    "have to, hasn't been able to)."
+    "."
   );
 }
 
@@ -140,47 +150,102 @@ function pointsSection(input: GenerateInput) {
   );
 }
 
-export async function generateSentence(input: GenerateInput, combination: Combination) {
-  const { focus, tense, theme } = combination;
+// Planning the verb first keeps the tense right. "As people speak it today"
+// gave slang and negations without « ne »; "correct French" alone gave
+// literary French.
+const FIELDS = [
+  "- situation: one short line in English: who, where and when, then the main verb of",
+  "  the translation in the tense of its task.",
+  "- text: the sentence in correct, modern French with a neutral register (no slang or",
+  "  literary tense, always the « ne » of a negation), French punctuation and",
+  "  apostrophes, no quotation marks. Check the spelling and accents of every word.",
+  "- reference: the most natural American English translation of text, in the tense",
+  "  of its task: if that isn't natural, change the French, not the tense. American",
+  "  words and spelling, every word where a native speaker puts it, and in the present",
+  "  the simple present unless the action is going on right now.",
+  "- point: the English word or words of the learning point as the reference has",
+  "  them, lowercase (as soon as, should have, did), or empty.",
+  "- pointInReference: the words of reference that carry the point, copied exactly",
+  "  as written there (had to for have to), or empty.",
+];
+
+function task(combination: Combination) {
+  const { tense, theme } = combination;
   const guide = tense && TENSE_GUIDES[tense];
+  return (
+    `one original French sentence on the theme "${theme}", as long as a line in a ` +
+    `conversation, a video or the news. Its natural American English translation is in ` +
+    `the ${tense}: ${guide?.english}; to get it, use ${guide?.french}.` +
+    (theme && THEME_STYLES[theme] ? ` ${THEME_STYLES[theme]}` : "") +
+    learningPoint(combination)
+  );
+}
+
+// Checks one sentence against its own combination.
+function checked(
+  raw: ItemAnswer,
+  combination: Combination,
+  mastered: Set<string>,
+  final: boolean,
+): Exercise {
+  const answer = checkedItem(raw, "sentence");
   // A habit or a retest of a point keeps it under its own name, whatever the
   // model calls it: its right answers then make it mastered.
-  return generateItem(input, combination, {
-    point: combination.target?.right ?? combination.retestPoint,
-    // Planning the verb first keeps the tense right. "As people speak it today"
-    // gave slang and negations without « ne »; "correct French" alone gave
-    // literary French.
-    fields: [
-      "- situation: one short line in English: who, where and when, then the main verb of",
-      `  the translation in the ${tense}.`,
-      "- text: the sentence in correct, modern French with a neutral register (no slang or",
-      "  literary tense, always the « ne » of a negation), French punctuation and",
-      "  apostrophes, no quotation marks. Check the spelling and accents of every word.",
-      "- reference: the most natural American English translation of text, in the",
-      `  ${tense}: if that isn't natural, change the French, not the tense. American words`,
-      "  and spelling, every word where a native speaker puts it, and in the present the",
-      "  simple present unless the action is going on right now.",
-      "- point: the English word or words of the learning point as the reference has",
-      "  them, lowercase (as soon as, should have, did), or empty.",
-      "- pointInReference: the words of reference that carry the point, copied exactly",
-      "  as written there (had to for have to), or empty.",
-    ],
-    task:
-      `Write one original French sentence on the theme "${theme}", as long as a line in ` +
-      "a conversation, a video or the news. Its natural American English translation is " +
-      `in the ${tense}: ${guide?.english}; to get it, use ${guide?.french}. It uses only ` +
-      `words ${COMMON_ENGLISH}` +
-      (theme && THEME_STYLES[theme] ? ` ${THEME_STYLES[theme]}` : "") +
-      learningPoint(combination) +
-      "\n\n## Variety\nInvent a concrete, realistic situation, not the most obvious one " +
-      "for the theme, with another person, structure and sentence type than the last " +
-      "sentences of the history. The reference stays natural American English: choose a " +
-      "situation where the point is natural rather than bending it.",
-    // Weak points only matter when the code picked no grammar point.
-    // A retest practices only its mistake: no other point is offered.
+  const forced = combination.target?.right ?? combination.retestPoint;
+  const point = forced ? pointName(forced) : answer.point;
+  // The point must be in the reference, or the sentence doesn't practice it:
+  // asked once more, then the sentence is kept without its point.
+  const missing = Boolean(point && !inReference(point, answer.pointInReference ?? "", answer.reference));
+  // A mastered point is never the target again, except in a retest or a
+  // habit, which practice a mistake whatever was mastered; asked once more.
+  const mastery = point && mastered.has(point) && !combination.retest && !combination.target;
+  if (!final && missing) {
+    throw new InvalidAnswerError(
+      `the reference « ${answer.reference} » doesn't use the point « ${point} »; write one that does`,
+    );
+  }
+  if (!final && mastery) {
+    throw new InvalidAnswerError(`« ${point} » is mastered; choose another learning point`);
+  }
+  return {
+    ...combination,
+    text: answer.text,
+    reference: answer.reference,
+    ...(point && !missing && { point }),
+  };
+}
+
+export async function generateSentences(
+  input: GenerateInput,
+  combinations: Combination[],
+): Promise<Exercise[]> {
+  const mastered = new Set((input.points?.mastered ?? []).map(pointName));
+  const { recent } = history(input, "sentence");
+  // Weak points only matter for a sentence whose point the model picks;
+  // mastered and practice points for one that isn't a retest or a habit.
+  const free = combinations.filter((combination) => !combination.retest && !combination.target);
+  const results = await generateBatch(input, {
+    mode: "sentence",
+    fields: FIELDS,
+    schema: sentenceExerciseSchema,
+    slots: combinations.map((combination) => ({
+      task: task(combination),
+      check: (raw: ItemAnswer, final: boolean) => checked(raw, combination, mastered, final),
+    })),
     sections:
-      combination.retest || combination.target
-        ? wordsSection(input)
-        : pointsSection(input) + (focus ? "" : weakPointsSection(input)) + wordsSection(input),
+      (free.length ? pointsSection(input) : "") +
+      (free.some((combination) => !combination.focus) ? weakPointsSection(input) : "") +
+      "\n\n## Every sentence\nOne learning point besides the tense, never a second, and " +
+      "never the plain auxiliary the tense needs (will, would, have, be); combine the " +
+      "point with the tense in its natural form (will have to, hasn't been able to). " +
+      "Invent concrete, realistic situations, not the most obvious ones " +
+      "for the theme, each with another person, structure and sentence type than the " +
+      "others and the last sentences of the history. Every word of the translations is " +
+      `${COMMON_ENGLISH} The reference stays natural American ` +
+      "English: choose a situation where the point is natural rather than bending it." +
+      historySection(recent, "sentence") +
+      wordsSection(input),
+    tokensPerItem: 2000,
   });
+  return results.filter((item): item is Exercise => Boolean(item));
 }

@@ -1,38 +1,29 @@
 // One English verb, regular or irregular as in the settings, with its forms
 // and a French sentence that shows its meaning. It has its own fields: with one
 // free "text" field, models kept writing a sentence instead of a verb.
-import { generateText, Output } from "ai";
 import { z } from "zod";
 import {
-  CANDIDATES,
+  CHOICES,
   checkedContext,
-  chooseAnswer,
   commonAt,
-  FREQUENCY_FIELD,
-  GOAL,
+  firstFresh,
+  freshness,
+  generateBatch,
   history,
   historySection,
-  learner,
-  reviewFor,
-  reviewContext,
+  keptItems,
+  knownSection,
+  reviewChecked,
+  reviewSlots,
   reviewTask,
   similarSection,
-  storedReview,
-  tryAgainSection,
-  knownSection,
-  usableAnswers,
   withApostrophes,
   type Exercise,
   type GenerateInput,
+  type ReviewItem,
+  type Slot,
 } from "@/lib/generate/shared";
-import {
-  InvalidAnswerError,
-  isInvalidAnswer,
-  model,
-  retryIfInvalid,
-  thinking,
-  withoutEntities,
-} from "@/lib/model";
+import { InvalidAnswerError } from "@/lib/model";
 import { FREQUENCIES, type VerbType } from "@/lib/options";
 import type { Combination } from "@/lib/settings";
 
@@ -61,7 +52,11 @@ function isRegular(verb: string, past: string, participle: string) {
 
 // Checks one verb in code. In a review, the verb keeps its own type, whatever
 // the settings.
-function checkedVerb(output: z.infer<typeof verbSchema>, verbType?: VerbType) {
+function checkedVerb(
+  output: z.infer<typeof verbSchema>,
+  verbType?: VerbType,
+  others: (string | undefined)[] = [],
+) {
   const base = output.english
     .trim()
     .toLowerCase()
@@ -72,7 +67,7 @@ function checkedVerb(output: z.infer<typeof verbSchema>, verbType?: VerbType) {
   if (!/^[a-z]+$/.test(base) || !past || !participle || !text) {
     throw new InvalidAnswerError(`Not a verb: ${base}`);
   }
-  const context = checkedContext(output.context, output.itemInContext);
+  const context = checkedContext(output.context, output.itemInContext, others);
   if (
     /[.!?]$/.test(text) ||
     text.replace(/\([^)]*\)/g, "").split(/\s+/).length > 6
@@ -96,143 +91,106 @@ function checkedVerb(output: z.infer<typeof verbSchema>, verbType?: VerbType) {
   };
 }
 
-// Asks the model for CANDIDATES new verbs at once, or one missed verb in a
-// review, and checks them in code. When none fits, the model is asked again
-// once; the second time, the first usable verb is kept, so the page never
-// gets an error.
-export async function generateVerb(
-  input: GenerateInput,
-  combination: Combination,
-): Promise<Exercise> {
-  const { theme } = combination;
-  const verbType = combination.verbType ?? "regular";
-  const { known, recent } = history(input, "verb");
-  let review = reviewFor(input, "verb");
-  // A review of a verb stored whole: the code gives it again as it was, with a
-  // new context sentence.
-  const stored = storedReview(review, "verb");
-  const storedContext = stored && (await reviewContext(stored, "verb", theme, input.generateEffort));
-  if (stored?.forms && storedContext) {
-    const [base, past, participle] = stored.forms;
-    return {
-      ...combination,
-      text: stored.text,
-      reference: `to ${stored.english}`,
-      forms: stored.forms,
-      context: storedContext,
-      verbType: isRegular(base, past, participle) ? "regular" : "irregular",
-      ...(stored.frequency && { frequency: stored.frequency }),
-      review: true,
-    };
-  }
-  // Its context failed twice: a new verb instead, and the page keeps it from
-  // being due again today.
-  const skipped = stored && { reviewSkipped: stored.text };
-  if (stored) review = undefined;
-  let attempt = 0;
-  let tryAgain = "";
-  // A usable first verb, kept if the one asked again is broken.
-  let fallback: (ReturnType<typeof checkedVerb> & { fits: boolean }) | undefined;
-  const verb = await retryIfInvalid(async () => {
-    attempt++;
-    const { output } = await generateText({
-      model,
-      ...thinking("generate", input.generateEffort, review ? 3000 : 4000),
-      maxRetries: 1,
-      output: Output.object({
-        schema: (review ? verbSchema : z.object({ verbs: z.array(verbSchema) })) as z.ZodType<
-          z.infer<typeof verbSchema> | { verbs: z.infer<typeof verbSchema>[] }
-        >,
-      }),
-      system: [
-        "You are an American English teacher for a French speaker. You choose " +
-          (review ? "one English verb" : `${CANDIDATES} English verbs`),
-        "that the learner will translate from French.",
-        "",
-        "## Fields, in this order",
-        ...(review ? [] : [`verbs: ${CANDIDATES} different verbs, best first, each with:`]),
-        '- english: the verb in its base form, one word, without "to".',
-        "- past, participle: its simple past and past participle in American English",
-        "  (gotten, not got).",
-        "- text: the most common French infinitive for this verb, only the infinitive",
-        "  (« conduire » for drive). Check its spelling and accents.",
-        "- context: one short, everyday French sentence that uses text, conjugated, in",
-        "  this meaning only (for louer → rent, a sentence about a home or a car, never",
-        "  about praise). Check its spelling and accents.",
-        "- itemInContext: the words of context that translate the verb, copied exactly as",
-        "  written there (nous louons).",
-        ...FREQUENCY_FIELD,
-      ].join("\n"),
-      prompt:
-        GOAL +
-        "\n\n" +
-        learner("verb") +
-        "\n\n## Task\n" +
-        (review
-          ? reviewTask(review, "verb", theme)
-          : `Choose ${CANDIDATES} different verbs. Each one is ` +
-            `${commonAt(`${verbType} verb`)}, useful when talking about "${theme}" (only ` +
-            "a direction: a common verb loosely related to it beats a rare one). Its " +
-            "French translation looks different from it (not decide → décider), and has " +
-            "no look-alike with another meaning (attend is « assister à », not « attendre " +
-            "»). A French speaker who sees text and context would answer with this verb, " +
-            "not another one (« confondre » is confuse or mix up, not mistake).") +
-        // A review only gives a listed verb again: the history would contradict it.
-        (review
-          ? ""
-          : historySection(recent, "verb") +
-            knownSection(known, "verb") +
-            similarSection(input, "verb")) +
-        tryAgain,
-    });
-    const answers = withoutEntities(
-      review
-        ? [output as z.infer<typeof verbSchema>]
-        : (output as { verbs: z.infer<typeof verbSchema>[] }).verbs.slice(0, CANDIDATES),
-    );
-    let usable = usableAnswers(answers, (answer) =>
-      checkedVerb(answer, review ? undefined : verbType),
-    );
-    // The second time, a verb of the other type is better than an error.
-    if (!usable.length && attempt > 1)
-      usable = usableAnswers(answers, (answer) => checkedVerb(answer));
-    if (!usable.length) {
-      if (!review)
-        tryAgain =
-          "\n\n## Try again\nYour last verbs weren't " +
-          `${verbType}: ${answers.map((answer) => answer.english).join(", ")}. ` +
-          `Give ${CANDIDATES} ${verbType} verbs.`;
-      throw new InvalidAnswerError("No usable verb");
-    }
-    const chosen = chooseAnswer(usable, { known, recent, review });
-    if (chosen) return { ...chosen, fits: true };
-    // A review the model ignored twice gives a new verb, which still mustn't
-    // be learned or recent.
-    const fresh = review ? chooseAnswer(usable, { known, recent }) : undefined;
-    if (attempt > 1) {
-      // A good first answer beats a learned or recent second one.
-      return fresh ? { ...fresh, fits: false } : (fallback ?? { ...usable[0], fits: false });
-    }
-    fallback = { ...(fresh ?? usable[0]), fits: false };
-    tryAgain = tryAgainSection(usable, Boolean(review));
-    throw new InvalidAnswerError(
-      `No fitting verb: ${usable.map((answer) => answer.english).join(", ")}`,
-    );
-  }).catch((error) => {
-    if (fallback && isInvalidAnswer(error)) return fallback;
-    throw error;
-  });
+// One item: a few choices for a new verb, the code keeping the first new one;
+// a single one for a review.
+const verbItemSchema = z.object({ choices: z.array(verbSchema) });
+type VerbItem = z.infer<typeof verbItemSchema>;
 
+const FIELDS = [
+  `- choices: ${CHOICES} different verbs for this task, best first (just one for a`,
+  "  review), each with:",
+  '  - english: the verb in its base form, one word, without "to".',
+  "  - past, participle: its simple past and past participle in American English",
+  "    (gotten, not got).",
+  "  - text: the most common French infinitive for this verb, only the infinitive",
+  "    (« conduire » for drive). Check its spelling and accents.",
+  "  - context: one short, everyday French sentence that uses text, conjugated, in",
+  "    this meaning only (for louer → rent, a sentence about a home or a car, never",
+  "    about praise). Check its spelling and accents.",
+  "  - itemInContext: the words of context that translate the verb, copied exactly",
+  "    as written there (nous louons).",
+  "  - frequency: how often an American hears this English verb: everyday (every day",
+  "    or every week), sometimes, or rare.",
+];
+
+function newTask({ theme, verbType = "regular" }: Combination) {
+  return (
+    `${CHOICES} different verbs. Each one is ${commonAt(`${verbType} verb`)}, useful ` +
+    `when talking about "${theme}" (only a direction: a common verb loosely related to ` +
+    "it beats a rare one). Its French translation looks different from it (not decide " +
+    "→ décider), and has no look-alike with another meaning (attend is « assister à », " +
+    "not « attendre »). A French speaker who sees text and context would answer with " +
+    "this verb, not another one (« confondre » is confuse or mix up, not mistake)."
+  );
+}
+
+function exercise(verb: ReturnType<typeof checkedVerb>, combination: Combination): Exercise {
   return {
+    ...combination,
     text: verb.text,
     reference: `to ${verb.english}`,
     forms: [verb.english, verb.past, verb.participle],
     context: verb.context,
-    ...combination,
     verbType: verb.verbType,
     frequency: verb.frequency,
-    // A review whose answer isn't a listed verb is a new verb.
-    ...(review && verb.fits && { review: true }),
-    ...skipped,
   };
+}
+
+// A review gives the missed verb again, with its own type; one stored whole
+// keeps its French, English and forms as stored, and only its context is new.
+function reviewed(review: ReviewItem, combination: Combination, raw: VerbItem): Exercise {
+  const [choice] = raw.choices;
+  if (!choice) throw new InvalidAnswerError("No verb");
+  const verb = reviewChecked(review, checkedVerb(choice, undefined, [review.context]));
+  if (!review.english || !review.forms) return { ...exercise(verb, combination), review: true };
+  const [base, past, participle] = review.forms;
+  return {
+    ...combination,
+    text: review.text,
+    reference: `to ${review.english}`,
+    forms: review.forms,
+    context: verb.context,
+    verbType: isRegular(base, past, participle) ? "regular" : "irregular",
+    frequency: review.frequency ?? verb.frequency,
+    review: true,
+  };
+}
+
+export async function generateVerbs(
+  input: GenerateInput,
+  combinations: Combination[],
+): Promise<Exercise[]> {
+  const reviews = reviewSlots(input, "verb", combinations.length);
+  const fresh = freshness(input, "verb");
+  const { known, recent } = history(input, "verb");
+  for (const review of reviews) {
+    if (review) fresh.take({ text: review.text, english: review.english ?? "" });
+  }
+  const slots = combinations.map((combination, index): Slot<VerbItem> => {
+    const review = reviews[index];
+    return review
+      ? { task: reviewTask(review, "verb", combination.theme), check: (raw) => reviewed(review, combination, raw) }
+      : {
+          task: newTask(combination),
+          // The last time, a verb of the other type is better than none.
+          check: (raw, final) =>
+            exercise(
+              firstFresh(
+                raw.choices,
+                (choice) => checkedVerb(choice, final ? undefined : combination.verbType),
+                fresh,
+              ),
+              combination,
+            ),
+        };
+  });
+  const results = await generateBatch(input, {
+    mode: "verb",
+    fields: FIELDS,
+    schema: verbItemSchema,
+    slots,
+    sections: historySection(recent, "verb") + knownSection(known, "verb") + similarSection(input, "verb"),
+    tokensPerItem: 1500,
+  });
+  return keptItems(results, reviews);
 }

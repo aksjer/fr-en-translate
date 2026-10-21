@@ -7,7 +7,6 @@ import {
   InvalidAnswerError,
   isInvalidAnswer,
   model,
-  retryIfInvalid,
   thinking,
   withoutEntities,
 } from "@/lib/model";
@@ -30,7 +29,6 @@ import {
   THEMES,
   VERB_TYPES,
   WORD_KINDS,
-  type Effort,
   type Frequency,
   type Mode,
 } from "@/lib/options";
@@ -237,31 +235,51 @@ export function history(input: GenerateInput, mode: Mode) {
 // the model, missed items came back too often or never. One missed today
 // comes back for sure (the page only sends it a few items later), but never
 // twice in a row, so new items still come; older ones come back by chance.
+// Each item of a batch is a review or not on its own, with a different
+// missed item each time.
 const REVIEW_CHANCE = 0.25;
 
-export function reviewFor(input: GenerateInput, mode: "word" | "verb") {
-  const items = input.review?.[mode] ?? [];
-  if (!items.length) return undefined;
-  const last = input.history?.filter((item) => item.mode === mode).at(-1);
-  const due = items[0].today && !last?.review;
-  return due || Math.random() < REVIEW_CHANCE ? items : undefined;
+export function reviewSlots(input: GenerateInput, mode: "word" | "verb", count: number) {
+  const items = [...(input.review?.[mode] ?? [])];
+  const slots: (ReviewItem | undefined)[] = [];
+  let previous = input.history?.filter((item) => item.mode === mode).at(-1)?.review;
+  for (let index = 0; index < count; index++) {
+    const due = items[0]?.today && !previous;
+    const review = items.length && (due || Math.random() < REVIEW_CHANCE) ? items.shift() : undefined;
+    slots.push(review);
+    previous = Boolean(review);
+  }
+  return slots;
 }
 
-// A review built by the code: the item to give again, with its French, its
-// expected English (and a verb's forms) as stored; the model only writes a new
-// context sentence. Items stored before the English was kept at show time
-// have none: they go through the model's own choice, as before.
-export function storedReview(items: ReviewItem[] | undefined, mode: "word" | "verb") {
-  const item = items?.[0];
-  if (!item?.english || (mode === "verb" && !item.forms)) return undefined;
-  return item as ReviewItem & { english: string };
+// The task of a review: the missed item as it was, with a new context. Items
+// stored whole keep their French and English, and the code gives them back
+// as stored; older ones, whose English wasn't kept at show time, keep their
+// French only.
+export function reviewTask(review: ReviewItem, mode: "word" | "verb", theme?: string) {
+  const english = review.english && (mode === "verb" ? `to ${review.english}` : review.english);
+  return (
+    `A review of « ${review.text} »${english ? ` → ${english}` : ""}, which the learner ` +
+    "missed: choices has just one, with this exact French text" +
+    (english ? " and English" : " in the meaning they missed") +
+    `, and a new context sentence on the theme "${theme}" if it fits` +
+    (review.context ? `, different from « ${review.context} ».` : ".")
+  );
 }
 
-const reviewContextSchema = z.object({
-  situation: z.string(),
-  context: z.string(),
-  itemInContext: z.string(),
-});
+// Checks the answer to a review: the item it gives must be the missed one.
+export function reviewChecked<T extends { text: string; english: string }>(
+  review: ReviewItem,
+  answer: T,
+) {
+  if (sameText(answer.text) !== sameText(review.text)) {
+    throw new InvalidAnswerError(`Not the item to review: « ${answer.text} »`);
+  }
+  if (review.english && englishKey(answer.english) !== review.english) {
+    throw new InvalidAnswerError(`Not the English to review: ${answer.english}`);
+  }
+  return answer;
+}
 
 // A text lowercase and without accents (« Été » is ete), with its words
 // separated by single spaces, so one text can be looked for in another. An
@@ -317,7 +335,7 @@ export function checkedContext(
 // quoted (had to for have to, hasn't … yet for not … yet) must be in the
 // reference, every part of them, and share a word with the point, whole or
 // inflected (depends for depend).
-function inReference(point: string, quote: string, reference: string) {
+export function inReference(point: string, quote: string, reference: string) {
   const words = (text: string) => folded(text).trim().split(" ");
   const pointWords = words(expanded(point));
   // The quote as written and in full; 'd and 's can stand for two words
@@ -336,80 +354,10 @@ function inReference(point: string, quote: string, reference: string) {
   );
 }
 
-// Asks for a new context sentence for a stored review item. None if both
-// tries failed: the page then gets a new item rather than an error.
-export async function reviewContext(
-  item: ReviewItem & { english: string },
-  mode: "word" | "verb",
-  theme: string | undefined,
-  effort: Effort | undefined,
-) {
-  const english = mode === "verb" ? `to ${item.english}` : item.english;
-  return retryIfInvalid(async () => {
-    const { output } = await generateText({
-      model,
-      ...thinking("generate", effort, 2000),
-      maxRetries: 1,
-      output: Output.object({ schema: reviewContextSchema }),
-      system: [
-        "You are an American English teacher for a French speaker. You write one French",
-        "sentence that shows the meaning of a French item the learner will translate.",
-        "",
-        "## Fields, in this order",
-        "- situation: one short line in English: who, where, and what the English means here.",
-        "- context: one short, everyday French sentence in correct, modern French that uses",
-        `  the French item${mode === "verb" ? ", conjugated," : ""} in this meaning only, so a`,
-        "  French speaker would translate the item with this English. Check its spelling",
-        "  and accents.",
-        "- itemInContext: the words of context that translate the item, copied exactly as",
-        "  written there (je me souviens for se souvenir).",
-      ].join("\n"),
-      prompt:
-        GOAL +
-        "\n\n## Task\n" +
-        `The learner missed « ${item.text} » → ${english}. Write a new context sentence ` +
-        `for it, on the theme "${theme}" if it fits` +
-        (item.context ? `, different from the last one: « ${item.context} ».` : "."),
-    });
-    const answer = withoutEntities(output);
-    return checkedContext(answer.context, answer.itemInContext, [item.context]);
-  }).catch((error) => {
-    if (!isInvalidAnswer(error)) throw error;
-    console.warn("No usable review context, giving a new item:", (error as Error).message);
-    return undefined;
-  });
-}
-
-// The task of a review: one of the missed items, as is, with a new context.
-export function reviewTask(
-  items: ReviewItem[],
-  mode: "word" | "verb",
-  theme?: string,
-) {
-  const lines = items.map((item) => {
-    const details = [
-      item.misses && `missed ${item.misses} time${item.misses > 1 ? "s" : ""}`,
-      item.context && `last context: « ${item.context} »`,
-    ].filter(Boolean);
-    return (
-      `- « ${item.text} »${item.english ? ` → ${item.english}` : ""}` +
-      (details.length ? ` (${details.join("; ")})` : "")
-    );
-  });
-  return (
-    `This is a review. Give again one of these ${mode}s that the learner missed or ` +
-    "left unanswered, as is: the same French text, in the same meaning (the English " +
-    "after the arrow, when there is one), with a new context sentence, different from " +
-    "the last one. They come by priority: take the first one.\n" +
-    lines.join("\n") +
-    `\nSet its new context sentence on the theme "${theme}" if it fits.`
-  );
-}
-
-// The number of new words or verbs asked in one call: the code keeps the first
-// one the learner neither learned nor saw recently, so a repeat rarely costs
-// another call.
-export const CANDIDATES = 3;
+// The number of choices asked for each new word or verb: the code keeps the
+// first one the learner neither learned nor saw recently, so a repeat rarely
+// costs another call.
+export const CHOICES = 2;
 
 type Choice = { text: string; english: string };
 
@@ -420,43 +368,57 @@ export function learnedEnglish(item: HistoryItem) {
   return english ? [english] : [];
 }
 
-// The answer to give: in a review, the first one that is a missed item;
-// otherwise the first one the learner neither learned nor saw recently.
-export function chooseAnswer<T extends Choice>(
-  answers: T[],
-  rules: { known: string[]; recent: HistoryItem[]; review?: ReviewItem[] },
-) {
-  // A listed item, in its stored meaning when the English is stored.
-  if (rules.review) {
-    return answers.find((answer) =>
-      rules.review?.some(
-        (item) =>
-          sameText(item.text) === sameText(answer.text) &&
-          (!item.english || englishKey(answer.english) === item.english),
-      ),
-    );
-  }
-  const english = new Set([...rules.known, ...rules.recent.flatMap(learnedEnglish)]);
+// Tells which words or verbs are new: neither learned, nor recent, nor
+// already in the batch. take() adds one to the batch.
+export function freshness(input: GenerateInput, mode: "word" | "verb") {
+  const { known, recent } = history(input, mode);
+  const english = new Set([...known, ...recent.flatMap(learnedEnglish)]);
   // The same French word in another meaning is a new item: the French alone
   // only counts for an unanswered item, or an old one whose English isn't stored.
   const texts = new Set(
-    rules.recent.flatMap((item) =>
-      item.english && item.ok !== undefined ? [] : [sameText(item.text)],
-    ),
+    recent.flatMap((item) => (item.english && item.ok !== undefined ? [] : [sameText(item.text)])),
   );
   // An item answered right with another word (sofa for « le canapé » → couch)
   // doesn't come back as is: its expected word may, with another French word.
   const answered = new Set(
-    rules.recent.flatMap((item) =>
+    recent.flatMap((item) =>
       item.accepted && item.english && item.ok ? [`${sameText(item.text)} → ${item.english}`] : [],
     ),
   );
-  return answers.find(
-    (answer) =>
+  return {
+    isFresh: (answer: Choice) =>
       !english.has(answer.english) &&
       !texts.has(sameText(answer.text)) &&
       !answered.has(`${sameText(answer.text)} → ${answer.english}`),
-  );
+    take: (answer: Choice) => {
+      english.add(answer.english);
+      texts.add(sameText(answer.text));
+    },
+  };
+}
+
+// The first choice that passes the code's checks and is new, taken for the
+// batch; the reasons of the others otherwise.
+export function firstFresh<T, U extends Choice>(
+  choices: T[],
+  check: (choice: T) => U,
+  fresh: ReturnType<typeof freshness>,
+) {
+  const reasons: string[] = [];
+  for (const choice of choices.slice(0, CHOICES)) {
+    try {
+      const answer = check(choice);
+      if (fresh.isFresh(answer)) {
+        fresh.take(answer);
+        return answer;
+      }
+      reasons.push(`${answer.english} is learned, recent or already in this batch`);
+    } catch (error) {
+      if (!isInvalidAnswer(error)) throw error;
+      reasons.push((error as Error).message);
+    }
+  }
+  throw new InvalidAnswerError(reasons.join("; ") || "No choice");
 }
 
 // The English words or verbs the learner got right: the model avoids them, and
@@ -492,17 +454,6 @@ export function similarSection(input: GenerateInput, mode: "word" | "verb") {
     "\n\n## Seen in corrections\nEnglish " +
     `${mode}s the corrections showed the learner, the last first. Prefer one that is ` +
     `common American English and fits the task:\n${words.join(", ")}`
-  );
-}
-
-// Told to the model when its first answers can't be used.
-export function tryAgainSection(answers: Choice[], review: boolean) {
-  return (
-    "\n\n## Try again\n" +
-    (review
-      ? "Your last answer wasn't one of the items to review. Give one of the listed items."
-      : "The learner already knows or just saw these English words: " +
-        `${answers.map((answer) => answer.english).join(", ")}. Choose other ones.`)
   );
 }
 
@@ -587,7 +538,7 @@ const exerciseSchema = z.object({
 
 // A word also gets a French sentence that shows its meaning, written before the
 // reference so the reference translates the word in that meaning.
-const wordExerciseSchema = z.object({
+export const wordExerciseSchema = z.object({
   situation: z.string(),
   text: z.string(),
   context: z.string(),
@@ -597,12 +548,12 @@ const wordExerciseSchema = z.object({
 });
 
 // A sentence also names its learning point, so the page can remember it.
-const sentenceExerciseSchema = exerciseSchema.extend({
+export const sentenceExerciseSchema = exerciseSchema.extend({
   point: z.string(),
   pointInReference: z.string(),
 });
 
-type ItemAnswer = z.infer<typeof exerciseSchema> & {
+export type ItemAnswer = z.infer<typeof exerciseSchema> & {
   context?: string;
   itemInContext?: string;
   frequency?: Frequency;
@@ -611,7 +562,7 @@ type ItemAnswer = z.infer<typeof exerciseSchema> & {
 };
 
 // Checks one answer in code, and cleans it up for the page.
-function checkedItem(output: ItemAnswer, mode: Mode) {
+export function checkedItem(output: ItemAnswer, mode: Mode) {
   // The situation only helps the model think; the page doesn't need it.
   const raw = output.text.trim();
   const text = withApostrophes(raw);
@@ -645,150 +596,97 @@ function checkedItem(output: ItemAnswer, mode: Mode) {
   };
 }
 
-// Keeps the answers that pass the code's checks, and drops the others.
-export function usableAnswers<T, U>(answers: T[], check: (answer: T) => U) {
-  return answers.flatMap((answer) => {
+// One item of a batch: its task in the prompt, and the code's check of the
+// model's answer to it. A check throws an InvalidAnswerError whose message
+// the model gets when asked again; on the last try (final), a check may keep
+// a weaker answer rather than none.
+export type Slot<Raw> = {
+  task: string;
+  check: (raw: Raw, final: boolean) => Exercise;
+};
+
+// The number of items one call gives: the free tier allows 250,000 tokens a
+// minute but only 500 calls a day, so each call gives several exercises.
+export const BATCH_SIZE = 3;
+
+// Asks the model for one item per slot in a single call, and checks each one
+// in code. Items that fail are asked again once, in one more call for the
+// whole batch; those still failing are left out (undefined), and the call
+// fails only if none is usable.
+export async function generateBatch<Raw>(
+  input: GenerateInput,
+  batch: {
+    mode: Mode;
+    // The fields of one item, as lines of the system prompt.
+    fields: string[];
+    schema: z.ZodType<Raw>;
+    slots: Slot<Raw>[];
+    // The sections after the tasks: history, words learned…
+    sections: string;
+    // Room for one item's thinking and JSON.
+    tokensPerItem: number;
+  },
+): Promise<(Exercise | undefined)[]> {
+  const { mode, slots } = batch;
+  const results: (Exercise | undefined)[] = slots.map(() => undefined);
+  let tryAgain = "";
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    let items: Raw[];
     try {
-      return [check(answer)];
+      const { output } = await generateText({
+        model,
+        ...thinking("generate", input.generateEffort, 1000 + batch.tokensPerItem * slots.length),
+        maxRetries: 1,
+        output: Output.object({ schema: z.object({ items: z.array(batch.schema) }) }),
+        system: [
+          "You are an American English teacher for a French speaker. You write items in",
+          "natural, correct French that the learner will translate into American English.",
+          "",
+          "## Fields, in this order",
+          `items: ${slots.length} items, one for each task below, in the same order, each with:`,
+          ...batch.fields,
+        ].join("\n"),
+        prompt:
+          GOAL +
+          "\n\n" +
+          learner(mode) +
+          "\n\n## Tasks\n" +
+          slots.map((slot, index) => `Item ${index + 1}: ${slot.task}`).join("\n\n") +
+          batch.sections +
+          tryAgain,
+      });
+      items = withoutEntities(output.items);
     } catch (error) {
       if (!isInvalidAnswer(error)) throw error;
-      console.warn("Unusable answer:", (error as Error).message);
-      return [];
+      console.warn("Unusable model answer:", (error as Error).message);
+      continue;
     }
-  });
+    const reasons: string[] = [];
+    slots.forEach((slot, index) => {
+      if (results[index]) return;
+      try {
+        if (!items[index]) throw new InvalidAnswerError("missing");
+        results[index] = slot.check(items[index], attempt === 2);
+      } catch (error) {
+        if (!isInvalidAnswer(error)) throw error;
+        reasons.push(`Item ${index + 1}: ${(error as Error).message}`);
+      }
+    });
+    if (!reasons.length) break;
+    console.warn("Unusable items:", reasons.join(" / "));
+    tryAgain =
+      "\n\n## Try again\nThese items of your last answer couldn't be used. Write every " +
+      "item again, fixing these:\n" +
+      reasons.join("\n");
+  }
+  if (!results.some(Boolean)) throw new InvalidAnswerError("No usable item");
+  return results;
 }
 
-// Asks the model for a sentence and its reference, or for a word with a
-// context sentence: CANDIDATES new words at once, or one word in a review.
-// Each mode gives its own fields, its task and its own sections. When no
-// answer fits, the model is asked again once; the second time, the first
-// usable answer is kept, so the page never gets an error.
-export async function generateItem(
-  input: GenerateInput,
-  combination: Combination,
-  prompt: {
-    fields: string[];
-    task: string;
-    sections?: string;
-    review?: ReviewItem[];
-    // A sentence's point picked by the code (a retest, a habit), whatever the
-    // model names.
-    point?: string;
-  },
-): Promise<Exercise> {
-  const { mode } = combination;
-  const { known, recent } = history(input, mode);
-  const several = isWordMode(mode) && !prompt.review;
-  const schema = isWordMode(mode) ? wordExerciseSchema : sentenceExerciseSchema;
-  const mastered = new Set((input.points?.mastered ?? []).map(pointName));
-
-  let attempt = 0;
-  let tryAgain = "";
-  // A usable first answer, kept if the one asked again is broken.
-  let fallback: (ReturnType<typeof checkedItem> & { fits: boolean }) | undefined;
-  const item = await retryIfInvalid(async () => {
-    attempt++;
-    const { output } = await generateText({
-      model,
-      // Room for the thinking and a long sentence or several words, so the
-      // JSON isn't cut short.
-      ...thinking("generate", input.generateEffort, several ? 4000 : 3000),
-      maxRetries: 1,
-      output: Output.object({
-        schema: (several ? z.object({ items: z.array(schema) }) : schema) as z.ZodType<
-          ItemAnswer | { items: ItemAnswer[] }
-        >,
-      }),
-      system: [
-        "You are an American English teacher for a French speaker. You write an item in",
-        "natural, correct French that the learner will translate into American English.",
-        "",
-        "## Fields, in this order",
-        ...(several ? [`items: ${CANDIDATES} different items, best first, each with:`] : []),
-        ...prompt.fields,
-        ...(isWordMode(mode) ? FREQUENCY_FIELD : []),
-      ].join("\n"),
-      prompt:
-        GOAL +
-        "\n\n" +
-        learner(mode) +
-        "\n\n## Task\n" +
-        prompt.task +
-        // A review only gives a listed item again: the history would contradict it.
-        (prompt.review ? "" : historySection(recent, mode)) +
-        (several ? knownSection(known, mode as "word" | "verb") : "") +
-        (prompt.sections ?? "") +
-        tryAgain,
-    });
-
-    const answers = withoutEntities(
-      several
-        ? (output as { items: ItemAnswer[] }).items.slice(0, CANDIDATES)
-        : [output as ItemAnswer],
-    );
-    const usable = usableAnswers(answers, (answer) =>
-      checkedItem(answer, mode),
-    );
-    if (!usable.length) throw new InvalidAnswerError("No usable item");
-    if (!isWordMode(mode)) {
-      const answer = prompt.point ? { ...usable[0], point: pointName(prompt.point) } : usable[0];
-      const point = answer.point;
-      // The point must be in the reference, or the sentence doesn't practice
-      // it: asked once more, then the sentence is kept without its point.
-      const missing = Boolean(
-        point && !inReference(point, answer.pointInReference ?? "", answer.reference),
-      );
-      // A mastered point is never the target again, except in a retest or a
-      // habit, which practice a mistake whatever was mastered.
-      const mastery =
-        point && mastered.has(point) && !combination.retest && !combination.target;
-      const kept = missing ? { ...answer, point: undefined } : answer;
-      if (attempt === 1 && (missing || mastery)) {
-        fallback = { ...kept, fits: true };
-        tryAgain =
-          "\n\n## Try again\n" +
-          (missing
-            ? `Your reference « ${answer.reference} » doesn't use your point « ${point} ». ` +
-              "Write a sentence whose reference uses it."
-            : `The learner already mastered « ${point} ». Choose another learning point, ` +
-              "not in Points mastered.");
-        throw new InvalidAnswerError(
-          missing ? `Point not in the reference: ${point}` : `Mastered point: ${point}`,
-        );
-      }
-      return { ...kept, fits: true };
-    }
-    const chosen = chooseAnswer(usable, {
-      known,
-      recent,
-      review: prompt.review,
-    });
-    if (chosen) return { ...chosen, fits: true };
-    // A review the model ignored twice gives a new item, which still mustn't
-    // be learned or recent.
-    const fresh = prompt.review ? chooseAnswer(usable, { known, recent }) : undefined;
-    if (attempt > 1) {
-      // A good first answer beats a learned or recent second one.
-      return fresh ? { ...fresh, fits: false } : (fallback ?? { ...usable[0], fits: false });
-    }
-    fallback = { ...(fresh ?? usable[0]), fits: false };
-    tryAgain = tryAgainSection(usable, Boolean(prompt.review));
-    throw new InvalidAnswerError(
-      `No fitting item: ${usable.map((answer) => answer.english).join(", ")}`,
-    );
-  }).catch((error) => {
-    if (fallback && isInvalidAnswer(error)) return fallback;
-    throw error;
-  });
-
-  return {
-    text: item.text,
-    reference: item.reference,
-    ...(item.context && { context: item.context }),
-    ...("frequency" in item && item.frequency && { frequency: item.frequency }),
-    ...("point" in item && item.point && { point: item.point }),
-    ...combination,
-    // A review whose answer isn't a listed item is a new word.
-    ...(prompt.review && item.fits && { review: true }),
-  };
+// The usable items of a batch. A review left out (its context failed twice)
+// is named on the first item, so the page doesn't make it due again today.
+export function keptItems(results: (Exercise | undefined)[], reviews: (ReviewItem | undefined)[]) {
+  const kept = results.filter((item): item is Exercise => Boolean(item));
+  const skipped = reviews.find((review, index) => review && !results[index]);
+  return skipped ? [{ ...kept[0], reviewSkipped: skipped.text }, ...kept.slice(1)] : kept;
 }

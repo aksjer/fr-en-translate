@@ -118,6 +118,19 @@ async function postCorrection(
 
 export function Trainer() {
   const [settings] = useSettings();
+  // One call gives several exercises: the next ones wait here, and are stored
+  // in the history only when shown. New settings drop them; so does a wrong
+  // sentence, so its retest comes right away.
+  const queue = useRef<Exercise[]>([]);
+  // The batch being fetched, shared so a second request never starts.
+  const pending = useRef<Promise<Exercise[]> | null>(null);
+  const busy = useRef(false);
+  const settingsKey = JSON.stringify(settings);
+  const current = useRef({ settings, settingsKey });
+  useEffect(() => {
+    current.current = { settings, settingsKey };
+    queue.current = [];
+  }, [settings, settingsKey]);
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [translation, setTranslation] = useState("");
   const [result, setResult] = useState<Correction | null>(null);
@@ -155,26 +168,49 @@ export function Trainer() {
     if (exercise && !result) inputRef.current?.focus();
   }, [exercise]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // The recent exercises and their results, the items already learned and the
+  // missed ones to review: the next batch is chosen from them.
+  async function fetchBatch() {
+    const seen = readSeen();
+    const known = readKnown();
+    const points = readPoints();
+    const history = recentHistory(seen).map((item) => ({
+      ...item,
+      text: item.text.slice(0, 300),
+    }));
+    const { exercises } = await post<{ exercises: Exercise[] }>("/api/generate", {
+      ...current.current.settings,
+      history,
+      known,
+      review: { word: toReview(seen, known, "word"), verb: toReview(seen, known, "verb") },
+      points: { mastered: masteredPoints(points), practice: pointsToPractice(points) },
+    });
+    return exercises;
+  }
+
+  // The next exercise of the queue, or of a new batch. A batch asked with
+  // settings changed since is dropped, and another one asked.
+  async function nextExercise() {
+    for (;;) {
+      const queued = queue.current.shift();
+      if (queued) return queued;
+      const key = current.current.settingsKey;
+      pending.current ??= fetchBatch().finally(() => {
+        pending.current = null;
+      });
+      const batch = await pending.current;
+      if (!batch.length) throw new Error("The service isn't responding. Try again.");
+      if (key === current.current.settingsKey) queue.current.push(...batch);
+    }
+  }
+
   async function generate() {
+    if (busy.current) return;
+    busy.current = true;
     setLoading("generate");
     setError(null);
     try {
-      // The recent exercises and their results, the items already learned and
-      // the missed ones to review: the next item is chosen from them.
-      const seen = readSeen();
-      const known = readKnown();
-      const points = readPoints();
-      const history = recentHistory(seen).map((item) => ({
-        ...item,
-        text: item.text.slice(0, 300),
-      }));
-      const next = await post<Exercise>("/api/generate", {
-        ...settings,
-        history,
-        known,
-        review: { word: toReview(seen, known, "word"), verb: toReview(seen, known, "verb") },
-        points: { mastered: masteredPoints(points), practice: pointsToPractice(points) },
-      });
+      const next = await nextExercise();
       setExercise(next);
       // The whole exercise is kept as shown: the expected answer never changes after.
       rememberSeen(next.text, next.mode, {
@@ -199,6 +235,7 @@ export function Trainer() {
     } catch (e) {
       setError((e as Error).message);
     } finally {
+      busy.current = false;
       setLoading(null);
     }
   }
@@ -226,6 +263,10 @@ export function Trainer() {
         setDraftRemarks,
       );
       setResult(correction);
+      // A wrong sentence gets its retest in the next batch, asked right away.
+      if (exercise.mode === "sentence" && !correction.isCorrect && !exercise.retest) {
+        queue.current = [];
+      }
       const expected =
         isWordMode(exercise.mode) && exercise.reference
           ? englishKey(exercise.reference)
