@@ -97,12 +97,9 @@ const results: object[] = [];
 console.log("case  mode      expected  got     note");
 cases.forEach((item, index) => {
   const answer = items.find((candidate) => candidate.case === index + 1);
-  // What the app would ask again instead of showing: counted apart, since the
-  // eval makes no second request.
-  const retried =
-    !answer ||
-    !answer.correction.trim() ||
-    (answer.translated && !answer.right && !answer.mistakes.length);
+  // What the app would ask again instead of showing (an empty correction):
+  // counted apart, since the eval makes no second request.
+  const retried = !answer || !answer.correction.trim();
   const correction = answer && finishCorrection(inputs[index], answer);
   const got = retried ? "invalid" : correction?.isCorrect ? "right" : "wrong";
   results.push({ case: index + 1, ...item, got, model: answer ?? null, result: correction ?? null });

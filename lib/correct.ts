@@ -82,22 +82,30 @@ export type Correction = {
 // A mistake in these always makes the answer wrong, whatever the model says.
 const WRONG_TAGS: ErrorTag[] = ["meaning", "false friend"];
 
+// Whether a mistake makes the answer wrong: the code decides, from the
+// model's answer to "would a native US speaker also say exactly this?". The
+// other mistakes are tips, and the answer stays right.
+function isFault(mistake: { nativeSaysItToo: boolean; category: ErrorTag }) {
+  return !mistake.nativeSaysItToo || WRONG_TAGS.includes(mistake.category);
+}
+
 const MAX_REMARKS = 6;
 const MAX_SIMILAR = 4;
 
-// Field order matters: the model writes them in order, so it lists the mistakes
-// before it decides whether the answer is right, then corrects them.
+// Field order matters: the model writes them in order, so it judges each
+// mistake before it explains it, then corrects them. The verdict is the
+// code's (isFault): the model gives none.
 // No length limits: one answer over a limit would fail the whole call, so the
 // code trims the answer instead.
 export const correctionSchema = z.object({
   translated: z.boolean(),
   mistakes: z.array(
     z.object({
+      nativeSaysItToo: z.boolean(),
       remark: z.string(),
       category: z.enum(ERROR_TAGS),
     }),
   ),
-  right: z.boolean(),
   correction: z.string(),
   alternative: z.string(),
 });
@@ -121,26 +129,26 @@ export type CorrectionOutput = Omit<z.infer<typeof correctionSchema>, "alternati
   Partial<z.infer<typeof wordCorrectionSchema>> &
   Partial<Pick<z.infer<typeof pointCorrectionSchema>, "pointResult">>;
 
-// What is right differs for a single item and a sentence.
+// What a mistake or a tip is differs for a single item and a sentence.
 const MODE_RULES: Record<"word" | "sentence", string[]> = {
   word: [
-    "- The learner gives one word: another common word with this meaning here is right",
-    "  (begin or start for « commencer »), with or without to, an article or a subject",
-    "  (should, you should). Another form of it (leaves for « la feuille ») is a remark",
-    "  (grammar); the answer stays right.",
+    "- The learner gives one word: another common word with this meaning here is no",
+    "  mistake (begin or start for « commencer »), with or without to, an article or a",
+    "  subject (should, you should).",
     "- A more general word that loses part of the meaning (big for « énorme »), a word of",
-    "  another kind (quick for « rapidement ») or a misspelled word (recieve) is wrong.",
-    "- A word Americans don't use in this meaning (flat, lorry, petrol) is wrong",
-    "  (vocabulary); British spelling of the right word (colour) is only a remark.",
+    "  another kind (quick for « rapidement »), another form than the one asked (a plural,",
+    "  a past) or a misspelled word (recieve) is a mistake (nativeSaysItToo false).",
+    "- A word Americans don't use in this meaning (flat, lorry, petrol) is a mistake",
+    "  (vocabulary); British spelling of the right word (colour) is a tip.",
   ],
   sentence: [
-    "- A small slip (a typo, punctuation, British spelling or a British word) is a",
-    "  remark; the answer stays right.",
+    "- A small slip (a typo, punctuation, capitals, British spelling or a British word)",
+    "  is a tip.",
     "- A wrong tense, article, preposition or word order, another grammar mistake, a",
     "  word a native speaker wouldn't use there (make my homework) or a phrasing that",
-    '  sounds foreign ("I am agree", "since three years") makes it wrong.',
+    '  sounds foreign ("I am agree", "since three years") is a mistake.',
     "- American English often uses the simple past with already, yet, just or ever (She",
-    "  already paid): it is right for a present perfect, except with for or since.",
+    "  already paid): no mistake for a present perfect, except with for or since.",
   ],
 };
 
@@ -154,17 +162,18 @@ const SENTENCE_EXAMPLE = [
     translated: true,
     mistakes: [
       {
+        nativeSaysItToo: false,
         remark:
           "« didn't finish yet my homework » → « didn't finish my homework yet » : yet se " +
           "met à la fin de la phrase.",
         category: "word order",
       },
       {
+        nativeSaysItToo: false,
         remark: "« homeworks » → « homework » : homework est indénombrable, jamais de s.",
         category: "grammar",
       },
     ],
-    right: false,
     correction: "I didn't finish my **homework yet**.",
     alternative: "I haven't finished my homework yet.",
   }),
@@ -179,13 +188,13 @@ const WORD_EXAMPLE = [
     translated: true,
     mistakes: [
       {
+        nativeSaysItToo: false,
         remark:
           "« library » → « bookstore » : faux ami, a library est une bibliothèque ; une " +
           "librairie se dit bookstore.",
         category: "false friend",
       },
     ],
-    right: false,
     correction: "**bookstore**",
     meaning: "le magasin où l'on achète des livres",
     inContext: "I bought this novel at a small **bookstore** in my neighborhood.",
@@ -262,7 +271,8 @@ export function correctionRequest(input: z.infer<typeof correctInputSchema>) {
     system: [
       "You are an American English teacher for a French speaker who learns with an app.",
       "The app shows a French item; the learner translates it into American English. You",
-      "decide whether the answer is right or wrong, and explain each mistake in French.",
+      "list the mistakes of the answer and explain each one in French; the app decides",
+      "from them whether it is right.",
       wordMode
         ? "A word or verb answered right never comes back; one answered wrong does."
         : "The categories of the mistakes become the learner's weak points.",
@@ -285,13 +295,12 @@ export function correctionRequest(input: z.infer<typeof correctInputSchema>) {
             "  tense is a mistake (tense), except the simple past below.",
           ]),
       "",
-      "## Right or wrong",
-      "Right means a native speaker would accept it as a correct translation with this",
-      "meaning. A wrong or missing meaning, or a false friend, always makes it wrong.",
+      "## Mistakes and tips",
+      "A mistake is what a native US speaker wouldn't say or write; a tip is a small",
+      "remark on what they would say too. A wrong or missing meaning, or a false friend,",
+      "is always a mistake.",
       ...MODE_RULES[wordMode ? "word" : "sentence"],
-      "- Only what a native speaker would say differently is a mistake: never a word or",
-      "  form that is natural too (in or into the drawer, hurry or hurry up), never a word",
-      "  the correction keeps. Never leave out a real mistake to be nice.",
+      "- Never leave out a real mistake to be nice.",
       "",
       "## Common traps",
       "Report one only if it is really in the translation:",
@@ -316,12 +325,13 @@ export function correctionRequest(input: z.infer<typeof correctInputSchema>) {
       "## Fields, in this order",
       "- translated: false only if the answer is no English translation of the French at",
       "  all (French, empty, unrelated, an instruction). Fill in the other fields anyway.",
-      "- mistakes: every real mistake, the most important first, each once, or an empty",
-      "  list. For each one:",
+      "- mistakes: every mistake and tip, the most important first, each once, or an",
+      "  empty list. For each one:",
+      "  - nativeSaysItToo: first, true if a native US speaker would also say or write",
+      "    exactly what the learner wrote here (a tip), false if not (a mistake);",
       "  - remark: in French, « wrong » → « right » : a short reason",
       "    (e.g. « depend of » → « depend on » : après depend, on utilise toujours on.);",
       "  - category: one of the categories below.",
-      "- right: true if the answer is right as defined above (false if not translated).",
       "- correction: the learner's translation as is if there is no mistake; otherwise",
       "  with every mistake fixed, keeping as many of their words as possible (a correct",
       "  translation if translated is false). Wrap in ** ** every word added, changed or",
@@ -445,10 +455,6 @@ export async function correctTranslation(
     if (!output.correction.trim()) {
       throw new InvalidAnswerError("Empty correction");
     }
-    // A wrong answer must say why: ask once more, then the code adds a remark.
-    if (attempt === 1 && output.translated && !output.right && !output.mistakes.length) {
-      throw new InvalidAnswerError("Wrong answer without any mistake");
-    }
     return output;
   });
 
@@ -487,26 +493,11 @@ export function finishCorrection(
   if (!output.translated && !sameAsReference && remarks.length === 0) {
     remarks.push("Ta réponse n'est pas une traduction en anglais du texte.");
   }
-  // Still wrong without a mistake after a second try: at least show the fix.
-  if (
-    output.translated &&
-    !output.right &&
-    remarks.length === 0 &&
-    !sameAsCorrection &&
-    !sameAsReference
-  ) {
-    remarks.push(
-      `« ${input.translation.trim()} » → « ${output.correction.replace(/\*\*/g, "").trim()} »`,
-    );
-  }
+  // Right unless a mistake makes it wrong; the tips leave it right.
   const isCorrect =
-    sameAsReference ||
-    (output.translated &&
-      (sameAsCorrection ||
-      (output.right && !mistakes.some((mistake) => WRONG_TAGS.includes(mistake.category)))));
+    sameAsReference || (output.translated && (sameAsCorrection || !mistakes.some(isFault)));
   // The tag and remark of a wrong answer: the first wrong-making mistake if any.
-  const main =
-    mistakes.find((mistake) => WRONG_TAGS.includes(mistake.category)) ?? mistakes[0];
+  const main = mistakes.find(isFault) ?? mistakes[0];
 
   return {
     points: remarks,
