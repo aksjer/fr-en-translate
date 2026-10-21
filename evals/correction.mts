@@ -12,7 +12,7 @@
 // checking in the app before changing a prompt.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
-import { generateText, Output } from "ai";
+import { generateText, NoObjectGeneratedError, Output, parsePartialJson } from "ai";
 import { z } from "zod";
 import {
   correctInputSchema,
@@ -23,6 +23,25 @@ import {
 } from "@/lib/correct";
 import { model, thinking, withoutEntities } from "@/lib/model";
 import { EFFORTS, MODES, SENTENCE_FOCUSES, TENSES, WORD_KINDS } from "@/lib/options";
+
+// The kind of mistake (or of good variant) a case tests, for the summary.
+const CATEGORIES = [
+  "false friend",
+  "meaning/word choice",
+  "spelling",
+  "grammar form",
+  "article",
+  "preposition",
+  "tense",
+  "modal",
+  "word order",
+  "countable/uncountable",
+  "collocation",
+  "phrasal/verb pattern",
+  "register/US vs UK",
+  "natural paraphrase",
+  "format",
+] as const;
 
 const caseSchema = z.object({
   mode: z.enum(MODES),
@@ -35,6 +54,7 @@ const caseSchema = z.object({
   point: z.string().optional(),
   answer: z.string(),
   expected: z.enum(["right", "wrong"]),
+  category: z.enum(CATEGORIES),
   note: z.string(),
 });
 
@@ -65,67 +85,147 @@ const requests = inputs.map(correctionRequest);
 const systems = [...new Set(requests.map((request) => request.system))];
 const label = (system: string) => String.fromCharCode(65 + systems.indexOf(system));
 
-// About 600 tokens of answer a case, within Gemini's limit of 65,536 output
-// tokens, thoughts included.
+// All the cases in one request, at Gemini's limit of 65,536 output tokens
+// (thoughts included). Cases a cut-off answer leaves out count as invalid.
 const MAX_OUTPUT_TOKENS = 65_536;
-const settings = thinking("correct", effort, 600 * cases.length);
+const answerSchema = z.object({ items: z.array(itemSchema) });
 
-const { output } = await generateText({
-  model,
-  providerOptions: settings.providerOptions,
-  maxOutputTokens: Math.min(settings.maxOutputTokens, MAX_OUTPUT_TOKENS),
-  maxRetries: 1,
-  output: Output.object({ schema: z.object({ items: z.array(itemSchema) }) }),
-  system:
-    `You grade ${cases.length} answers of learners in one go. Each case names the ` +
-    "instructions it follows: grade each case on its own, exactly as they say. Return " +
-    "items, one per case in order, with case (its number) and the fields its " +
-    "instructions list; leave the fields they don't list empty.",
-  prompt: [
-    ...systems.map((system) => `# Instructions ${label(system)}\n\n${system}`),
-    ...requests.map(
-      (request, index) =>
-        `# Case ${index + 1} (instructions ${label(request.system)})\n${request.prompt}`,
-    ),
-  ].join("\n\n"),
-});
-
-const items = withoutEntities(output.items);
-let matches = 0;
-let invalid = 0;
-const results: object[] = [];
-console.log("case  mode      expected  got     note");
-cases.forEach((item, index) => {
-  const answer = items.find((candidate) => candidate.case === index + 1);
-  // What the app would ask again instead of showing (an empty correction):
-  // counted apart, since the eval makes no second request.
-  const retried = !answer || !answer.correction.trim();
-  const correction = answer && finishCorrection(inputs[index], answer);
-  const got = retried ? "invalid" : correction?.isCorrect ? "right" : "wrong";
-  results.push({ case: index + 1, ...item, got, model: answer ?? null, result: correction ?? null });
-  if (retried) invalid++;
-  else if (got === item.expected) matches++;
+let answered: z.infer<typeof itemSchema>[];
+let cutOff = false;
+try {
+  const { output } = await generateText({
+    model,
+    providerOptions: thinking("correct", effort, MAX_OUTPUT_TOKENS).providerOptions,
+    maxOutputTokens: MAX_OUTPUT_TOKENS,
+    maxRetries: 1,
+    output: Output.object({ schema: answerSchema }),
+    system:
+      `You grade ${cases.length} answers of learners in one go. Each case names the ` +
+      "instructions it follows: grade each case on its own, exactly as they say. Return " +
+      "items, one per case in order, with case (its number) and the fields its " +
+      "instructions list; leave the fields they don't list empty.",
+    prompt: [
+      ...systems.map((system) => `# Instructions ${label(system)}\n\n${system}`),
+      ...requests.map(
+        (request, index) =>
+          `# Case ${index + 1} (instructions ${label(request.system)})\n${request.prompt}`,
+      ),
+    ].join("\n\n"),
+  });
+  answered = output.items;
+} catch (error) {
+  if (!NoObjectGeneratedError.isInstance(error)) throw error;
+  // A cut-off or malformed answer: keep the complete items it holds.
+  cutOff = error.finishReason === "length";
+  const { value } = await parsePartialJson(error.text);
+  const partial = z.object({ items: z.array(z.unknown()) }).safeParse(value);
+  answered = (partial.success ? partial.data.items : []).flatMap((item) => {
+    const parsed = itemSchema.safeParse(item);
+    return parsed.success ? [parsed.data] : [];
+  });
   console.log(
-    `${String(index + 1).padEnd(6)}${item.mode.padEnd(10)}${item.expected.padEnd(10)}` +
-      `${got.padEnd(8)}${item.note}`,
+    `${cutOff ? "Response cut off at the output limit" : "Malformed response"}: ` +
+      `${answered.length} answers kept.\n`,
   );
-  if (retried) {
-    console.log("      invalid output (the app would retry)");
-  } else if (got !== item.expected) {
-    console.log(`      « ${item.answer} » → ${correction?.correction ?? "no answer"}`);
-    for (const remark of correction?.points ?? []) console.log(`      - ${remark}`);
-  }
+}
+const missingNote = cutOff ? "response cut off, output limit" : "no answer for this case";
+
+const items = withoutEntities(answered);
+type Got = "right" | "wrong" | "invalid";
+type Tally = { matches: number; mismatches: number; invalid: number };
+const tally = (rows: { got: Got; expected: string }[]): Tally => ({
+  matches: rows.filter((row) => row.got === row.expected).length,
+  mismatches: rows.filter((row) => row.got !== "invalid" && row.got !== row.expected).length,
+  invalid: rows.filter((row) => row.got === "invalid").length,
 });
-const mismatches = cases.length - matches - invalid;
+
+const results = cases.map((item, index) => {
+  const answer = items.find((candidate) => candidate.case === index + 1);
+  // An empty correction is what the app would ask again instead of showing:
+  // counted apart, since the eval makes no second request.
+  const invalidNote = !answer
+    ? missingNote
+    : !answer.correction.trim()
+      ? "empty correction (the app would retry)"
+      : undefined;
+  const correction = answer && !invalidNote ? finishCorrection(inputs[index], answer) : undefined;
+  const got: Got = invalidNote ? "invalid" : correction?.isCorrect ? "right" : "wrong";
+  return {
+    case: index + 1,
+    ...item,
+    got,
+    invalidNote,
+    model: answer ?? null,
+    result: correction ?? null,
+  };
+});
+
+console.log("case  mode      expected  got     category / note");
+for (const row of results) {
+  console.log(
+    `${String(row.case).padEnd(6)}${row.mode.padEnd(10)}${row.expected.padEnd(10)}` +
+      `${row.got.padEnd(8)}${row.category} / ${row.note}`,
+  );
+  if (row.invalidNote) {
+    console.log(`      invalid: ${row.invalidNote}`);
+  } else if (row.got !== row.expected) {
+    console.log(`      « ${row.answer} » → ${row.result?.correction ?? "no answer"}`);
+    for (const mistake of row.model?.mistakes ?? []) {
+      console.log(`      - [native ${mistake.nativeSaysItToo}] ${mistake.remark}`);
+    }
+  }
+}
+
+const summary = (key: "mode" | "category", names: readonly string[]) =>
+  Object.fromEntries(
+    names.flatMap((name) => {
+      const rows = results.filter((row) => row[key] === name);
+      return rows.length ? [[name, { cases: rows.length, ...tally(rows) }]] : [];
+    }),
+  );
+const byMode = summary("mode", MODES);
+const byCategory = summary("category", CATEGORIES);
+console.log("\nBy mode:");
+console.table(byMode);
+console.log("By category:");
+console.table(byCategory);
+
+const { matches, mismatches, invalid } = tally(results);
 console.log(
-  `\n${matches}/${cases.length} verdicts match, ${mismatches} mismatches, ${invalid} invalid ` +
+  `${matches}/${cases.length} verdicts match, ${mismatches} mismatches, ${invalid} invalid ` +
     `outputs (effort ${effort})`,
 );
+const mismatchList = results
+  .filter((row) => row.got !== "invalid" && row.got !== row.expected)
+  .map((row) => ({
+    case: row.case,
+    category: row.category,
+    answer: row.answer,
+    expected: row.expected,
+    got: row.got,
+    remarks: (row.model?.mistakes ?? []).map((mistake) => ({
+      remark: mistake.remark,
+      nativeSaysItToo: mistake.nativeSaysItToo,
+    })),
+  }));
 mkdirSync("evals/results", { recursive: true });
 const file = `evals/results/${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}-${effort}.json`;
 writeFileSync(
   file,
-  JSON.stringify({ effort, model: model.modelId, matches, mismatches, invalid, results }, null, 2),
+  JSON.stringify(
+    {
+      effort,
+      model: model.modelId,
+      cutOff,
+      total: { cases: cases.length, matches, mismatches, invalid },
+      byMode,
+      byCategory,
+      mismatches: mismatchList,
+      results,
+    },
+    null,
+    2,
+  ),
 );
 console.log(`Full results: ${file}`);
 process.exitCode = matches === cases.length ? 0 : 1;
