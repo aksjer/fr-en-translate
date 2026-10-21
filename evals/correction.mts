@@ -16,6 +16,7 @@ import {
   correctInputSchema,
   correctionRequest,
   finishCorrection,
+  pointCorrectionSchema,
   wordCorrectionSchema,
 } from "@/lib/correct";
 import { model, thinking, withoutEntities } from "@/lib/model";
@@ -36,11 +37,11 @@ const caseSchema = z.object({
 });
 
 // One answer per case: the fields of every mode, those a case's instructions
-// don't list left empty.
+// don't list left empty (pointResult is ignored for a case with no point).
 const itemSchema = wordCorrectionSchema.extend({
   case: z.number(),
   alternative: z.string(),
-  pointResult: z.string(),
+  pointResult: pointCorrectionSchema.shape.pointResult,
 });
 
 const { values } = parseArgs({ options: { effort: { type: "string", default: "low" } } });
@@ -83,21 +84,34 @@ const { output } = await generateText({
 
 const items = withoutEntities(output.items);
 let matches = 0;
+let invalid = 0;
 console.log("case  mode      expected  got     note");
 cases.forEach((item, index) => {
   const answer = items.find((candidate) => candidate.case === index + 1);
-  const pointResult = z.enum(["right", "wrong", "avoided"]).safeParse(answer?.pointResult).data;
-  const correction = answer && finishCorrection(inputs[index], { ...answer, pointResult });
-  const got = correction ? (correction.isCorrect ? "right" : "wrong") : "none";
-  if (got === item.expected) matches++;
+  // What the app would ask again instead of showing: counted apart, since the
+  // eval makes no second request.
+  const retried =
+    !answer ||
+    !answer.correction.trim() ||
+    (answer.translated && !answer.right && !answer.mistakes.length);
+  const correction = answer && finishCorrection(inputs[index], answer);
+  const got = retried ? "invalid" : correction?.isCorrect ? "right" : "wrong";
+  if (retried) invalid++;
+  else if (got === item.expected) matches++;
   console.log(
     `${String(index + 1).padEnd(6)}${item.mode.padEnd(10)}${item.expected.padEnd(10)}` +
       `${got.padEnd(8)}${item.note}`,
   );
-  if (got !== item.expected) {
+  if (retried) {
+    console.log("      invalid output (the app would retry)");
+  } else if (got !== item.expected) {
     console.log(`      « ${item.answer} » → ${correction?.correction ?? "no answer"}`);
     for (const remark of correction?.points ?? []) console.log(`      - ${remark}`);
   }
 });
-console.log(`\n${matches}/${cases.length} verdicts match (effort ${effort})`);
+const mismatches = cases.length - matches - invalid;
+console.log(
+  `\n${matches}/${cases.length} verdicts match, ${mismatches} mismatches, ${invalid} invalid ` +
+    `outputs (effort ${effort})`,
+);
 process.exitCode = matches === cases.length ? 0 : 1;
