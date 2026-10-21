@@ -153,7 +153,9 @@ const MODE_RULES: Record<"word" | "sentence", string[]> = {
   ],
   sentence: [
     "- A small slip is a tip: a typo (category spelling, always a tip in a sentence),",
-    "  punctuation, capitals, British spelling or a British word.",
+    "  punctuation, capitals, British spelling or a British word. A slip that writes",
+    "  another real English word (desert for dessert, their for there) is a meaning or",
+    "  vocabulary mistake, not spelling.",
     "- A wrong tense, article, preposition or word order, another grammar mistake, a",
     "  word a native speaker wouldn't use there (make my homework) or a phrasing that",
     '  sounds foreign ("I am agree", "since three years") is a mistake.',
@@ -564,7 +566,9 @@ export function finishCorrection(
     output.translated &&
     !sameAsCorrection &&
     !sameAsReference &&
-    mistakes.length === 0
+    mistakes.length === 0 &&
+    typographyKey(input.translation.replace(/\*\*/g, "")) !==
+      typographyKey(output.correction.replace(/\*\*/g, ""))
   ) {
     mistakes.push({
       nativeSaysItToo: false,
