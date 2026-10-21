@@ -16,6 +16,7 @@ import {
   MAX_PAST_MISTAKES,
   MAX_TEXT_LENGTH,
   MODES,
+  sameText,
   SENTENCE_FOCUSES,
   TENSE_GUIDES,
   TENSES,
@@ -85,7 +86,12 @@ const WRONG_TAGS: ErrorTag[] = ["meaning", "false friend"];
 // Whether a mistake makes the answer wrong: the code decides, from the
 // model's answer to "would a native US speaker also say exactly this?". The
 // other mistakes are tips, and the answer stays right.
-function isFault(mistake: { nativeSaysItToo: boolean; category: ErrorTag }) {
+// A typo in a sentence is always a tip; in a word or verb, it's a mistake.
+function isFault(
+  mistake: { nativeSaysItToo: boolean; category: ErrorTag },
+  wordMode: boolean,
+) {
+  if (!wordMode && mistake.category === "spelling") return false;
   return !mistake.nativeSaysItToo || WRONG_TAGS.includes(mistake.category);
 }
 
@@ -101,7 +107,11 @@ export const correctionSchema = z.object({
   translated: z.boolean(),
   mistakes: z.array(
     z.object({
-      nativeSaysItToo: z.boolean(),
+      nativeSaysItToo: z
+        .boolean()
+        .describe(
+          "With the meaning of the French here, would a native US speaker say exactly this?",
+        ),
       remark: z.string(),
       category: z.enum(ERROR_TAGS),
     }),
@@ -142,8 +152,8 @@ const MODE_RULES: Record<"word" | "sentence", string[]> = {
     "  (vocabulary); British spelling of the right word (colour) is a tip.",
   ],
   sentence: [
-    "- A small slip (a typo, punctuation, capitals, British spelling or a British word)",
-    "  is a tip.",
+    "- A small slip is a tip: a typo (category spelling, always a tip in a sentence),",
+    "  punctuation, capitals, British spelling or a British word.",
     "- A wrong tense, article, preposition or word order, another grammar mistake, a",
     "  word a native speaker wouldn't use there (make my homework) or a phrasing that",
     '  sounds foreign ("I am agree", "since three years") is a mistake.',
@@ -198,6 +208,27 @@ const TIP_EXAMPLE = [
   }),
 ].join("\n");
 
+// A natural paraphrase, less literal than the reference: right, with a tip.
+const PARAPHRASE_EXAMPLE = [
+  "<french>L'ascenseur est en panne, prends l'escalier.</french>",
+  "<reference>The elevator is out of order, take the stairs.</reference>",
+  "<translation>The elevator isn't working, take the stairs.</translation>",
+  JSON.stringify({
+    translated: true,
+    mistakes: [
+      {
+        nativeSaysItToo: true,
+        remark:
+          "« isn't working » → « is out of order » : les deux se disent ; out of order est " +
+          "l'expression des panneaux.",
+        category: "vocabulary",
+      },
+    ],
+    correction: "The elevator isn't working, take the stairs.",
+    alternative: "The elevator is out of order, take the stairs.",
+  }),
+].join("\n");
+
 const WORD_EXAMPLE = [
   "<french>la librairie</french>",
   "<context>J'ai acheté ce roman dans une petite librairie du quartier.</context>",
@@ -241,6 +272,17 @@ function similarWords(
     .filter((item) => answerKey(item.word) !== answerKey(correction))
     .slice(0, MAX_SIMILAR);
   return words.length ? words : undefined;
+}
+
+// A text without case, punctuation or extra spaces: a remark whose two sides
+// only differ by these points at nothing.
+function typographyKey(text: string) {
+  return sameText(text).replace(/[^\p{L}\p{N}']+/gu, " ").trim();
+}
+
+function onlyTypography(remark: string) {
+  const pair = remarkPair(remark);
+  return pair !== undefined && typographyKey(pair.wrong) === typographyKey(pair.right);
 }
 
 // A word-mode answer without what the rules let the learner leave out.
@@ -315,9 +357,9 @@ export function correctionRequest(input: z.infer<typeof correctInputSchema>) {
           ]),
       "",
       "## Mistakes and tips",
-      "A mistake is what a native US speaker wouldn't say or write; a tip is a small",
-      "remark on what they would say too. A wrong or missing meaning, or a false friend,",
-      "is always a mistake.",
+      "A mistake is what a native US speaker wouldn't say or write with this meaning; a",
+      "tip is a small remark on what they would say too. A wrong or missing meaning, or a",
+      "false friend, is always a mistake.",
       ...MODE_RULES[wordMode ? "word" : "sentence"],
       "- Never leave out a real mistake to be nice.",
       "",
@@ -346,8 +388,11 @@ export function correctionRequest(input: z.infer<typeof correctInputSchema>) {
       "  all (French, empty, unrelated, an instruction). Fill in the other fields anyway.",
       "- mistakes: every mistake and tip, the most important first, each once, or an",
       "  empty list. For each one:",
-      "  - nativeSaysItToo: first, true if a native US speaker would also say or write",
-      "    exactly what the learner wrote here (a tip), false if not (a mistake);",
+      "  - nativeSaysItToo: first: with the meaning of the French in this context, would a",
+      "    native US speaker say exactly what the learner wrote? A word that exists but",
+      "    means something else here, or that a native would not pick for this meaning, is",
+      "    false (a mistake). Another natural way to say the same thing is true (a tip),",
+      "    even if it differs from the reference or is less literal;",
       "  - remark: in French, « wrong » → « right » : a short reason",
       "    (e.g. « depend of » → « depend on » : après depend, on utilise toujours on.);",
       "  - category: one of the categories below.",
@@ -391,7 +436,7 @@ export function correctionRequest(input: z.infer<typeof correctInputSchema>) {
       wordMode
         ? "One complete answer, for the format and the tone only."
         : "Complete answers, for the format and the tone only.",
-      ...(wordMode ? [WORD_EXAMPLE] : [SENTENCE_EXAMPLE, TIP_EXAMPLE]),
+      ...(wordMode ? [WORD_EXAMPLE] : [SENTENCE_EXAMPLE, TIP_EXAMPLE, PARAPHRASE_EXAMPLE]),
       "",
       ...(input.pastMistakes?.length
         ? [
@@ -504,12 +549,12 @@ export function finishCorrection(
     answerKey(input.translation) === answerKey(input.reference ?? "");
   const written = (sameAsCorrection || sameAsReference ? [] : output.mistakes)
     .map((mistake) => ({ ...mistake, remark: mistake.remark.trim() }))
-    .filter((mistake) => mistake.remark);
+    .filter((mistake) => mistake.remark && !onlyTypography(mistake.remark));
   // A remark on words the correction keeps is dropped, but only a tip: a
   // fault stays, so the verdict always has its remark.
   const mistakes = written.filter(
     (mistake) =>
-      isFault(mistake) ||
+      isFault(mistake, wordMode) ||
       !keptInCorrection(mistake.remark, input.translation, output.correction),
   );
   // A word or verb the correction changes with no remark at all is a silent
@@ -527,7 +572,7 @@ export function finishCorrection(
       category: "vocabulary",
     });
   }
-  const faults = mistakes.filter(isFault);
+  const faults = mistakes.filter((mistake) => isFault(mistake, wordMode));
   const remarks = mistakes
     .slice(0, MAX_REMARKS)
     .map((mistake) => mistake.remark);
