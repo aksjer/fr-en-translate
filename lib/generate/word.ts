@@ -75,8 +75,7 @@ function newTask({ kind = "noun", theme }: Combination) {
     KIND_GUIDES[kind] +
     "Its English looks different from the French, never a look-alike of it. The " +
     "French is the word a French speaker really uses for this English, so seeing text " +
-    "and context they would answer with your reference. When the most common words of " +
-    "this kind are learned, take another common form or use of one."
+    "and context they would answer with your reference."
   );
 }
 

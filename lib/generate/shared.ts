@@ -438,8 +438,9 @@ export function firstFresh<T, U extends Choice>(
 export function knownSection(known: string[], mode: "word" | "verb") {
   if (!known.length) return "";
   return (
-    `\n\n## Already learned\nThe learner knows these English ${mode}s: never one of ` +
-    `them:\n${known.join(", ")}`
+    `\n\n## Already learned\nThe learner knows these English ${mode}s. Never give one of ` +
+    `them: when the most common ones are here, take the next most common ${mode} that ` +
+    `isn't:\n${known.join(", ")}`
   );
 }
 

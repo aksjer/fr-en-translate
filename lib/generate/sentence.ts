@@ -46,8 +46,11 @@ const THEME_STYLES: Partial<Record<Theme, string>> = {
 // The one learning point besides the tense: a sentence with several
 // difficulties is hard to learn from, and the correction mixes them up. The
 // code picks it: a habit, a retest of the last mistake, a grammar point, or
-// else the model's choice among the learner's mistakes.
-function learningPoint(combination: Combination) {
+// else the model's choice among the learner's mistakes. With no mistake to
+// choose from (plain), the sentence has none: the model invented points its
+// reference didn't use.
+function learningPoint(combination: Combination, plain: boolean) {
+  if (plain) return " No learning point besides the tense: point and pointInReference are empty.";
   const { focus, focusWord, retest, retestPoint, retestMistake, target } = combination;
   const right = target && untagged(target.right);
   const point = right ?? retestPoint ?? focusWord;
@@ -65,8 +68,7 @@ function learningPoint(combination: Combination) {
           : focus && focusWord
             ? `the English ${focus} « ${focusWord} »${FOCUS_GUIDES[focus] ? ` ${FOCUS_GUIDES[focus]}` : ""}`
             : "one difficulty for French speakers: the mistake of a wrong (recent) item " +
-              "of the history, else a weak point below, else a common word French " +
-              "speakers get wrong";
+              "of the history, else a weak point or a point to practice below";
   return (
     " Learning point: besides the tense, its natural translation needs " +
     `${what}, in a new situation, without pointing it out` +
@@ -166,7 +168,7 @@ const FIELDS = [
   "  as written there, in any form, or empty.",
 ];
 
-function task(combination: Combination) {
+function task(combination: Combination, plain: boolean) {
   const { tense, theme } = combination;
   const guide = tense && TENSE_GUIDES[tense];
   return (
@@ -174,7 +176,7 @@ function task(combination: Combination) {
     `conversation, a video or the news. Its natural American English translation is in ` +
     `the ${tense}: ${guide?.forms}; to get it, use ${guide?.french}.` +
     (theme && THEME_STYLES[theme] ? ` ${THEME_STYLES[theme]}` : "") +
-    learningPoint(combination)
+    learningPoint(combination, plain)
   );
 }
 
@@ -184,6 +186,7 @@ function checked(
   combination: Combination,
   mastered: Set<string>,
   seen: Set<string>,
+  plain: boolean,
   final: boolean,
 ): Exercise {
   const answer = checkedItem(raw, "sentence");
@@ -200,7 +203,8 @@ function checked(
   // A habit, a retest or a word the code picked keeps its point under its own
   // name, whatever the model calls it: its right answers then make it mastered.
   const forced = combination.target?.right ?? combination.retestPoint ?? combination.focusWord;
-  const point = forced ? pointName(forced) : answer.point;
+  // A plain sentence has no point, whatever the model wrote.
+  const point = forced ? pointName(forced) : plain ? undefined : answer.point;
   // The point must be in the reference, or the sentence doesn't practice it:
   // asked once more, then the sentence is kept without its point.
   const missing = Boolean(point && !inReference(point, answer.pointInReference ?? "", answer.reference));
@@ -242,18 +246,27 @@ export function sentenceBatch(
   const free = combinations.filter(
     (combination) => !combination.retest && !combination.target && !combination.focusWord,
   );
+  // The model picks a free sentence's point among the learner's mistakes:
+  // a wrong recent sentence, a weak point or a point to practice. With none,
+  // the free sentences have no point.
+  const weakPoints = weakPointsSection(input);
+  const plain =
+    !recent.some((item) => item.ok === false) &&
+    !weakPoints &&
+    !input.points?.practice?.length;
+  const isPlain = (combination: Combination) => plain && free.includes(combination);
   const batch = {
     mode: "sentence" as const,
     fields: FIELDS,
     schema: sentenceExerciseSchema,
     slots: combinations.map((combination) => ({
-      task: task(combination),
-      check: (raw: ItemAnswer, final: boolean) => checked(raw, combination, mastered, seen, final),
+      task: task(combination, isPlain(combination)),
+      check: (raw: ItemAnswer, final: boolean) =>
+        checked(raw, combination, mastered, seen, isPlain(combination), final),
     })),
     sections:
-      (free.length ? pointsSection(input) : "") +
-      (free.some((combination) => !combination.focus) ? weakPointsSection(input) : "") +
-      "\n\n## Every sentence\nOne learning point besides the tense, never a second, and " +
+      (free.length && !plain ? pointsSection(input) + weakPoints : "") +
+      "\n\n## Every sentence\nAt most one learning point besides the tense, never a second, and " +
       "never the plain auxiliary the tense needs; combine the point with the tense in " +
       "its natural form. " +
       "Invent concrete, realistic situations, not the most obvious ones " +
