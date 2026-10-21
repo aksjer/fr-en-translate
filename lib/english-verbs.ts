@@ -123,6 +123,7 @@ const IRREGULAR_VERBS: [string, string, string][] = [
 const words = (forms: string) => forms.split(" ");
 const PASTS = new Set(IRREGULAR_VERBS.flatMap(([, past]) => words(past)));
 const PARTICIPLES = new Set(IRREGULAR_VERBS.flatMap(([, , participle]) => words(participle)));
+const BASES = new Set(IRREGULAR_VERBS.map(([base]) => base));
 
 // Every form of a verb: its base, -s, -ing and past forms, regular or not
 // (keep: keeps, keeping, kept; stop: stopped, stopping). A word that isn't a
@@ -196,10 +197,15 @@ export function hasTenseForm(reference: string, tense: Tense) {
     case "future":
       return has("will", "shall", "might", "may") || /\bgoing to\b/.test(words.join(" "));
     case "conditional":
-      // 'd before a participle is had (I'd finished), a past perfect.
+      // 'd is had before a participle (I'd finished), a past perfect, and
+      // would before a base form; before a word that is both (come, put,
+      // read), it can be either, so it counts for both tenses.
       return (
         has("would", "could", "might", "should") ||
-        words.some((word, index) => word === "'d" && !isParticiple(words[index + 1] ?? ""))
+        words.some((word, index) => {
+          const next = words[index + 1] ?? "";
+          return word === "'d" && (!isParticiple(next) || BASES.has(next));
+        })
       );
     case "past":
       return (

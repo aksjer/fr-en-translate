@@ -69,6 +69,13 @@ test("the tense check tells the tenses apart", () => {
     ["I'd finished my work.", "past perfect", true],
     ["I'd finished my work.", "conditional", false],
     ["I'd go if I could.", "conditional", true],
+    ["I'd been there before.", "conditional", false],
+    // A base that is also a participle: would or had, so both tenses.
+    ["I'd come with you.", "conditional", true],
+    ["I'd come with you.", "past perfect", true],
+    ["I'd put it away.", "conditional", true],
+    ["I'd run home.", "conditional", true],
+    ["I'd read it later.", "conditional", true],
     ["It snows.", "future", false],
     ["I go home.", "past", false],
   ];
