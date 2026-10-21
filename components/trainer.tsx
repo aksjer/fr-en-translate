@@ -263,8 +263,13 @@ export function Trainer() {
     }
   }
 
-  // The forms of the exercise's verb, as stored with it.
-  const forms = result && exercise?.forms;
+  // The forms of the exercise's verb, as stored with it: shown only when the
+  // correction uses that verb, not a right synonym (hire for rent).
+  const forms =
+    result &&
+    exercise?.forms?.[0] === englishKey(result.correction.replaceAll("**", "").replace(/[.!?]+$/, ""))
+      ? exercise.forms
+      : undefined;
 
   const tags = [
     exercise?.mode,

@@ -162,6 +162,8 @@ export async function generateSentence(input: GenerateInput, combination: Combin
       "  simple present unless the action is going on right now.",
       "- point: the English word or words of the learning point as the reference has",
       "  them, lowercase (as soon as, should have, did), or empty.",
+      "- pointInReference: the words of reference that carry the point, copied exactly",
+      "  as written there (had to for have to), or empty.",
     ],
     task:
       `Write one original French sentence on the theme "${theme}", as long as a line in ` +

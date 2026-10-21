@@ -44,6 +44,7 @@ const verbSchema = z.object({
   participle: z.string(),
   text: z.string(),
   context: z.string(),
+  itemInContext: z.string(),
   frequency: z.enum(FREQUENCIES),
 });
 
@@ -71,7 +72,7 @@ function checkedVerb(output: z.infer<typeof verbSchema>, verbType?: VerbType) {
   if (!/^[a-z]+$/.test(base) || !past || !participle || !text) {
     throw new InvalidAnswerError(`Not a verb: ${base}`);
   }
-  const context = checkedContext(output.context, text, "verb");
+  const context = checkedContext(output.context, output.itemInContext);
   if (
     /[.!?]$/.test(text) ||
     text.replace(/\([^)]*\)/g, "").split(/\s+/).length > 6
@@ -106,23 +107,25 @@ export async function generateVerb(
   const { theme } = combination;
   const verbType = combination.verbType ?? "regular";
   const { known, recent } = history(input, "verb");
-  const review = reviewFor(input, "verb");
+  let review = reviewFor(input, "verb");
   // A review of a verb stored whole: the code gives it again as it was, with a
   // new context sentence.
   const stored = storedReview(review, "verb");
-  if (stored?.forms) {
+  const storedContext = stored && (await reviewContext(stored, "verb", theme));
+  if (stored?.forms && storedContext) {
     const [base, past, participle] = stored.forms;
     return {
       ...combination,
       text: stored.text,
       reference: `to ${stored.english}`,
       forms: stored.forms,
-      context: await reviewContext(stored, "verb", theme),
+      context: storedContext,
       verbType: isRegular(base, past, participle) ? "regular" : "irregular",
       ...(stored.frequency && { frequency: stored.frequency }),
       review: true,
     };
   }
+  if (stored) review = undefined;
   let attempt = 0;
   let tryAgain = "";
   // A usable first verb, kept if the one asked again is broken.
@@ -154,6 +157,8 @@ export async function generateVerb(
         "- context: one short, everyday French sentence that uses text, conjugated, in",
         "  this meaning only (for louer → rent, a sentence about a home or a car, never",
         "  about praise). Check its spelling and accents.",
+        "- itemInContext: the words of context that translate the verb, copied exactly as",
+        "  written there (nous louons).",
         ...FREQUENCY_FIELD,
       ].join("\n"),
       prompt:

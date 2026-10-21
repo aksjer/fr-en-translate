@@ -448,7 +448,13 @@ export async function correctTranslation(
     answerKey(input.translation) === answerKey(output.correction) &&
     sameSubject(input.translation, output.correction) &&
     (wordMode || output.mistakes.length === 0);
-  const written = (sameAsCorrection ? [] : output.mistakes)
+  // A word or verb answered with the stored expected English is right,
+  // whatever the model says.
+  const sameAsReference =
+    wordMode &&
+    Boolean(input.reference) &&
+    answerKey(input.translation) === answerKey(input.reference ?? "");
+  const written = (sameAsCorrection || sameAsReference ? [] : output.mistakes)
     .map((mistake) => ({ ...mistake, remark: mistake.remark.trim() }))
     .filter((mistake) => mistake.remark);
   const mistakes = written.filter(
@@ -457,31 +463,39 @@ export async function correctTranslation(
   const remarks = mistakes
     .slice(0, MAX_REMARKS)
     .map((mistake) => mistake.remark);
-  if (!output.translated && remarks.length === 0) {
+  if (!output.translated && !sameAsReference && remarks.length === 0) {
     remarks.push("Ta réponse n'est pas une traduction en anglais du texte.");
   }
   // Still wrong without a mistake after a second try: at least show the fix.
-  if (output.translated && !output.right && remarks.length === 0 && !sameAsCorrection) {
+  if (
+    output.translated &&
+    !output.right &&
+    remarks.length === 0 &&
+    !sameAsCorrection &&
+    !sameAsReference
+  ) {
     remarks.push(
       `« ${input.translation.trim()} » → « ${output.correction.replace(/\*\*/g, "").trim()} »`,
     );
   }
   const isCorrect =
-    output.translated &&
-    (sameAsCorrection ||
-      (output.right && !mistakes.some((mistake) => WRONG_TAGS.includes(mistake.category))));
+    sameAsReference ||
+    (output.translated &&
+      (sameAsCorrection ||
+      (output.right && !mistakes.some((mistake) => WRONG_TAGS.includes(mistake.category)))));
   // The tag and remark of a wrong answer: the first wrong-making mistake if any.
   const main =
     mistakes.find((mistake) => WRONG_TAGS.includes(mistake.category)) ?? mistakes[0];
 
   return {
     points: remarks,
-    correction: output.correction.trim(),
+    // The expected word itself, so the page doesn't take another one for a synonym.
+    correction: sameAsReference ? input.translation.trim() : output.correction.trim(),
     alternative: output.alternative?.trim() || undefined,
     meaning: output.meaning?.trim() || undefined,
     inContext: output.inContext?.trim() || undefined,
     similar: similarWords(output, output.correction),
-    tag: output.translated ? main?.category : "meaning",
+    tag: output.translated || sameAsReference ? main?.category : "meaning",
     perfect: isCorrect && mistakes.length === 0,
     isCorrect,
     remark: output.translated ? main?.remark : undefined,

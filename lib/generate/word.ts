@@ -40,21 +40,23 @@ export async function generateWord(
   // The code picks the kind of word: left to choose, a small model gives nouns
   // again and again.
   const kind = combination.kind ?? "noun";
-  const review = reviewFor(input, "word");
+  let review = reviewFor(input, "word");
   // A review of a word stored whole: the code gives it again as it was, with a
   // new context sentence.
   const stored = storedReview(review, "word");
-  if (stored) {
+  const storedContext = stored && (await reviewContext(stored, "word", theme));
+  if (stored && storedContext) {
     return {
       ...combination,
       text: stored.text,
       reference: stored.reference ?? stored.english,
-      context: await reviewContext(stored, "word", theme),
+      context: storedContext,
       kind: stored.kind,
       ...(stored.frequency && { frequency: stored.frequency }),
       review: true,
     };
   }
+  if (stored) review = undefined;
   // A review gives a word of any kind: it gets its own kind back below.
   const exercise = await generateItem(input, review ? { ...combination, kind: undefined } : combination, {
     review,
@@ -69,6 +71,8 @@ export async function generateWord(
       "  (la feuille). Check its spelling and accents.",
       "- context: one short, everyday French sentence that uses text in this meaning",
       "  only (for la feuille → leaf, a sentence about a tree, never about paper).",
+      "- itemInContext: the words of context that translate text, copied exactly as",
+      "  written there, in any form (les feuilles).",
       "- reference: the most natural American English translation of text alone, never",
       "  of the context, in American words and spelling (apartment, color).",
     ],
