@@ -210,3 +210,13 @@ export const MODE_USES = {
   Mode,
   { tense: boolean; verbType: boolean; theme: boolean; wordType: boolean }
 >;
+
+// The same French text, whatever its case, spaces, quotes or apostrophes.
+export function sameText(text: string) {
+  return text
+    .toLowerCase()
+    .replace(/[«»"]/g, "")
+    .replace(/’/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}

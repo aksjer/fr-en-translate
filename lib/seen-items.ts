@@ -17,6 +17,7 @@ import {
   type WordKind,
   englishKey,
   isWordMode,
+  sameText,
 } from "@/lib/options";
 
 // The exercises shown to this learner and how they did, kept in this browser
@@ -249,12 +250,14 @@ export function toReview(items: SeenItem[], known: KnownItems, mode: "word" | "v
   const isToday = (item: SeenItem) =>
     item.at !== undefined && new Date(item.at).toLocaleDateString("en-CA") === today();
   const skipped = new Set(
-    ofMode.filter((item) => item.reviewSkipped && isToday(item)).map((item) => item.reviewSkipped),
+    ofMode.flatMap((item) =>
+      item.reviewSkipped && isToday(item) ? [sameText(item.reviewSkipped)] : [],
+    ),
   );
   const due = ofMode.filter(
     (item, index) =>
       lastIndex.get(item.text) === index &&
-      !skipped.has(item.text) &&
+      !skipped.has(sameText(item.text)) &&
       index < ofMode.length - RECENTLY_SEEN &&
       item.ok !== true &&
       !(item.english && learned.has(item.english)),

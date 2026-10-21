@@ -14,6 +14,7 @@ import {
 import {
   englishKey,
   HISTORY_PER_MODE,
+  sameText,
   isWordMode,
   MAX_HISTORY,
   MAX_KNOWN,
@@ -316,8 +317,16 @@ export function checkedContext(
 // reference, every part of them, and share a word with the point, whole or
 // inflected (depends for depend).
 function inReference(point: string, quote: string, reference: string) {
-  const pointWords = folded(expanded(point)).trim().split(" ");
-  const quoteWords = folded(expanded(quote)).trim().split(" ");
+  const words = (text: string) => folded(text).trim().split(" ");
+  const pointWords = words(expanded(point));
+  // The quote as written and in full; 'd and 's can stand for two words
+  // (you'd better, he's been), so both readings count.
+  const quoteWords = [
+    ...words(quote),
+    ...words(expanded(quote)),
+    ...(/['’]d\b/i.test(quote) ? ["had", "would"] : []),
+    ...(/['’]s\b/i.test(quote) ? ["is", "has"] : []),
+  ];
   return (
     quotedIn(quote, reference) &&
     quoteWords.some((word) =>
@@ -400,16 +409,6 @@ export function reviewTask(
 // one the learner neither learned nor saw recently, so a repeat rarely costs
 // another call.
 export const CANDIDATES = 3;
-
-// The same French text, whatever its case, spaces, quotes or apostrophes.
-export function sameText(text: string) {
-  return text
-    .toLowerCase()
-    .replace(/[«»"]/g, "")
-    .replace(/’/g, "'")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 type Choice = { text: string; english: string };
 

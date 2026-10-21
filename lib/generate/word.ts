@@ -7,13 +7,12 @@ import {
   reviewFor,
   reviewContext,
   reviewTask,
-  sameText,
   storedReview,
   similarSection,
   type Exercise,
   type GenerateInput,
 } from "@/lib/generate/shared";
-import type { WordKind } from "@/lib/options";
+import { sameText, type WordKind } from "@/lib/options";
 import type { Combination } from "@/lib/settings";
 
 // What a word of each kind looks like, besides the examples of commonAt. Only
