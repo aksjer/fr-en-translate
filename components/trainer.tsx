@@ -221,6 +221,7 @@ export function Trainer() {
           reference: exercise.reference,
           context: exercise.context,
           pastMistakes: pastMistakes(readSeen(), exercise.mode),
+          effort: settings.correctEffort,
         },
         setDraftRemarks,
       );

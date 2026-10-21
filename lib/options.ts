@@ -2,6 +2,12 @@
 
 export const MODES = ["word", "verb", "sentence"] as const;
 
+// How long Gemini thinks before it answers, chosen in the settings for the
+// generation and for the correction.
+export const EFFORTS = ["minimal", "low", "medium", "high"] as const;
+export type Effort = (typeof EFFORTS)[number];
+export const DEFAULT_EFFORT = { generate: "minimal", correct: "low" } as const;
+
 // The longest item or answer, in characters. The answer box, the generated item
 // and the correction share it, so anything generated can be corrected.
 export const MAX_TEXT_LENGTH = 1000;

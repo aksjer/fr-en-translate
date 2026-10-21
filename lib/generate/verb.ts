@@ -30,7 +30,7 @@ import {
   isInvalidAnswer,
   model,
   retryIfInvalid,
-  thinkingFor,
+  thinking,
   withoutEntities,
 } from "@/lib/model";
 import { FREQUENCIES, type VerbType } from "@/lib/options";
@@ -111,7 +111,7 @@ export async function generateVerb(
   // A review of a verb stored whole: the code gives it again as it was, with a
   // new context sentence.
   const stored = storedReview(review, "verb");
-  const storedContext = stored && (await reviewContext(stored, "verb", theme));
+  const storedContext = stored && (await reviewContext(stored, "verb", theme, input.generateEffort));
   if (stored?.forms && storedContext) {
     const [base, past, participle] = stored.forms;
     return {
@@ -137,9 +137,8 @@ export async function generateVerb(
     attempt++;
     const { output } = await generateText({
       model,
-      providerOptions: thinkingFor("generate"),
+      ...thinking("generate", input.generateEffort, review ? 3000 : 4000),
       maxRetries: 1,
-      maxOutputTokens: review ? 3000 : 4000,
       output: Output.object({
         schema: (review ? verbSchema : z.object({ verbs: z.array(verbSchema) })) as z.ZodType<
           z.infer<typeof verbSchema> | { verbs: z.infer<typeof verbSchema>[] }

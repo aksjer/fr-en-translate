@@ -8,7 +8,7 @@ import {
   isInvalidAnswer,
   model,
   retryIfInvalid,
-  thinkingFor,
+  thinking,
   withoutEntities,
 } from "@/lib/model";
 import {
@@ -30,6 +30,7 @@ import {
   THEMES,
   VERB_TYPES,
   WORD_KINDS,
+  type Effort,
   type Frequency,
   type Mode,
 } from "@/lib/options";
@@ -341,14 +342,14 @@ export async function reviewContext(
   item: ReviewItem & { english: string },
   mode: "word" | "verb",
   theme: string | undefined,
+  effort: Effort | undefined,
 ) {
   const english = mode === "verb" ? `to ${item.english}` : item.english;
   return retryIfInvalid(async () => {
     const { output } = await generateText({
       model,
-      providerOptions: thinkingFor("generate"),
+      ...thinking("generate", effort, 2000),
       maxRetries: 1,
-      maxOutputTokens: 2000,
       output: Output.object({ schema: reviewContextSchema }),
       system: [
         "You are an American English teacher for a French speaker. You write one French",
@@ -689,11 +690,10 @@ export async function generateItem(
     attempt++;
     const { output } = await generateText({
       model,
-      providerOptions: thinkingFor("generate"),
-      maxRetries: 1,
       // Room for the thinking and a long sentence or several words, so the
       // JSON isn't cut short.
-      maxOutputTokens: several ? 4000 : 3000,
+      ...thinking("generate", input.generateEffort, several ? 4000 : 3000),
+      maxRetries: 1,
       output: Output.object({
         schema: (several ? z.object({ items: z.array(schema) }) : schema) as z.ZodType<
           ItemAnswer | { items: ItemAnswer[] }

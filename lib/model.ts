@@ -1,5 +1,6 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { decodeHTML } from "entities";
+import { DEFAULT_EFFORT, type Effort } from "@/lib/options";
 import {
   NoObjectGeneratedError,
   NoOutputGeneratedError,
@@ -16,11 +17,20 @@ type ProviderOptions = NonNullable<
   Parameters<typeof generateText>[0]["providerOptions"]
 >;
 
-// Short thinking, a bit more for the correction: more (low and high) made each
-// answer take 4 to 14 seconds, too slow.
-export function thinkingFor(task: "generate" | "correct"): ProviderOptions {
+// The thinking level from the settings: by default short, a bit more for the
+// correction (low and high made each answer take 4 to 14 seconds). The
+// thoughts count in the output, so a longer one gets more room for them.
+const EXTRA_TOKENS: Record<Effort, number> = { minimal: 0, low: 0, medium: 4000, high: 12000 };
+
+export function thinking(
+  task: "generate" | "correct",
+  effort: Effort | undefined,
+  maxOutputTokens: number,
+): { providerOptions: ProviderOptions; maxOutputTokens: number } {
+  const level = effort ?? DEFAULT_EFFORT[task];
   return {
-    google: { thinkingConfig: { thinkingLevel: task === "correct" ? "low" : "minimal" } },
+    providerOptions: { google: { thinkingConfig: { thinkingLevel: level } } },
+    maxOutputTokens: maxOutputTokens + EXTRA_TOKENS[level],
   };
 }
 

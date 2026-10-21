@@ -43,7 +43,7 @@ export async function generateWord(
   // A review of a word stored whole: the code gives it again as it was, with a
   // new context sentence.
   const stored = storedReview(review, "word");
-  const storedContext = stored && (await reviewContext(stored, "word", theme));
+  const storedContext = stored && (await reviewContext(stored, "word", theme, input.generateEffort));
   if (stored && storedContext) {
     return {
       ...combination,
