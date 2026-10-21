@@ -125,15 +125,19 @@ const PASTS = new Set(IRREGULAR_VERBS.flatMap(([, past]) => words(past)));
 const PARTICIPLES = new Set(IRREGULAR_VERBS.flatMap(([, , participle]) => words(participle)));
 
 // Every form of a verb: its base, -s, -ing and past forms, regular or not
-// (keep: keeps, keeping, kept). Some -ing and -ed spellings (stopping) are
-// left out: the checks also accept a word that starts with the base.
+// (keep: keeps, keeping, kept; stop: stopped, stopping). A word that isn't a
+// verb only gets forms nobody writes, so it matches only itself.
 export function verbForms(base: string) {
   const irregular = IRREGULAR_VERBS.find(([verb]) => verb === base);
   const stem = base.replace(/e$/, "");
+  // A final consonant after a single vowel is doubled (stop, plan); both
+  // spellings are kept, since stress decides it (visited, preferred).
+  const doubled = /[^aeiou][aeiou][bdgklmnprt]$/.test(base) ? base + base.at(-1) : undefined;
   return new Set([
     base,
     /(s|sh|ch|x|o)$/.test(base) ? `${base}es` : /[^aeiou]y$/.test(base) ? `${base.slice(0, -1)}ies` : `${base}s`,
     `${stem}ing`,
+    ...(doubled ? [`${doubled}ing`, `${doubled}ed`] : []),
     ...(irregular
       ? [...words(irregular[1]), ...words(irregular[2])]
       : [/[^aeiou]y$/.test(base) ? `${base.slice(0, -1)}ied` : `${stem}ed`]),
@@ -177,8 +181,10 @@ function perfect(words: string[], auxiliaries: string[]) {
 
 // Whether a reference has a form of the tense asked for. Loose on purpose:
 // it only rejects a reference with none of the tense's forms (a present
-// perfect without have or has and a participle). The present has no form
-// of its own to look for.
+// perfect without have or has and a participle). The forms include those of
+// the modals the focus words give each tense (should have seen and could
+// for the past, might for the future), so the two always agree. The present
+// has no form of its own to look for.
 export function hasTenseForm(reference: string, tense: Tense) {
   const words = tokens(reference);
   const has = (...forms: string[]) => words.some((word) => forms.includes(word));
@@ -188,12 +194,17 @@ export function hasTenseForm(reference: string, tense: Tense) {
     case "past perfect":
       return perfect(words, ["had", "'d"]);
     case "future":
-      return has("will", "shall") || /\bgoing to\b/.test(words.join(" "));
+      return has("will", "shall", "might", "may") || /\bgoing to\b/.test(words.join(" "));
     case "conditional":
-      return has("would", "could", "might", "should", "'d");
+      // 'd before a participle is had (I'd finished), a past perfect.
+      return (
+        has("would", "could", "might", "should") ||
+        words.some((word, index) => word === "'d" && !isParticiple(words[index + 1] ?? ""))
+      );
     case "past":
       return (
-        has("was", "were", "did", "used") ||
+        has("was", "were", "did", "used", "could") ||
+        perfect(words, ["should", "must", "might", "could", "would", "may"]) ||
         words.some((word) => PASTS.has(word) || (word.length > 3 && word.endsWith("ed")))
       );
     case "present":

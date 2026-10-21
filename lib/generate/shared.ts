@@ -321,15 +321,15 @@ export function checkedContext(
 // Whether the words of a point come in the text in their order, each one
 // whole or in another form of its verb (explained for explain, kept for
 // keep), with at most a few words between two of them: "explain to me" is
-// in "he explained the problem to me".
+// in "he explained the problem to me". Never the start of a longer word:
+// may isn't in maybe, nor for in forgot.
 const MAX_GAP = 3;
 
 function inOrder(point: string, text: string) {
   const words = (value: string) => folded(expanded(value)).trim().split(" ").filter(Boolean);
   const wanted = words(point);
   const found = words(text);
-  const matches = (own: string, word: string) =>
-    word === own || verbForms(own).has(word) || (own.length >= 3 && word.startsWith(own));
+  const matches = (own: string, word: string) => word === own || verbForms(own).has(word);
   const from = (index: number, start: number, first: boolean): boolean => {
     if (index === wanted.length) return true;
     const end = first ? found.length : Math.min(found.length, start + MAX_GAP + 1);
