@@ -348,12 +348,13 @@ export function correctionRequest(input: z.infer<typeof correctInputSchema>) {
         ? []
         : [
             "- The tense given is the tense of the exercise, and the reference uses it: another",
-            "  tense is a mistake (tense), except the simple past for a present perfect.",
+            "  tense is a mistake (tense), except the simple past for a present perfect (below).",
           ]),
       "",
       "## Mistakes and tips",
       "Only flag what an American teacher would correct: any wording Americans use in",
       "everyday speech is right, such as the simple past where the reference has a present",
+      "perfect, except for a duration up to now (with for or since), which needs the present",
       "perfect. A mistake is what they would correct; a tip is a small remark on what they",
       "would leave as is. A wrong or missing meaning, or a false friend, is always a",
       "mistake.",
