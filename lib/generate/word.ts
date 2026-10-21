@@ -56,6 +56,9 @@ export async function generateWord(
       review: true,
     };
   }
+  // Its context failed twice: a new word instead, and the page keeps it from
+  // being due again today.
+  const skipped = stored && { reviewSkipped: stored.text };
   if (stored) review = undefined;
   // A review gives a word of any kind: it gets its own kind back below.
   const exercise = await generateItem(input, review ? { ...combination, kind: undefined } : combination, {
@@ -90,5 +93,5 @@ export async function generateWord(
   });
   const reviewed =
     exercise.review && review?.find((item) => sameText(item.text) === sameText(exercise.text));
-  return reviewed ? { ...exercise, kind: reviewed.kind } : exercise;
+  return { ...(reviewed ? { ...exercise, kind: reviewed.kind } : exercise), ...skipped };
 }

@@ -1,5 +1,6 @@
 // What every mode's prompt shares: the request from the page, the learner,
 // their history, and the call for the modes that return an item and its reference.
+import expandContractions from "@stdlib/nlp-expand-contractions";
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import {
@@ -139,6 +140,9 @@ export type Exercise = Combination & {
   frequency?: Frequency;
   // The grammar point a sentence practices (as soon as, should).
   point?: string;
+  // The French of a stored review whose context couldn't be written: this
+  // new item replaces it, and it isn't due again today.
+  reviewSkipped?: string;
 };
 
 // What the app is for: with it, the model can choose well in cases no rule covers.
@@ -258,21 +262,29 @@ const reviewContextSchema = z.object({
 });
 
 // A text lowercase and without accents (« Été » is ete), with its words
-// separated by single spaces, so one text can be looked for in another.
+// separated by single spaces, so one text can be looked for in another. An
+// apostrophe separates words too: arbre is a word of « l'arbre ».
 function folded(text: string) {
   return ` ${text
     .normalize("NFD")
     .replace(/\p{M}/gu, "")
     .toLowerCase()
-    .replace(/[’‘]/g, "'")
-    .split(/[^\p{L}\p{N}']+/u)
+    .split(/[^\p{L}\p{N}]+/u)
     .filter(Boolean)
     .join(" ")} `;
 }
 
-// Whether the words the model quoted are in the text, as they are written there.
+// Whether the words the model quoted are in the text, as they are written
+// there: each part of a quote in several parts (ne … pas, not … yet).
 function quotedIn(quote: string, text: string) {
-  return folded(quote).trim() !== "" && folded(text).includes(folded(quote));
+  const parts = quote.split(/…|\.\.\./).filter((part) => folded(part).trim());
+  return parts.length > 0 && parts.every((part) => folded(text).includes(folded(part)));
+}
+
+// English with its contractions written in full (we'll is we will, won't is
+// will not), so a quote shares its words with the point.
+function expanded(text: string) {
+  return expandContractions(text.replace(/[’‘]/g, "'"));
 }
 
 // A context sentence, cleaned up, or an error if it can't be shown: the
@@ -304,12 +316,10 @@ export function checkedContext(
 // reference, every part of them, and share a word with the point, whole or
 // inflected (depends for depend).
 function inReference(point: string, quote: string, reference: string) {
-  const parts = quote.split(/…|\.\.\./).filter((part) => folded(part).trim());
-  const pointWords = folded(point).trim().split(" ");
-  const quoteWords = folded(quote).trim().split(" ");
+  const pointWords = folded(expanded(point)).trim().split(" ");
+  const quoteWords = folded(expanded(quote)).trim().split(" ");
   return (
-    parts.length > 0 &&
-    parts.every((part) => quotedIn(part, reference)) &&
+    quotedIn(quote, reference) &&
     quoteWords.some((word) =>
       pointWords.some((own) => word === own || (own.length >= 3 && word.startsWith(own))),
     )
@@ -507,7 +517,7 @@ export function historySection(items: HistoryItem[], mode: Mode) {
     // A sentence's expected English, only when the learner didn't answer it.
     const english = isWordMode(mode)
       ? item.english
-        ? ` → ${item.english}${item.accepted ? ` (learner's right word: ${item.accepted})` : ""}`
+        ? ` → ${item.english}${item.ok && item.accepted ? ` (learner's right word: ${item.accepted})` : ""}`
         : ""
       : item.reference && item.ok === undefined
         ? ` → « ${item.reference} »`
@@ -631,7 +641,7 @@ function checkedItem(output: ItemAnswer, mode: Mode) {
     ...(context && { context }),
     ...(output.frequency && { frequency: output.frequency }),
     ...(output.point && pointName(output.point) && { point: pointName(output.point) }),
-    pointInReference: output.pointInReference ?? "",
+    ...(output.pointInReference !== undefined && { pointInReference: output.pointInReference }),
   };
 }
 
@@ -727,7 +737,7 @@ export async function generateItem(
       // The point must be in the reference, or the sentence doesn't practice
       // it: asked once more, then the sentence is kept without its point.
       const missing = Boolean(
-        point && !inReference(point, answer.pointInReference, answer.reference),
+        point && !inReference(point, answer.pointInReference ?? "", answer.reference),
       );
       // A mastered point is never the target again, except in a retest or a
       // habit, which practice a mistake whatever was mastered.

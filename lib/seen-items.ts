@@ -63,6 +63,9 @@ export type SeenItem = {
   // A missed word or verb given again, or a sentence that practices the
   // mistake of the one before.
   review?: boolean;
+  // The French of a review this item replaced, its context having failed: not
+  // due again the same day.
+  reviewSkipped?: string;
   retest?: boolean;
   // The French sentence that showed the meaning of a word or verb.
   context?: string;
@@ -95,6 +98,7 @@ export type ShownItem = Pick<
   | "reference"
   | "english"
   | "forms"
+  | "reviewSkipped"
 >;
 
 // Items stored before accepted existed kept the learner's right synonym as
@@ -102,6 +106,7 @@ export type ShownItem = Pick<
 function current(item: SeenItem): SeenItem {
   if (
     !isWordMode(item.mode) ||
+    item.ok !== true ||
     item.accepted ||
     !item.english ||
     !item.reference ||
@@ -241,15 +246,19 @@ export function toReview(items: SeenItem[], known: KnownItems, mode: "word" | "v
   for (const item of ofMode) {
     if (item.ok === false) misses.set(item.text, (misses.get(item.text) ?? 0) + 1);
   }
+  const isToday = (item: SeenItem) =>
+    item.at !== undefined && new Date(item.at).toLocaleDateString("en-CA") === today();
+  const skipped = new Set(
+    ofMode.filter((item) => item.reviewSkipped && isToday(item)).map((item) => item.reviewSkipped),
+  );
   const due = ofMode.filter(
     (item, index) =>
       lastIndex.get(item.text) === index &&
+      !skipped.has(item.text) &&
       index < ofMode.length - RECENTLY_SEEN &&
       item.ok !== true &&
       !(item.english && learned.has(item.english)),
   );
-  const isToday = (item: SeenItem) =>
-    item.at !== undefined && new Date(item.at).toLocaleDateString("en-CA") === today();
   return [...due.filter(isToday).reverse(), ...due.filter((item) => !isToday(item))]
     .slice(0, MAX_REVIEW)
     .map(

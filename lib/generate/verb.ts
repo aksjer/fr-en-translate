@@ -125,6 +125,9 @@ export async function generateVerb(
       review: true,
     };
   }
+  // Its context failed twice: a new verb instead, and the page keeps it from
+  // being due again today.
+  const skipped = stored && { reviewSkipped: stored.text };
   if (stored) review = undefined;
   let attempt = 0;
   let tryAgain = "";
@@ -231,5 +234,6 @@ export async function generateVerb(
     frequency: verb.frequency,
     // A review whose answer isn't a listed verb is a new verb.
     ...(review && verb.fits && { review: true }),
+    ...skipped,
   };
 }

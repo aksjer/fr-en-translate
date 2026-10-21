@@ -490,7 +490,7 @@ export async function correctTranslation(
   return {
     points: remarks,
     // The expected word itself, so the page doesn't take another one for a synonym.
-    correction: sameAsReference ? input.translation.trim() : output.correction.trim(),
+    correction: sameAsReference ? (input.reference ?? "") : output.correction.trim(),
     alternative: output.alternative?.trim() || undefined,
     meaning: output.meaning?.trim() || undefined,
     inContext: output.inContext?.trim() || undefined,

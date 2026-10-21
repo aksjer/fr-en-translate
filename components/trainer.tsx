@@ -34,6 +34,7 @@ type Exercise = Combination & {
   frequency?: Frequency;
   // The grammar point a sentence practices (as soon as, should).
   point?: string;
+  reviewSkipped?: string;
 };
 
 type Correction = {
@@ -191,6 +192,7 @@ export function Trainer() {
         english:
           isWordMode(next.mode) && next.reference ? englishKey(next.reference) : undefined,
         forms: next.forms,
+        reviewSkipped: next.reviewSkipped,
       });
       setTranslation("");
       setResult(null);
