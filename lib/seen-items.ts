@@ -19,6 +19,8 @@ export type SeenItem = {
   answer?: string;
   ok?: boolean;
   remark?: string;
+  // The key of the missed item this one practiced again (see toReview).
+  reviewOf?: string;
   // When the item was shown, then answered (ISO date and time).
   at?: string;
 };
@@ -77,8 +79,17 @@ function writeSeen(items: SeenItem[]) {
   changed();
 }
 
-export function rememberSeen(text: string, mode: Mode, reference: string) {
-  writeSeen([...readSeen(), { text: text.trim(), mode, reference, at: new Date().toISOString() }]);
+export function rememberSeen(text: string, mode: Mode, reference: string, reviewOf?: string) {
+  writeSeen([
+    ...readSeen(),
+    {
+      text: text.trim(),
+      mode,
+      reference,
+      ...(reviewOf && { reviewOf }),
+      at: new Date().toISOString(),
+    },
+  ]);
 }
 
 // Adds the result to the last time this item was shown.
@@ -144,21 +155,28 @@ export function rememberKnown(mode: Mode, english: string) {
   changed();
 }
 
+export type ReviewItem = { key: string; french: string; english: string };
+
 // The items missed and not answered right since, most recent first, per mode:
-// some new items practice them again.
+// some new items practice them again. An item is known by its key; a review
+// counts for the item it practices (reviewOf), so a right review clears it and
+// a missed one keeps it pending once.
 export function toReview(items: SeenItem[]) {
-  const reviews = Object.fromEntries(
-    MODES.map((mode) => [mode, [] as { french: string; english: string }[]]),
-  );
+  const reviews = Object.fromEntries(MODES.map((mode) => [mode, [] as ReviewItem[]]));
   const done = new Set<string>();
   for (const item of items.toReversed()) {
     const english = item.reference ?? item.english;
-    const key = `${item.mode}:${seenEnglish(item)}`;
-    if (!english || item.ok === undefined || done.has(key)) continue;
+    if (!english || item.ok === undefined) continue;
+    const key = item.reviewOf ?? `${item.mode}:${seenEnglish(item)}`.slice(0, 400);
+    if (done.has(key)) continue;
     done.add(key);
     if (item.ok === false && reviews[item.mode].length < MAX_AVOID) {
-      reviews[item.mode].push({ french: item.text.slice(0, 300), english: english.slice(0, 300) });
+      reviews[item.mode].push({
+        key,
+        french: item.text.slice(0, 300),
+        english: english.slice(0, 300),
+      });
     }
   }
-  return reviews as Record<Mode, { french: string; english: string }[]>;
+  return reviews as Record<Mode, ReviewItem[]>;
 }

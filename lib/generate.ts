@@ -25,7 +25,13 @@ export const BATCH_SIZE = 3;
 
 const avoidList = z.array(z.string().max(300)).max(MAX_AVOID).optional();
 const reviewList = z
-  .array(z.object({ french: z.string().max(300), english: z.string().max(300) }))
+  .array(
+    z.object({
+      key: z.string().max(400),
+      french: z.string().max(300),
+      english: z.string().max(300),
+    }),
+  )
   .max(MAX_AVOID)
   .optional();
 
@@ -50,11 +56,12 @@ type Pick = {
   verbType?: VerbType;
   tense?: Tense;
   // A missed item practiced again.
-  review?: { french: string; english: string };
+  review?: { key: string; french: string; english: string };
 };
 
 export type Exercise = Omit<Pick, "review"> & {
-  review?: boolean;
+  // The key of the missed item this one practices again (see toReview).
+  reviewOf?: string;
   mode: Mode;
   // The French to translate, its expected English, and for a word or verb a
   // French example sentence.
@@ -85,7 +92,8 @@ function prompt(mode: Mode, items: Pick[], avoid: string[]) {
       : mode === "word"
         ? `Give ${items.length} common English words, each with its French word, the English word, and a short French example sentence using the French word:`
         : `Give ${items.length} common English verbs, each with its French infinitive, the English infinitive with "to", and a short French example sentence using the French verb:`;
-  return [task, list, avoid.length ? `Don't use any of these: ${avoid.join(", ")}.` : ""]
+  const slots = "Give each item the number of its line as slot.";
+  return [task, list, slots, avoid.length ? `Don't use any of these: ${avoid.join(", ")}.` : ""]
     .filter(Boolean)
     .join("\n\n");
 }
@@ -105,10 +113,16 @@ export async function generateExercises(input: GenerateInput): Promise<Exercise[
         review: reviews.splice(Math.floor(Math.random() * reviews.length), 1)[0],
       }),
   }));
-  const avoid = input.avoid?.[mode] ?? [];
+  // A missed item asked again isn't one to avoid.
+  const asked = new Set(
+    items.flatMap((item) => (item.review ? [englishKey(item.review.english)] : [])),
+  );
+  const avoid = (input.avoid?.[mode] ?? []).filter((english) => !asked.has(englishKey(english)));
   const schema = z.object({
     items: z.array(
       z.object({
+        // The number of the request this item answers.
+        slot: z.number().int(),
         french: text,
         english: text,
         // The French example sentence of a word or verb.
@@ -124,22 +138,30 @@ export async function generateExercises(input: GenerateInput): Promise<Exercise[
     maxOutputTokens: 1500,
   });
   const avoided = new Set(avoid.map(englishKey));
-  const exercises = withoutEntities(output.items)
-    .slice(0, BATCH_SIZE)
-    .map((item, index): Exercise => {
-      const { review, ...settings } = items[index] ?? items[0];
-      return {
-        mode,
-        ...settings,
-        ...(review && { review: true }),
-        text: item.french.trim(),
-        reference: item.english.trim(),
-        ...(typeof item.example === "string" && { context: item.example.trim() }),
-      };
-    });
+  // Each item goes to the request it names; a missing or repeated slot is dropped.
+  const used = new Set<number>();
+  const answers = withoutEntities(output.items).filter((item) => {
+    const ok = items[item.slot - 1] !== undefined && !used.has(item.slot);
+    used.add(item.slot);
+    return ok;
+  });
+  const exercises = answers.map((item): Exercise => {
+    const { review, ...settings } = items[item.slot - 1];
+    // A word or verb is a review only if the model gave that item again.
+    const reviewed =
+      review && (mode === "sentence" || englishKey(review.english) === englishKey(item.english));
+    return {
+      mode,
+      ...settings,
+      ...(reviewed && { reviewOf: review.key }),
+      text: item.french.trim(),
+      reference: item.english.trim(),
+      ...(typeof item.example === "string" && { context: item.example.trim() }),
+    };
+  });
   // The model doesn't always follow the list: repeats are dropped in code.
   const fresh = exercises.filter(
-    (exercise) => exercise.review || !avoided.has(englishKey(exercise.reference)),
+    (exercise) => exercise.reviewOf || !avoided.has(englishKey(exercise.reference)),
   );
   if (!exercises.length) throw new InvalidAnswerError("No items");
   return fresh.length ? fresh : exercises;

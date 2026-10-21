@@ -114,7 +114,7 @@ export function Trainer() {
     try {
       const next = await nextExercise();
       setExercise(next);
-      rememberSeen(next.text, next.mode, next.reference);
+      rememberSeen(next.text, next.mode, next.reference, next.reviewOf);
       setTranslation("");
       setResult(null);
     } catch (e) {
@@ -155,7 +155,7 @@ export function Trainer() {
 
   const tags = [
     exercise?.mode,
-    exercise?.review ? "review" : undefined,
+    exercise?.reviewOf ? "review" : undefined,
     exercise?.kind,
     exercise?.verbType && `${exercise.verbType} verb`,
     exercise?.tense,
