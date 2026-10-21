@@ -171,7 +171,7 @@ for (const row of results) {
   } else if (row.got !== row.expected) {
     console.log(`      « ${row.answer} » → ${row.result?.correction ?? "no answer"}`);
     for (const mistake of row.model?.mistakes ?? []) {
-      console.log(`      - [native ${mistake.nativeSaysItToo}] ${mistake.remark}`);
+      console.log(`      - [correct ${mistake.nativeWouldCorrectIt}] ${mistake.remark}`);
     }
   }
 }
@@ -205,7 +205,7 @@ const mismatchList = results
     got: row.got,
     remarks: (row.model?.mistakes ?? []).map((mistake) => ({
       remark: mistake.remark,
-      nativeSaysItToo: mistake.nativeSaysItToo,
+      nativeWouldCorrectIt: mistake.nativeWouldCorrectIt,
     })),
   }));
 mkdirSync("evals/results", { recursive: true });

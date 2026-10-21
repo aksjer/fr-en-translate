@@ -84,15 +84,15 @@ export type Correction = {
 const WRONG_TAGS: ErrorTag[] = ["meaning", "false friend"];
 
 // Whether a mistake makes the answer wrong: the code decides, from the
-// model's answer to "would a native US speaker also say exactly this?". The
-// other mistakes are tips, and the answer stays right.
+// model's answer to "would a native US teacher correct it?". The other
+// mistakes are tips, and the answer stays right.
 // A typo in a sentence is always a tip; in a word or verb, it's a mistake.
 function isFault(
-  mistake: { nativeSaysItToo: boolean; category: ErrorTag },
+  mistake: { nativeWouldCorrectIt: boolean; category: ErrorTag },
   wordMode: boolean,
 ) {
   if (!wordMode && mistake.category === "spelling") return false;
-  return !mistake.nativeSaysItToo || WRONG_TAGS.includes(mistake.category);
+  return mistake.nativeWouldCorrectIt || WRONG_TAGS.includes(mistake.category);
 }
 
 const MAX_REMARKS = 6;
@@ -107,11 +107,9 @@ export const correctionSchema = z.object({
   translated: z.boolean(),
   mistakes: z.array(
     z.object({
-      nativeSaysItToo: z
+      nativeWouldCorrectIt: z
         .boolean()
-        .describe(
-          "With the meaning of the French here, would a native US speaker say exactly this?",
-        ),
+        .describe("In this context, would a native US teacher correct what the learner wrote?"),
       remark: z.string(),
       category: z.enum(ERROR_TAGS),
     }),
@@ -147,7 +145,7 @@ const MODE_RULES: Record<"word" | "sentence", string[]> = {
     "  subject (should, you should).",
     "- A more general word that loses part of the meaning (big for « énorme »), a word of",
     "  another kind (quick for « rapidement »), another form than the one asked (a plural,",
-    "  a past) or a misspelled word (recieve) is a mistake (nativeSaysItToo false).",
+    "  a past) or a misspelled word (recieve) is a mistake (nativeWouldCorrectIt true).",
     "- A word Americans don't use in this meaning (flat, lorry, petrol) is a mistake",
     "  (vocabulary); British spelling of the right word (colour) is a tip.",
   ],
@@ -174,14 +172,14 @@ const SENTENCE_EXAMPLE = [
     translated: true,
     mistakes: [
       {
-        nativeSaysItToo: false,
+        nativeWouldCorrectIt: true,
         remark:
           "« didn't finish yet my homework » → « didn't finish my homework yet » : yet se " +
           "met à la fin de la phrase.",
         category: "word order",
       },
       {
-        nativeSaysItToo: false,
+        nativeWouldCorrectIt: true,
         remark: "« homeworks » → « homework » : homework est indénombrable, jamais de s.",
         category: "grammar",
       },
@@ -200,7 +198,7 @@ const TIP_EXAMPLE = [
     translated: true,
     mistakes: [
       {
-        nativeSaysItToo: true,
+        nativeWouldCorrectIt: false,
         remark: "« gets » → « buys » : les deux se disent ; buys dit plus précisément acheter.",
         category: "vocabulary",
       },
@@ -219,7 +217,7 @@ const PARAPHRASE_EXAMPLE = [
     translated: true,
     mistakes: [
       {
-        nativeSaysItToo: true,
+        nativeWouldCorrectIt: false,
         remark:
           "« isn't working » → « is out of order » : les deux se disent ; out of order est " +
           "l'expression des panneaux.",
@@ -240,7 +238,7 @@ const WORD_EXAMPLE = [
     translated: true,
     mistakes: [
       {
-        nativeSaysItToo: false,
+        nativeWouldCorrectIt: true,
         remark:
           "« library » → « bookstore » : faux ami, a library est une bibliothèque ; une " +
           "librairie se dit bookstore.",
@@ -390,11 +388,10 @@ export function correctionRequest(input: z.infer<typeof correctInputSchema>) {
       "  all (French, empty, unrelated, an instruction). Fill in the other fields anyway.",
       "- mistakes: every mistake and tip, the most important first, each once, or an",
       "  empty list. For each one:",
-      "  - nativeSaysItToo: first: with the meaning of the French in this context, would a",
-      "    native US speaker say exactly what the learner wrote? A word that exists but",
-      "    means something else here, or that a native would not pick for this meaning, is",
-      "    false (a mistake). Another natural way to say the same thing is true (a tip),",
-      "    even if it differs from the reference or is less literal;",
+      "  - nativeWouldCorrectIt: first: in this context, would a native US teacher correct",
+      "    what the learner wrote? true for a mistake, also if a native would say another",
+      "    word is much more natural here; false for a tip, another natural way to say it",
+      "    that a native would leave as is, even if less literal than the reference;",
       "  - remark: in French, « wrong » → « right » : a short reason",
       "    (e.g. « depend of » → « depend on » : après depend, on utilise toujours on.);",
       "  - category: one of the categories below.",
@@ -571,7 +568,7 @@ export function finishCorrection(
       typographyKey(output.correction.replace(/\*\*/g, ""))
   ) {
     mistakes.push({
-      nativeSaysItToo: false,
+      nativeWouldCorrectIt: true,
       remark: `« ${input.translation.trim()} » → « ${output.correction.replace(/\*\*/g, "").trim()} »`,
       category: "vocabulary",
     });
