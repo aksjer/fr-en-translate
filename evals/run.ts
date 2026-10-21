@@ -10,7 +10,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { z } from "zod";
 import { model } from "@/lib/model";
-import { EFFORTS } from "@/lib/options";
+import { EFFORTS, type Effort } from "@/lib/options";
 import { readCases, runCorrection } from "./correct";
 import { runGeneration } from "./generate";
 
@@ -31,15 +31,29 @@ async function main() {
   // The cases are checked before any request, so a gap costs no call.
   if (only !== "generate") readCases();
 
-  const generate = only === "correct" ? undefined : await runGeneration(effort);
-  const correct = only === "generate" ? undefined : await runCorrection(effort);
+  // A request that fails (the network, the API) leaves its section with the
+  // error; the other section's results are still written.
+  const run = async <T,>(name: string, eval_: (effort: Effort) => Promise<T>) => {
+    try {
+      return await eval_(effort);
+    } catch (error) {
+      console.error(`The ${name} eval failed:`, error);
+      return { error: String(error) };
+    }
+  };
+  const generate = only === "correct" ? undefined : await run("generation", runGeneration);
+  const correct = only === "generate" ? undefined : await run("correction", runCorrection);
 
   mkdirSync("evals/results", { recursive: true });
   const file = `evals/results/${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}-${effort}.json`;
   writeFileSync(file, JSON.stringify({ effort, model: model.modelId, generate, correct }, null, 2));
   console.log(`Full results: ${file}`);
   const sections = [generate, correct].filter((section) => section !== undefined);
-  process.exitCode = sections.every((section) => section.total.pass === section.total.cases) ? 0 : 1;
+  process.exitCode = sections.every(
+    (section) => "total" in section && section.total.pass === section.total.cases,
+  )
+    ? 0
+    : 1;
 }
 
 // A plain script, not a module: the app's files load once, so their error

@@ -1,6 +1,12 @@
 // What both evals share: one request at Gemini's output cap that survives a
 // cut-off answer, and the summaries of the results.
-import { generateText, NoObjectGeneratedError, Output, parsePartialJson } from "ai";
+import {
+  generateText,
+  NoObjectGeneratedError,
+  NoOutputGeneratedError,
+  Output,
+  parsePartialJson,
+} from "ai";
 import { z } from "zod";
 import { model, thinking, withoutEntities } from "@/lib/model";
 import type { Effort } from "@/lib/options";
@@ -16,9 +22,9 @@ type Lists = Record<string, z.ZodTypeAny>;
 type Answers<L extends Lists> = { [K in keyof L]: z.infer<L[K]>[] };
 
 // Sends one request whose answer is a few lists of items, and returns the
-// items that came back whole. A cut-off or malformed answer keeps its
-// complete items instead of failing: the cases it leaves out are the
-// caller's invalid ones.
+// items that came back whole. A cut-off, malformed or empty answer (no text
+// at all, or blocked) keeps its complete items, maybe none, instead of
+// failing: the cases it leaves out are the caller's invalid ones.
 export async function askAll<L extends Lists>(
   lists: L,
   request: { system: string; prompt: string },
@@ -38,6 +44,8 @@ export async function askAll<L extends Lists>(
         })];
       }),
     ) as Answers<L>;
+  // The finish reason, also when no output came back: the error has none.
+  let finishReason: string | undefined;
   try {
     const { output } = await generateText({
       model,
@@ -45,16 +53,25 @@ export async function askAll<L extends Lists>(
       maxOutputTokens: MAX_OUTPUT_TOKENS,
       maxRetries: 1,
       output: Output.object({ schema }),
+      onStepEnd: (step) => {
+        finishReason = step.finishReason;
+      },
       ...request,
     });
     return { answers: keep(withoutEntities(output)), cutOff: false };
   } catch (error) {
-    if (!NoObjectGeneratedError.isInstance(error)) throw error;
-    const cutOff = error.finishReason === "length";
-    const { value } = await parsePartialJson(error.text);
+    const noObject = NoObjectGeneratedError.isInstance(error);
+    if (!noObject && !NoOutputGeneratedError.isInstance(error)) throw error;
+    const cutOff = (noObject ? error.finishReason : finishReason) === "length";
+    const { value } = await parsePartialJson(noObject ? error.text : undefined);
     const answers = keep(value ? withoutEntities(value) : undefined);
     const kept = Object.values(answers).reduce((sum, items) => sum + items.length, 0);
-    const problem = `${cutOff ? "Response cut off at the output limit" : "Malformed response"}: ${kept} answers kept`;
+    const what = cutOff
+      ? "Response cut off at the output limit"
+      : noObject
+        ? "Malformed response"
+        : `No response (finish reason: ${finishReason ?? "unknown"})`;
+    const problem = `${what}: ${kept} answers kept`;
     console.log(`${problem}.\n`);
     return { answers, cutOff, problem };
   }
