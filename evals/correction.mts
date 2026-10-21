@@ -65,9 +65,15 @@ const requests = inputs.map(correctionRequest);
 const systems = [...new Set(requests.map((request) => request.system))];
 const label = (system: string) => String.fromCharCode(65 + systems.indexOf(system));
 
+// About 600 tokens of answer a case, within Gemini's limit of 65,536 output
+// tokens, thoughts included.
+const MAX_OUTPUT_TOKENS = 65_536;
+const settings = thinking("correct", effort, 600 * cases.length);
+
 const { output } = await generateText({
   model,
-  ...thinking("correct", effort, 600 * cases.length),
+  providerOptions: settings.providerOptions,
+  maxOutputTokens: Math.min(settings.maxOutputTokens, MAX_OUTPUT_TOKENS),
   maxRetries: 1,
   output: Output.object({ schema: z.object({ items: z.array(itemSchema) }) }),
   system:
